@@ -96,4 +96,37 @@ func (m *OrderModel) ToDomain() *domain.Order {
 	return order
 }
 
-// (Untuk fungsi FromOrderDomain bisa ditambahkan mirip seperti yang User)
+func FromOrderDomain(d *domain.Order) *OrderModel {
+	model := &OrderModel{
+		ID:              d.ID,
+		OrderNumber:     d.OrderNumber,
+		CustomerID:      d.CustomerID,
+		SalesID:         d.SalesID,
+		TotalAmount:     d.TotalAmount,
+		ShippingCost:    d.ShippingCost,
+		CourierName:     d.CourierName,
+		ShippingAddress: d.ShippingAddress,
+		OrderStatus:     string(d.OrderStatus),
+		PaymentStatus:   string(d.PaymentStatus),
+		Notes:           d.Notes,
+		CreatedAt:       d.CreatedAt,
+		UpdatedAt:       d.UpdatedAt,
+	}
+
+	// Mapping detail items
+	if len(d.Items) > 0 {
+		for _, item := range d.Items {
+			model.Items = append(model.Items, OrderItemModel{
+				ID:        item.ID,
+				OrderID:   item.OrderID,
+				ProductID: item.ProductID,
+				Qty:       item.Qty,
+				Price:     item.Price,
+				Details:   item.Details,
+				CreatedAt: item.CreatedAt,
+				UpdatedAt: item.UpdatedAt,
+			})
+		}
+	}
+	return model
+}
