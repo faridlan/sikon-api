@@ -1,0 +1,75 @@
+package domain
+
+import (
+	"context"
+	"time"
+)
+
+type OrderStatus string
+type PaymentStatus string
+
+const (
+	OrderStatusPending    OrderStatus = "pending"
+	OrderStatusProduction OrderStatus = "production"
+	OrderStatusCompleted  OrderStatus = "completed"
+	OrderStatusCanceled   OrderStatus = "canceled"
+
+	PaymentStatusUnpaid  PaymentStatus = "unpaid"
+	PaymentStatusPartial PaymentStatus = "partial"
+	PaymentStatusPaid    PaymentStatus = "paid"
+)
+
+type OrderItem struct {
+	ID        string
+	OrderID   string
+	ProductID string
+	Qty       int
+	Price     float64
+	// Details untuk menyimpan JSON variasi (misal: S: 10, M: 20)
+	Details   map[string]any
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	Product *Product
+}
+
+type Order struct {
+	ID              string
+	OrderNumber     string
+	CustomerID      string
+	SalesID         string
+	TotalAmount     float64
+	ShippingCost    float64
+	CourierName     string
+	ShippingAddress string
+	OrderStatus     OrderStatus
+	PaymentStatus   PaymentStatus
+	Notes           string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+
+	// Relasi
+	Items    []OrderItem
+	Customer *Customer
+	Sales    *User
+}
+
+type OrderRepository interface {
+	Create(ctx context.Context, order *Order) error
+	GetByID(ctx context.Context, id string) (*Order, error)
+	Fetch(ctx context.Context, limit, offset int) ([]Order, int64, error)
+	Update(ctx context.Context, order *Order) error
+	Delete(ctx context.Context, id string) error
+
+	// Custom Query
+	UpdateStatus(ctx context.Context, id string, orderStatus OrderStatus, paymentStatus PaymentStatus) error
+}
+
+type OrderUsecase interface {
+	CreateOrder(ctx context.Context, order *Order) error
+	GetOrder(ctx context.Context, id string) (*Order, error)
+	ListOrders(ctx context.Context, page, limit int) ([]Order, int64, error)
+	UpdateOrder(ctx context.Context, order *Order) error
+	DeleteOrder(ctx context.Context, id string) error
+	UpdateOrderStatus(ctx context.Context, id string, status OrderStatus) error
+}
