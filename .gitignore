@@ -1,0 +1,35 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/main
+/api
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (Safe to ignore if using Go Modules)
+/vendor/
+
+# Environment Variables
+.env
+.env.local
+.env.*
+
+# Editor and IDE settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Database Data (Just in case you map a local volume for Postgres later)
+/postgres-data/
