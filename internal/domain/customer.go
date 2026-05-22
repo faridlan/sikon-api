@@ -46,7 +46,7 @@ type CustomerUpdateInput struct {
 type CustomerUsecase interface {
 	CreateCustomer(ctx context.Context, input CustomerCreateInput) (*Customer, error)
 	GetCustomer(ctx context.Context, id string) (*Customer, error)
-	ListCustomers(ctx context.Context, page, limit int) ([]Customer, int64, error)
+	ListCustomers(c context.Context, query PaginationQuery) ([]Customer, PaginationMeta, error)
 	UpdateCustomer(ctx context.Context, id string, input CustomerUpdateInput) (*Customer, error) // Tambahan Update
 	DeleteCustomer(ctx context.Context, id string) error                                         // Tambahan Delete
 }

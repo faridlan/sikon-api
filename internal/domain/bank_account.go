@@ -25,13 +25,14 @@ type BankAccountRepository interface {
 
 	// Custom Query
 	GetByUserID(ctx context.Context, userID string) ([]BankAccount, error)
+	GetGlobalAccounts(ctx context.Context) ([]BankAccount, error)
 }
 
 // BankAccountUsecase: Kontrak untuk Bisnis Logika
 type BankAccountUsecase interface {
 	CreateAccount(ctx context.Context, account *BankAccount) error
 	GetAccount(ctx context.Context, id string) (*BankAccount, error)
-	ListAccounts(ctx context.Context, page, limit int) ([]BankAccount, int64, error)
+	ListAccounts(c context.Context, query PaginationQuery) ([]BankAccount, PaginationMeta, error)
 	UpdateAccount(ctx context.Context, account *BankAccount) error
 	DeleteAccount(ctx context.Context, id string) error
 }

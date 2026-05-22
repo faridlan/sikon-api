@@ -39,7 +39,7 @@ type PaymentRepository interface {
 type PaymentUsecase interface {
 	ProcessPayment(ctx context.Context, payment *Payment) error
 	GetPayment(ctx context.Context, id string) (*Payment, error)
-	ListPayments(ctx context.Context, page, limit int) ([]Payment, int64, error)
+	ListPayments(c context.Context, query PaginationQuery) ([]Payment, PaginationMeta, error)
 	UpdatePayment(ctx context.Context, payment *Payment) error
 	DeletePayment(ctx context.Context, id string) error
 }
