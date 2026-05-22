@@ -52,7 +52,7 @@ type UserUpdateInput struct {
 type UserUsecase interface {
 	Register(ctx context.Context, input UserRegisterInput) (*User, error)
 	GetProfile(ctx context.Context, userID string) (*User, error)
-	ListUsers(ctx context.Context, page, limit int) ([]User, int64, error)           // Tambahan List
+	ListUsers(ctx context.Context, query PaginationQuery) ([]User, PaginationMeta, error)
 	UpdateUser(ctx context.Context, id string, input UserUpdateInput) (*User, error) // Tambahan Update
 	DeleteUser(ctx context.Context, id string) error                                 // Tambahan Delete
 }

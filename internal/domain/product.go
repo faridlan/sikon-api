@@ -28,7 +28,7 @@ type ProductRepository interface {
 type ProductUsecase interface {
 	CreateProduct(ctx context.Context, product *Product) error
 	GetProduct(ctx context.Context, id string) (*Product, error)
-	ListProducts(ctx context.Context, page, limit int) ([]Product, int64, error)
+	ListProducts(c context.Context, query PaginationQuery) ([]Product, PaginationMeta, error)
 	UpdateProduct(ctx context.Context, product *Product) error
 	DeleteProduct(ctx context.Context, id string) error
 }

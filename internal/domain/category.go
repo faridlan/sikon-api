@@ -23,7 +23,7 @@ type CategoryRepository interface {
 type CategoryUsecase interface {
 	CreateCategory(ctx context.Context, category *Category) error
 	GetCategory(ctx context.Context, id string) (*Category, error)
-	ListCategories(ctx context.Context, page, limit int) ([]Category, int64, error)
+	ListCategories(c context.Context, query PaginationQuery) ([]Category, PaginationMeta, error)
 	UpdateCategory(ctx context.Context, category *Category) error
 	DeleteCategory(ctx context.Context, id string) error
 }
