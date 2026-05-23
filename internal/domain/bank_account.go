@@ -35,4 +35,5 @@ type BankAccountUsecase interface {
 	ListAccounts(c context.Context, query PaginationQuery) ([]BankAccount, PaginationMeta, error)
 	UpdateAccount(ctx context.Context, account *BankAccount) error
 	DeleteAccount(ctx context.Context, id string) error
+	GetGlobalAccounts(c context.Context) ([]BankAccount, error)
 }

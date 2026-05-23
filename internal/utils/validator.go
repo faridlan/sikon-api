@@ -10,7 +10,7 @@ import (
 
 var validate = validator.New()
 
-func ValidateStruct(data interface{}) error {
+func ValidateStruct(data any) error {
 	err := validate.Struct(data)
 	if err != nil {
 		var errorMessages []string
@@ -26,9 +26,19 @@ func ValidateStruct(data interface{}) error {
 			case "email":
 				errorMessages = append(errorMessages, fmt.Sprintf("%s harus berupa format email yang valid", field))
 			case "min":
-				errorMessages = append(errorMessages, fmt.Sprintf("%s minimal harus %s karakter", field, param))
+				errorMessages = append(errorMessages, fmt.Sprintf("%s minimal harus %s", field, param))
 			case "max":
-				errorMessages = append(errorMessages, fmt.Sprintf("%s maksimal %s karakter", field, param))
+				errorMessages = append(errorMessages, fmt.Sprintf("%s maksimal %s", field, param))
+			case "oneof":
+				errorMessages = append(errorMessages, fmt.Sprintf("%s harus salah satu dari: %s", field, param))
+			case "uuid":
+				errorMessages = append(errorMessages, fmt.Sprintf("%s harus berupa format UUID yang valid", field))
+			case "gt":
+				errorMessages = append(errorMessages, fmt.Sprintf("%s harus lebih besar dari %s", field, param))
+			case "gte":
+				errorMessages = append(errorMessages, fmt.Sprintf("%s harus lebih besar atau sama dengan %s", field, param))
+			case "dive":
+				errorMessages = append(errorMessages, fmt.Sprintf("terdapat kesalahan pada detail %s", field))
 			default:
 				errorMessages = append(errorMessages, fmt.Sprintf("%s tidak valid (gagal pada aturan '%s')", field, tag))
 			}
@@ -43,7 +53,7 @@ func ValidateStruct(data interface{}) error {
 func ValidateUUID(id string, paramName string) error {
 	err := validate.Var(id, "required,uuid")
 	if err != nil {
-		return fmt.Errorf("kolom '%s' gagal pada validasi 'uuid'", paramName)
+		return fmt.Errorf("kolom '%s' harus berupa UUID yang valid", paramName)
 	}
 	return nil
 }
