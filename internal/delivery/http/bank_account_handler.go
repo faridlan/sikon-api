@@ -39,18 +39,50 @@ func (h *BankAccountHandler) CreateAccount(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	account := &domain.BankAccount{
+	// Gunakan Input Struct yang baru dibuat di domain
+	domainReq := domain.BankAccountCreateInput{
 		UserID:        req.UserID,
 		BankName:      req.BankName,
 		AccountNumber: req.AccountNumber,
 		AccountName:   req.AccountName,
 	}
 
-	if err := h.bankAccountUsecase.CreateAccount(c.Context(), account); err != nil {
+	account, err := h.bankAccountUsecase.CreateAccount(c.Context(), domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
 	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil menambahkan rekening", dto.ToBankAccountResponse(account))
+}
+
+func (h *BankAccountHandler) UpdateAccount(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	var req dto.BankAccountUpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	// Gunakan Input Struct yang baru dibuat di domain
+	domainReq := domain.BankAccountUpdateInput{
+		BankName:      req.BankName,
+		AccountNumber: req.AccountNumber,
+		AccountName:   req.AccountName,
+	}
+
+	account, err := h.bankAccountUsecase.UpdateAccount(c.Context(), id, domainReq)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui rekening", dto.ToBankAccountResponse(account))
 }
 
 // @Summary List All Bank Accounts

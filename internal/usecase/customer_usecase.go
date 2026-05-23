@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors" // Tambahan import
+	"errors"
 	"math"
 	"time"
 
@@ -40,22 +40,22 @@ func (u *customerUsecase) CreateCustomer(c context.Context, input domain.Custome
 }
 
 func (u *customerUsecase) GetCustomer(c context.Context, id string) (*domain.Customer, error) {
+	// ... (Sama seperti sebelumnya)
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	customer, err := u.customerRepo.GetByID(ctx, id)
 	if err != nil {
-		// PENAMBAHAN IF STATEMENT
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.NewError(domain.ErrNotFound, "Data pelanggan tidak ditemukan")
 		}
 		return nil, err
 	}
-
 	return customer, nil
 }
 
 func (u *customerUsecase) ListCustomers(c context.Context, query domain.PaginationQuery) ([]domain.Customer, domain.PaginationMeta, error) {
+	// ... (Sama seperti sebelumnya)
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
@@ -68,14 +68,12 @@ func (u *customerUsecase) ListCustomers(c context.Context, query domain.Paginati
 	}
 
 	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
-
 	meta := domain.PaginationMeta{
 		CurrentPage: query.Page,
 		Limit:       limit,
 		TotalItems:  totalItems,
 		TotalPages:  totalPages,
 	}
-
 	return customers, meta, nil
 }
 
@@ -85,7 +83,6 @@ func (u *customerUsecase) UpdateCustomer(c context.Context, id string, input dom
 
 	existingCustomer, err := u.customerRepo.GetByID(ctx, id)
 	if err != nil {
-		// PENAMBAHAN IF STATEMENT
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.NewError(domain.ErrNotFound, "Data pelanggan tidak ditemukan")
 		}
@@ -112,6 +109,5 @@ func (u *customerUsecase) UpdateCustomer(c context.Context, id string, input dom
 func (u *customerUsecase) DeleteCustomer(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
-
 	return u.customerRepo.Delete(ctx, id)
 }

@@ -39,11 +39,12 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	category := &domain.Category{
+	domainReq := domain.CategoryCreateInput{
 		Name: req.Name,
 	}
 
-	if err := h.categoryUsecase.CreateCategory(c.Context(), category); err != nil {
+	category, err := h.categoryUsecase.CreateCategory(c.Context(), domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
@@ -127,16 +128,16 @@ func (h *CategoryHandler) UpdateCategory(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	category := &domain.Category{
-		ID:   id,
+	domainReq := domain.CategoryUpdateInput{
 		Name: req.Name,
 	}
 
-	if err := h.categoryUsecase.UpdateCategory(c.Context(), category); err != nil {
+	category, err := h.categoryUsecase.UpdateCategory(c.Context(), id, domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui kategori", nil)
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui kategori", dto.ToCategoryResponse(category))
 }
 
 // @Summary Delete Category

@@ -29,62 +29,64 @@ func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur
 	}
 }
 
-func (u *orderUsecase) CreateOrder(c context.Context, order *domain.Order) error {
+func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateInput) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// 1. Validasi Customer
-	if _, err := u.customerRepo.GetByID(ctx, order.CustomerID); err != nil {
+	// Validasi Bisnis (Customer & Sales exist)
+	if _, err := u.customerRepo.GetByID(ctx, input.CustomerID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrBadParamInput, "Customer tidak ditemukan")
 		}
 		return err
 	}
-
-	// 2. Validasi Sales
-	if _, err := u.userRepo.GetByID(ctx, order.SalesID); err != nil {
+	if _, err := u.userRepo.GetByID(ctx, input.SalesID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrBadParamInput, "Sales tidak ditemukan")
 		}
 		return err
 	}
 
-	// 3. Validasi Produk & Hitung Total Amount
+	order := &domain.Order{
+		CustomerID:      input.CustomerID,
+		SalesID:         input.SalesID,
+		ShippingCost:    input.ShippingCost,
+		CourierName:     input.CourierName,
+		ShippingAddress: input.ShippingAddress,
+		Notes:           input.Notes,
+		OrderStatus:     domain.OrderStatusPending,
+		PaymentStatus:   domain.PaymentStatusUnpaid,
+	}
+
 	var totalAmount float64
-	for i, item := range order.Items {
-		product, err := u.productRepo.GetByID(ctx, item.ProductID)
+	for _, itemInput := range input.Items {
+		product, err := u.productRepo.GetByID(ctx, itemInput.ProductID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
-				return domain.NewError(domain.ErrBadParamInput, fmt.Sprintf("Produk dengan ID %s tidak ditemukan", item.ProductID))
+				return domain.NewError(domain.ErrBadParamInput, fmt.Sprintf("Produk dengan ID %s tidak ditemukan", itemInput.ProductID))
 			}
 			return err
 		}
 
-		// Jika harga tidak dikirim dari input, gunakan BasePrice dari tabel produk
-		if item.Price <= 0 {
-			order.Items[i].Price = product.BasePrice
+		price := itemInput.Price
+		if price <= 0 {
+			price = product.BasePrice
 		}
 
-		// Validasi Qty minimum
-		if item.Qty <= 0 {
-			return domain.NewError(domain.ErrBadParamInput, "Kuantitas produk minimal 1")
-		}
+		totalAmount += price * float64(itemInput.Qty)
 
-		// Hitung subtotal untuk item ini
-		totalAmount += order.Items[i].Price * float64(item.Qty)
+		order.Items = append(order.Items, domain.OrderItem{
+			ProductID: itemInput.ProductID,
+			Qty:       itemInput.Qty,
+			Price:     price,
+			Details:   itemInput.Details,
+		})
 	}
 
-	// 4. Set Default Values untuk Order Baru
 	order.TotalAmount = totalAmount
-	order.OrderStatus = domain.OrderStatusPending
-	order.PaymentStatus = domain.PaymentStatusUnpaid
-
-	// Generate Order Number (Contoh sederhana: ORD-YYYYMMDD-XXXX)
-	// Untuk production SaaS sebaiknya pakai sequence DB atau generator yang lebih aman
 	randomStr := rand.Intn(9999)
 	order.OrderNumber = fmt.Sprintf("ORD-%s-%04d", time.Now().Format("20060102"), randomStr)
 
-	// 5. Simpan Order (Ini akan memanggil DB Transaction di Repository yang sudah kita buat)
 	return u.orderRepo.Create(ctx, order)
 }
 
@@ -127,12 +129,11 @@ func (u *orderUsecase) ListOrders(c context.Context, query domain.PaginationQuer
 	return orders, meta, nil
 }
 
-func (u *orderUsecase) UpdateOrder(c context.Context, order *domain.Order) error {
+func (u *orderUsecase) UpdateOrder(c context.Context, id string, input domain.OrderUpdateInput) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Update order (hanya data master ordernya saja, bukan itemnya)
-	existingOrder, err := u.orderRepo.GetByID(ctx, order.ID)
+	existingOrder, err := u.orderRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
@@ -140,11 +141,10 @@ func (u *orderUsecase) UpdateOrder(c context.Context, order *domain.Order) error
 		return err
 	}
 
-	// Update field yang diperbolehkan
-	existingOrder.ShippingCost = order.ShippingCost
-	existingOrder.CourierName = order.CourierName
-	existingOrder.ShippingAddress = order.ShippingAddress
-	existingOrder.Notes = order.Notes
+	existingOrder.ShippingCost = input.ShippingCost
+	existingOrder.CourierName = input.CourierName
+	existingOrder.ShippingAddress = input.ShippingAddress
+	existingOrder.Notes = input.Notes
 
 	return u.orderRepo.Update(ctx, existingOrder)
 }

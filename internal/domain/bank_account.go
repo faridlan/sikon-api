@@ -15,7 +15,22 @@ type BankAccount struct {
 	UpdatedAt     time.Time
 }
 
-// BankAccountRepository: Kontrak untuk Database
+// Input struct khusus untuk Usecase Create
+type BankAccountCreateInput struct {
+	UserID        *string
+	BankName      string
+	AccountNumber string
+	AccountName   string
+}
+
+// Input struct khusus untuk Usecase Update
+type BankAccountUpdateInput struct {
+	BankName      string
+	AccountNumber string
+	AccountName   string
+}
+
+// BankAccountRepository: Kontrak untuk Database (Tetap menggunakan pointer entitas utama)
 type BankAccountRepository interface {
 	Create(ctx context.Context, account *BankAccount) error
 	GetByID(ctx context.Context, id string) (*BankAccount, error)
@@ -28,12 +43,14 @@ type BankAccountRepository interface {
 	GetGlobalAccounts(ctx context.Context) ([]BankAccount, error)
 }
 
-// BankAccountUsecase: Kontrak untuk Bisnis Logika
+// BankAccountUsecase: Kontrak untuk Bisnis Logika (Sudah di-refactor menggunakan input struct)
 type BankAccountUsecase interface {
-	CreateAccount(ctx context.Context, account *BankAccount) error
+	CreateAccount(ctx context.Context, input BankAccountCreateInput) (*BankAccount, error)
 	GetAccount(ctx context.Context, id string) (*BankAccount, error)
 	ListAccounts(c context.Context, query PaginationQuery) ([]BankAccount, PaginationMeta, error)
-	UpdateAccount(ctx context.Context, account *BankAccount) error
+	UpdateAccount(ctx context.Context, id string, input BankAccountUpdateInput) (*BankAccount, error)
 	DeleteAccount(ctx context.Context, id string) error
+
 	GetGlobalAccounts(c context.Context) ([]BankAccount, error)
+	GetUserAccounts(c context.Context, userID string) ([]BankAccount, error) // Tambahan sesuai implementasi yang ada
 }

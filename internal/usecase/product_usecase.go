@@ -23,24 +23,31 @@ func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository
 	}
 }
 
-func (u *productUsecase) CreateProduct(c context.Context, product *domain.Product) error {
+func (u *productUsecase) CreateProduct(c context.Context, input domain.ProductCreateInput) (*domain.Product, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	_, err := u.categoryRepo.GetByID(ctx, product.CategoryID)
+	// Validasi Bisnis: Pastikan CategoryID ada di database
+	_, err := u.categoryRepo.GetByID(ctx, input.CategoryID)
 	if err != nil {
-		// PENAMBAHAN IF STATEMENT
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrBadParamInput, "Kategori tidak ditemukan")
+			return nil, domain.NewError(domain.ErrBadParamInput, "Kategori tidak ditemukan")
 		}
-		return err
+		return nil, err
+	}
+
+	product := &domain.Product{
+		CategoryID:  input.CategoryID,
+		Name:        input.Name,
+		Description: input.Description,
+		BasePrice:   input.BasePrice,
 	}
 
 	if err := u.productRepo.Create(ctx, product); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return product, nil
 }
 
 func (u *productUsecase) GetProduct(c context.Context, id string) (*domain.Product, error) {
@@ -71,7 +78,6 @@ func (u *productUsecase) ListProducts(c context.Context, query domain.Pagination
 	}
 
 	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
-
 	meta := domain.PaginationMeta{
 		CurrentPage: query.Page,
 		Limit:       limit,
@@ -82,42 +88,45 @@ func (u *productUsecase) ListProducts(c context.Context, query domain.Pagination
 	return products, meta, nil
 }
 
-func (u *productUsecase) UpdateProduct(c context.Context, product *domain.Product) error {
+func (u *productUsecase) UpdateProduct(c context.Context, id string, input domain.ProductUpdateInput) (*domain.Product, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	existingProduct, err := u.productRepo.GetByID(ctx, product.ID)
+	existingProduct, err := u.productRepo.GetByID(ctx, id)
 	if err != nil {
-		// PENAMBAHAN IF STATEMENT
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrNotFound, "Produk dengan ID tersebut tidak ditemukan")
+			return nil, domain.NewError(domain.ErrNotFound, "Produk dengan ID tersebut tidak ditemukan")
 		}
-		return err
+		return nil, err
 	}
 
-	if product.CategoryID != "" && product.CategoryID != existingProduct.CategoryID {
-		_, err := u.categoryRepo.GetByID(ctx, product.CategoryID)
+	// Jika CategoryID diganti, validasi lagi kategorinya
+	if input.CategoryID != "" && input.CategoryID != existingProduct.CategoryID {
+		_, err := u.categoryRepo.GetByID(ctx, input.CategoryID)
 		if err != nil {
-			// PENAMBAHAN IF STATEMENT
 			if errors.Is(err, domain.ErrNotFound) {
-				return domain.NewError(domain.ErrBadParamInput, "Kategori baru tidak ditemukan")
+				return nil, domain.NewError(domain.ErrBadParamInput, "Kategori baru tidak ditemukan")
 			}
-			return err
+			return nil, err
 		}
-		existingProduct.CategoryID = product.CategoryID
+		existingProduct.CategoryID = input.CategoryID
 	}
 
-	if product.Name != "" {
-		existingProduct.Name = product.Name
+	if input.Name != "" {
+		existingProduct.Name = input.Name
 	}
-	if product.Description != "" {
-		existingProduct.Description = product.Description
+	if input.Description != "" {
+		existingProduct.Description = input.Description
 	}
-	if product.BasePrice > 0 {
-		existingProduct.BasePrice = product.BasePrice
+	if input.BasePrice > 0 {
+		existingProduct.BasePrice = input.BasePrice
 	}
 
-	return u.productRepo.Update(ctx, existingProduct)
+	if err := u.productRepo.Update(ctx, existingProduct); err != nil {
+		return nil, err
+	}
+
+	return existingProduct, nil
 }
 
 func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
