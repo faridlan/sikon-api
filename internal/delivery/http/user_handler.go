@@ -1,0 +1,169 @@
+package http
+
+import (
+	"github.com/gofiber/fiber/v2"
+
+	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
+	"github.com/faridlan/sikon-api/internal/utils"
+)
+
+type UserHandler struct {
+	userUsecase domain.UserUsecase
+}
+
+// Constructor kini hanya mengembalikan instance handler tanpa menerima router
+func NewUserHandler(uu domain.UserUsecase) *UserHandler {
+	return &UserHandler{
+		userUsecase: uu,
+	}
+}
+
+// @Summary Register a new user
+// @Description Mendaftarkan pengguna baru (Admin/Sales) ke dalam sistem SIKOn
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body dto.UserRegisterRequest true "Data Registrasi User"
+// @Success 201 {object} utils.SuccessResponse[dto.UserResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 409 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /users/register [post]
+func (h *UserHandler) Register(c *fiber.Ctx) error {
+	var req dto.UserRegisterRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	domainReq := domain.UserRegisterInput{
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: req.Password,
+		Role:     domain.Role(req.Role),
+	}
+
+	user, err := h.userUsecase.Register(c.Context(), domainReq)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil mendaftarkan user", dto.ToUserResponse(user))
+}
+
+// @Summary Get User Profile
+// @Description Mengambil detail profil user berdasarkan ID
+// @Tags Users
+// @Produce json
+// @Param id path string true "User ID (UUID)"
+// @Success 200 {object} utils.SuccessResponse[dto.UserResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /users/{id} [get]
+func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	user, err := h.userUsecase.GetProfile(c.Context(), id)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil profil user", dto.ToUserResponse(user))
+}
+
+// @Summary List Users
+// @Description Mengambil daftar seluruh user dengan pagination
+// @Tags Users
+// @Produce json
+// @Param page query int false "Nomor Halaman" default(1)
+// @Param limit query int false "Batas Data per Halaman" default(10)
+// @Success 200 {object} utils.PaginatedResponse[dto.UserResponse]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /users [get]
+func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
+	page := c.QueryInt("page", 1)
+	limit := c.QueryInt("limit", 10)
+
+	query := domain.PaginationQuery{
+		Page:  page,
+		Limit: limit,
+	}
+
+	users, meta, err := h.userUsecase.ListUsers(c.Context(), query)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccessPaginated(c, "Berhasil mengambil daftar user", dto.ToUserResponseList(users), meta)
+}
+
+// @Summary Update User
+// @Description Memperbarui nama atau role dari user
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID (UUID)"
+// @Param request body dto.UserUpdateRequest true "Data Update User"
+// @Success 200 {object} utils.SuccessResponse[dto.UserResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /users/{id} [put]
+func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	var req dto.UserUpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	domainReq := domain.UserUpdateInput{
+		Name: req.Name,
+		Role: domain.Role(req.Role),
+	}
+
+	user, err := h.userUsecase.UpdateUser(c.Context(), id, domainReq)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui data user", dto.ToUserResponse(user))
+}
+
+// @Summary Delete User
+// @Description Menghapus data user secara permanen
+// @Tags Users
+// @Produce json
+// @Param id path string true "User ID (UUID)"
+// @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /users/{id} [delete]
+func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	if err := h.userUsecase.DeleteUser(c.Context(), id); err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menghapus user", nil)
+}
