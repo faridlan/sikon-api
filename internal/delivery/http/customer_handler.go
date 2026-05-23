@@ -30,23 +30,18 @@ func NewCustomerHandler(cu domain.CustomerUsecase) *CustomerHandler {
 // @Router /customers [post]
 func (h *CustomerHandler) CreateCustomer(c *fiber.Ctx) error {
 	var req dto.CustomerCreateRequest
-
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
 	}
-
 	if err := utils.ValidateStruct(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	// TODO: Ambil ID dari JWT Token saat fitur Auth sudah siap
-	// dummyUserID := "id-user-dari-token"
-
+	// TODO: Nanti diisi dari ID User (JWT) saat fitur Auth siap
 	domainReq := domain.CustomerCreateInput{
 		Name:    req.Name,
 		Phone:   req.Phone,
 		Address: req.Address,
-		// CreatedBy: dummyUserID,
 	}
 
 	customer, err := h.customerUsecase.CreateCustomer(c.Context(), domainReq)
@@ -126,7 +121,6 @@ func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
 	}
-
 	if err := utils.ValidateStruct(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}

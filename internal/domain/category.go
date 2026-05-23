@@ -12,6 +12,15 @@ type Category struct {
 	UpdatedAt time.Time
 }
 
+// Struct khusus untuk Input Usecase
+type CategoryCreateInput struct {
+	Name string
+}
+
+type CategoryUpdateInput struct {
+	Name string
+}
+
 type CategoryRepository interface {
 	Create(ctx context.Context, category *Category) error
 	GetByID(ctx context.Context, id string) (*Category, error)
@@ -21,9 +30,9 @@ type CategoryRepository interface {
 }
 
 type CategoryUsecase interface {
-	CreateCategory(ctx context.Context, category *Category) error
+	CreateCategory(ctx context.Context, input CategoryCreateInput) (*Category, error)
 	GetCategory(ctx context.Context, id string) (*Category, error)
 	ListCategories(c context.Context, query PaginationQuery) ([]Category, PaginationMeta, error)
-	UpdateCategory(ctx context.Context, category *Category) error
+	UpdateCategory(ctx context.Context, id string, input CategoryUpdateInput) (*Category, error)
 	DeleteCategory(ctx context.Context, id string) error
 }

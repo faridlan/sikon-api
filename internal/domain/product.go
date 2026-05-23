@@ -14,7 +14,21 @@ type Product struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 
-	Category *Category
+	Category *Category // Relasi
+}
+
+type ProductCreateInput struct {
+	CategoryID  string
+	Name        string
+	Description string
+	BasePrice   float64
+}
+
+type ProductUpdateInput struct {
+	CategoryID  string
+	Name        string
+	Description string
+	BasePrice   float64
 }
 
 type ProductRepository interface {
@@ -26,9 +40,9 @@ type ProductRepository interface {
 }
 
 type ProductUsecase interface {
-	CreateProduct(ctx context.Context, product *Product) error
+	CreateProduct(ctx context.Context, input ProductCreateInput) (*Product, error)
 	GetProduct(ctx context.Context, id string) (*Product, error)
 	ListProducts(c context.Context, query PaginationQuery) ([]Product, PaginationMeta, error)
-	UpdateProduct(ctx context.Context, product *Product) error
+	UpdateProduct(ctx context.Context, id string, input ProductUpdateInput) (*Product, error)
 	DeleteProduct(ctx context.Context, id string) error
 }

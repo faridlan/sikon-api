@@ -31,17 +31,14 @@ func NewOrderHandler(ou domain.OrderUsecase) *OrderHandler {
 // @Router /orders [post]
 func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	var req dto.OrderCreateRequest
-
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
 	}
-
 	if err := utils.ValidateStruct(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	// Mapping Request DTO ke Domain
-	order := &domain.Order{
+	domainReq := domain.OrderCreateInput{
 		CustomerID:      req.CustomerID,
 		SalesID:         req.SalesID,
 		ShippingCost:    req.ShippingCost,
@@ -50,9 +47,8 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		Notes:           req.Notes,
 	}
 
-	// Mapping Items
 	for _, itemReq := range req.Items {
-		order.Items = append(order.Items, domain.OrderItem{
+		domainReq.Items = append(domainReq.Items, domain.OrderItemInput{
 			ProductID: itemReq.ProductID,
 			Qty:       itemReq.Qty,
 			Price:     itemReq.Price,
@@ -60,12 +56,10 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.orderUsecase.CreateOrder(c.Context(), order); err != nil {
+	if err := h.orderUsecase.CreateOrder(c.Context(), domainReq); err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	// Kita bisa langsung memanggil ToOrderResponse jika ingin mengembalikan data lengkap,
-	// namun untuk order baru biasanya cukup pesan sukses (atau data order parsial)
 	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil membuat pesanan", nil)
 }
 
@@ -138,20 +132,18 @@ func (h *OrderHandler) UpdateOrder(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
 	}
-
 	if err := utils.ValidateStruct(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	order := &domain.Order{
-		ID:              id,
+	domainReq := domain.OrderUpdateInput{
 		ShippingCost:    req.ShippingCost,
 		CourierName:     req.CourierName,
 		ShippingAddress: req.ShippingAddress,
 		Notes:           req.Notes,
 	}
 
-	if err := h.orderUsecase.UpdateOrder(c.Context(), order); err != nil {
+	if err := h.orderUsecase.UpdateOrder(c.Context(), id, domainReq); err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 

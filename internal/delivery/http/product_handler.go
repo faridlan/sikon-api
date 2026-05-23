@@ -39,14 +39,15 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	product := &domain.Product{
+	domainReq := domain.ProductCreateInput{
 		CategoryID:  req.CategoryID,
 		Name:        req.Name,
 		Description: req.Description,
 		BasePrice:   req.BasePrice,
 	}
 
-	if err := h.productUsecase.CreateProduct(c.Context(), product); err != nil {
+	product, err := h.productUsecase.CreateProduct(c.Context(), domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
@@ -127,19 +128,19 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	product := &domain.Product{
-		ID:          id,
+	domainReq := domain.ProductUpdateInput{
 		CategoryID:  req.CategoryID,
 		Name:        req.Name,
 		Description: req.Description,
 		BasePrice:   req.BasePrice,
 	}
 
-	if err := h.productUsecase.UpdateProduct(c.Context(), product); err != nil {
+	product, err := h.productUsecase.UpdateProduct(c.Context(), id, domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui produk", nil)
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui produk", dto.ToProductResponse(product))
 }
 
 // @Summary Delete Product

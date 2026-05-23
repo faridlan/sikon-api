@@ -21,15 +21,24 @@ func NewBankAccountUsecase(br domain.BankAccountRepository, timeout time.Duratio
 	}
 }
 
-func (u *bankAccountUsecase) CreateAccount(c context.Context, account *domain.BankAccount) error {
+func (u *bankAccountUsecase) CreateAccount(c context.Context, input domain.BankAccountCreateInput) (*domain.BankAccount, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	if account.BankName == "" || account.AccountNumber == "" || account.AccountName == "" {
-		return domain.NewError(domain.ErrBadParamInput, "Data bank, nomor rekening, dan nama pemilik harus diisi")
+	// Mapping dari Input Struct ke Entitas Domain
+	account := &domain.BankAccount{
+		UserID:        input.UserID,
+		BankName:      input.BankName,
+		AccountNumber: input.AccountNumber,
+		AccountName:   input.AccountName,
 	}
 
-	return u.bankAccountRepo.Create(ctx, account)
+	if err := u.bankAccountRepo.Create(ctx, account); err != nil {
+		return nil, err
+	}
+
+	// Mengembalikan entitas utuh yang sudah terisi ID dan CreatedAt dari database
+	return account, nil
 }
 
 func (u *bankAccountUsecase) GetAccount(c context.Context, id string) (*domain.BankAccount, error) {
@@ -71,32 +80,34 @@ func (u *bankAccountUsecase) ListAccounts(c context.Context, query domain.Pagina
 	return accounts, meta, nil
 }
 
-func (u *bankAccountUsecase) UpdateAccount(c context.Context, account *domain.BankAccount) error {
+func (u *bankAccountUsecase) UpdateAccount(c context.Context, id string, input domain.BankAccountUpdateInput) (*domain.BankAccount, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	existingAccount, err := u.bankAccountRepo.GetByID(ctx, account.ID)
+	existingAccount, err := u.bankAccountRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrNotFound, "Rekening tidak ditemukan")
+			return nil, domain.NewError(domain.ErrNotFound, "Rekening tidak ditemukan")
 		}
-		return err
+		return nil, err
 	}
 
-	if account.BankName != "" {
-		existingAccount.BankName = account.BankName
+	// Hanya update nilai yang dikirimkan
+	if input.BankName != "" {
+		existingAccount.BankName = input.BankName
 	}
-	if account.AccountNumber != "" {
-		existingAccount.AccountNumber = account.AccountNumber
+	if input.AccountNumber != "" {
+		existingAccount.AccountNumber = input.AccountNumber
 	}
-	if account.AccountName != "" {
-		existingAccount.AccountName = account.AccountName
+	if input.AccountName != "" {
+		existingAccount.AccountName = input.AccountName
 	}
 
-	// Catatan: Biasanya UserID (pemilik rekening) tidak diizinkan untuk diubah.
-	// Jika ingin merubah status dari rekening Sales menjadi rekening Global, harus diatur secara eksplisit.
+	if err := u.bankAccountRepo.Update(ctx, existingAccount); err != nil {
+		return nil, err
+	}
 
-	return u.bankAccountRepo.Update(ctx, existingAccount)
+	return existingAccount, nil
 }
 
 func (u *bankAccountUsecase) DeleteAccount(c context.Context, id string) error {
@@ -106,16 +117,13 @@ func (u *bankAccountUsecase) DeleteAccount(c context.Context, id string) error {
 	return u.bankAccountRepo.Delete(ctx, id)
 }
 
-// Custom Method: Mengambil rekening global perusahaan (sangat berguna saat customer mau transfer DP/Lunas ke perusahaan)
 func (u *bankAccountUsecase) GetGlobalAccounts(c context.Context) ([]domain.BankAccount, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Panggil repo GetGlobalAccounts (yang sudah kita buat akan mengirimkan userID kosong/nil)
 	return u.bankAccountRepo.GetGlobalAccounts(ctx)
 }
 
-// Custom Method: Mengambil list rekening milik spesifik user (Sales)
 func (u *bankAccountUsecase) GetUserAccounts(c context.Context, userID string) ([]domain.BankAccount, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()

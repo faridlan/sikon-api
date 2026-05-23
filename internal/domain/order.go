@@ -54,6 +54,30 @@ type Order struct {
 	Sales    *User
 }
 
+type OrderItemInput struct {
+	ProductID string
+	Qty       int
+	Price     float64
+	Details   map[string]interface{}
+}
+
+type OrderCreateInput struct {
+	CustomerID      string
+	SalesID         string
+	ShippingCost    float64
+	CourierName     string
+	ShippingAddress string
+	Notes           string
+	Items           []OrderItemInput
+}
+
+type OrderUpdateInput struct {
+	ShippingCost    float64
+	CourierName     string
+	ShippingAddress string
+	Notes           string
+}
+
 type OrderRepository interface {
 	Create(ctx context.Context, order *Order) error
 	GetByID(ctx context.Context, id string) (*Order, error)
@@ -66,10 +90,10 @@ type OrderRepository interface {
 }
 
 type OrderUsecase interface {
-	CreateOrder(ctx context.Context, order *Order) error
+	CreateOrder(ctx context.Context, input OrderCreateInput) error
 	GetOrder(ctx context.Context, id string) (*Order, error)
 	ListOrders(c context.Context, query PaginationQuery) ([]Order, PaginationMeta, error)
-	UpdateOrder(ctx context.Context, order *Order) error
+	UpdateOrder(ctx context.Context, id string, input OrderUpdateInput) error
 	DeleteOrder(ctx context.Context, id string) error
 	UpdateOrderStatus(ctx context.Context, id string, status OrderStatus) error
 }

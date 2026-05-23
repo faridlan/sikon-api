@@ -25,17 +25,12 @@ func NewPaymentUsecase(pr domain.PaymentRepository, or domain.OrderRepository, b
 	}
 }
 
-func (u *paymentUsecase) ProcessPayment(c context.Context, payment *domain.Payment) error {
+func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentCreateInput) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// 1. Validasi nominal uang
-	if payment.Amount <= 0 {
-		return domain.NewError(domain.ErrBadParamInput, "Nominal pembayaran harus lebih dari 0")
-	}
-
-	// 2. Validasi Order
-	order, err := u.orderRepo.GetByID(ctx, payment.OrderID)
+	// Validasi Bisnis (Order exist, Bank Account exist)
+	order, err := u.orderRepo.GetByID(ctx, input.OrderID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrBadParamInput, "Order tidak ditemukan")
@@ -43,52 +38,53 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, payment *domain.Payme
 		return err
 	}
 
-	// 3. Validasi Bank Account
-	_, err = u.bankAccountRepo.GetByID(ctx, payment.BankAccountID)
-	if err != nil {
+	if _, err = u.bankAccountRepo.GetByID(ctx, input.BankAccountID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrBadParamInput, "Rekening bank tidak valid")
 		}
 		return err
 	}
 
-	// 4. Kalkulasi Total Kewajiban (Harga Barang + Ongkos Kirim)
 	grandTotal := order.TotalAmount + order.ShippingCost
 
-	// 5. Ambil riwayat pembayaran sebelumnya untuk order ini
-	existingPayments, err := u.paymentRepo.GetByOrderID(ctx, payment.OrderID)
+	existingPayments, err := u.paymentRepo.GetByOrderID(ctx, input.OrderID)
 	if err != nil {
 		return err
 	}
 
-	// Hitung total uang yang sudah masuk sebelumnya
 	var totalPaid float64
 	for _, p := range existingPayments {
 		totalPaid += p.Amount
 	}
 
-	// Cek apakah order ini sebenarnya sudah lunas
 	if totalPaid >= grandTotal {
 		return domain.NewError(domain.ErrConflict, "Pesanan ini sudah lunas sepenuhnya")
 	}
 
-	// 6. Simpan Pembayaran Baru
+	payment := &domain.Payment{
+		OrderID:         input.OrderID,
+		BankAccountID:   input.BankAccountID,
+		Amount:          input.Amount,
+		PaymentDate:     input.PaymentDate,
+		ReferenceNumber: input.ReferenceNumber,
+		PaymentType:     input.PaymentType,
+	}
+
 	if payment.PaymentDate.IsZero() {
 		payment.PaymentDate = time.Now()
 	}
+
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {
 		return err
 	}
 
-	// 7. Update Payment Status di Order
 	totalPaidSetelahMasuk := totalPaid + payment.Amount
-	newPaymentStatus := domain.PaymentStatusPartial // Asumsi awal: baru bayar sebagian (DP)
+	newPaymentStatus := domain.PaymentStatusPartial
 
 	if totalPaidSetelahMasuk >= grandTotal {
-		newPaymentStatus = domain.PaymentStatusPaid // Jika sudah menutupi total tagihan, set Lunas
+		newPaymentStatus = domain.PaymentStatusPaid
 	}
 
-	// Panggil repository order untuk update status pembayarannya
 	if err := u.orderRepo.UpdateStatus(ctx, order.ID, "", newPaymentStatus); err != nil {
 		return err
 	}
@@ -135,15 +131,11 @@ func (u *paymentUsecase) ListPayments(c context.Context, query domain.Pagination
 	return payments, meta, nil
 }
 
-func (u *paymentUsecase) UpdatePayment(c context.Context, payment *domain.Payment) error {
+func (u *paymentUsecase) UpdatePayment(c context.Context, id string, input domain.PaymentUpdateInput) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Opsional: Untuk sistem keuangan ERP, biasanya update nominal payment tidak diizinkan.
-	// Jika ada kesalahan, praktiknya adalah membatalkan payment tersebut dan membuat yang baru.
-	// Namun untuk MVP kita sediakan fungsi updatenya (misal untuk update nomor referensi transfer).
-
-	existingPayment, err := u.paymentRepo.GetByID(ctx, payment.ID)
+	existingPayment, err := u.paymentRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrNotFound, "Data pembayaran tidak ditemukan")
@@ -151,11 +143,11 @@ func (u *paymentUsecase) UpdatePayment(c context.Context, payment *domain.Paymen
 		return err
 	}
 
-	if payment.ReferenceNumber != "" {
-		existingPayment.ReferenceNumber = payment.ReferenceNumber
+	if input.ReferenceNumber != "" {
+		existingPayment.ReferenceNumber = input.ReferenceNumber
 	}
-	if payment.PaymentType != "" {
-		existingPayment.PaymentType = payment.PaymentType
+	if input.PaymentType != "" {
+		existingPayment.PaymentType = input.PaymentType
 	}
 
 	return u.paymentRepo.Update(ctx, existingPayment)

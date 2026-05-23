@@ -21,16 +21,19 @@ func NewCategoryUsecase(cr domain.CategoryRepository, timeout time.Duration) dom
 	}
 }
 
-func (u *categoryUsecase) CreateCategory(c context.Context, category *domain.Category) error {
+func (u *categoryUsecase) CreateCategory(c context.Context, input domain.CategoryCreateInput) (*domain.Category, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Bisa tambahkan validasi misal nama tidak boleh kosong
-	if category.Name == "" {
-		return domain.NewError(domain.ErrBadParamInput, "Nama kategori tidak boleh kosong")
+	category := &domain.Category{
+		Name: input.Name,
 	}
 
-	return u.categoryRepo.Create(ctx, category)
+	if err := u.categoryRepo.Create(ctx, category); err != nil {
+		return nil, err
+	}
+
+	return category, nil
 }
 
 func (u *categoryUsecase) GetCategory(c context.Context, id string) (*domain.Category, error) {
@@ -61,7 +64,6 @@ func (u *categoryUsecase) ListCategories(c context.Context, query domain.Paginat
 	}
 
 	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
-
 	meta := domain.PaginationMeta{
 		CurrentPage: query.Page,
 		Limit:       limit,
@@ -72,23 +74,27 @@ func (u *categoryUsecase) ListCategories(c context.Context, query domain.Paginat
 	return categories, meta, nil
 }
 
-func (u *categoryUsecase) UpdateCategory(c context.Context, category *domain.Category) error {
+func (u *categoryUsecase) UpdateCategory(c context.Context, id string, input domain.CategoryUpdateInput) (*domain.Category, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	existingCategory, err := u.categoryRepo.GetByID(ctx, category.ID)
+	existingCategory, err := u.categoryRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrNotFound, "Kategori tidak ditemukan")
+			return nil, domain.NewError(domain.ErrNotFound, "Kategori tidak ditemukan")
 		}
-		return err
+		return nil, err
 	}
 
-	if category.Name != "" {
-		existingCategory.Name = category.Name
+	if input.Name != "" {
+		existingCategory.Name = input.Name
 	}
 
-	return u.categoryRepo.Update(ctx, existingCategory)
+	if err := u.categoryRepo.Update(ctx, existingCategory); err != nil {
+		return nil, err
+	}
+
+	return existingCategory, nil
 }
 
 func (u *categoryUsecase) DeleteCategory(c context.Context, id string) error {

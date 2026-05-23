@@ -32,16 +32,14 @@ func NewPaymentHandler(pu domain.PaymentUsecase) *PaymentHandler {
 // @Router /payments [post]
 func (h *PaymentHandler) ProcessPayment(c *fiber.Ctx) error {
 	var req dto.PaymentCreateRequest
-
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
 	}
-
 	if err := utils.ValidateStruct(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	payment := &domain.Payment{
+	domainReq := domain.PaymentCreateInput{
 		OrderID:         req.OrderID,
 		BankAccountID:   req.BankAccountID,
 		Amount:          req.Amount,
@@ -50,7 +48,7 @@ func (h *PaymentHandler) ProcessPayment(c *fiber.Ctx) error {
 		PaymentType:     domain.PaymentType(req.PaymentType),
 	}
 
-	if err := h.paymentUsecase.ProcessPayment(c.Context(), payment); err != nil {
+	if err := h.paymentUsecase.ProcessPayment(c.Context(), domainReq); err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
@@ -126,18 +124,16 @@ func (h *PaymentHandler) UpdatePayment(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
 	}
-
 	if err := utils.ValidateStruct(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	payment := &domain.Payment{
-		ID:              id,
+	domainReq := domain.PaymentUpdateInput{
 		ReferenceNumber: req.ReferenceNumber,
 		PaymentType:     domain.PaymentType(req.PaymentType),
 	}
 
-	if err := h.paymentUsecase.UpdatePayment(c.Context(), payment); err != nil {
+	if err := h.paymentUsecase.UpdatePayment(c.Context(), id, domainReq); err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
