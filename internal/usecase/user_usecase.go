@@ -27,6 +27,11 @@ func (u *userUsecase) Register(c context.Context, input domain.UserRegisterInput
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	_, err := u.userRepo.GetByEmail(ctx, input.Email) // Cek dulu apakah email sudah terdaftar
+	if err == nil {
+		return nil, domain.NewError(domain.ErrConflict, "Email sudah terdaftar")
+	}
+
 	if input.Role != domain.RoleAdmin && input.Role != domain.RoleSales {
 		return nil, domain.NewError(domain.ErrBadParamInput, "Role tidak valid")
 	}
@@ -120,6 +125,15 @@ func (u *userUsecase) UpdateUser(c context.Context, id string, input domain.User
 func (u *userUsecase) DeleteUser(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
+
+	_, err := u.userRepo.GetByID(ctx, id)
+	if err != nil {
+		// PENAMBAHAN IF STATEMENT
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewError(domain.ErrNotFound, "User tidak ditemukan")
+		}
+		return err
+	}
 
 	return u.userRepo.Delete(ctx, id)
 }

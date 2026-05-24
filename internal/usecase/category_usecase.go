@@ -101,5 +101,13 @@ func (u *categoryUsecase) DeleteCategory(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	_, err := u.categoryRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewError(domain.ErrNotFound, "Kategori tidak ditemukan")
+		}
+		return err
+	}
+
 	return u.categoryRepo.Delete(ctx, id)
 }
