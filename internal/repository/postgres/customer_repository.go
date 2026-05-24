@@ -20,7 +20,13 @@ func NewCustomerRepository(db *gorm.DB) domain.CustomerRepository {
 func (r *customerRepository) Create(ctx context.Context, customer *domain.Customer) error {
 	model := FromCustomerDomain(customer)
 
-	err := r.db.WithContext(ctx).Create(model).Error
+	query := r.db.WithContext(ctx)
+
+	if model.CreatedBy == "" {
+		query = query.Omit("created_by")
+	}
+
+	err := query.Create(model).Error
 	if err != nil {
 		return TranslateError(err)
 	}

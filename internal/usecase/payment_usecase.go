@@ -157,6 +157,14 @@ func (u *paymentUsecase) DeletePayment(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	_, err := u.paymentRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewError(domain.ErrNotFound, "Data pembayaran tidak ditemukan")
+		}
+		return err
+	}
+
 	// Jika payment dihapus, idealnya kita harus menghitung ulang status Order
 	// (apakah dari lunas menjadi DP kembali). Namun untuk MVP tahap awal,
 	// kita lakukan hard delete saja terlebih dahulu.

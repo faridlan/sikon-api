@@ -114,6 +114,14 @@ func (u *bankAccountUsecase) DeleteAccount(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	_, err := u.bankAccountRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewError(domain.ErrNotFound, "Rekening tidak ditemukan")
+		}
+		return err
+	}
+
 	return u.bankAccountRepo.Delete(ctx, id)
 }
 

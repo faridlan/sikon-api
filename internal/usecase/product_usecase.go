@@ -133,5 +133,13 @@ func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	_, err := u.productRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewError(domain.ErrNotFound, "Produk dengan ID tersebut tidak ditemukan")
+		}
+		return err
+	}
+
 	return u.productRepo.Delete(ctx, id)
 }

@@ -153,6 +153,14 @@ func (u *orderUsecase) DeleteOrder(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	_, err := u.orderRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
+		}
+		return err
+	}
+
 	return u.orderRepo.Delete(ctx, id)
 }
 

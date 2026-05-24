@@ -109,5 +109,14 @@ func (u *customerUsecase) UpdateCustomer(c context.Context, id string, input dom
 func (u *customerUsecase) DeleteCustomer(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
+
+	_, err := u.customerRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewError(domain.ErrNotFound, "Data pelanggan tidak ditemukan")
+		}
+		return err
+	}
+
 	return u.customerRepo.Delete(ctx, id)
 }

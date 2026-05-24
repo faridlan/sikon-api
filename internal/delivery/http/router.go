@@ -68,6 +68,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	// --- Bank Accounts Routes ---
 	bankAccounts := api.Group("/bank-accounts")
 	bankAccounts.Post("/", handlers.BankAccountHandler.CreateAccount)
+	bankAccounts.Put("/:id", handlers.BankAccountHandler.UpdateAccount)
 	bankAccounts.Get("/", handlers.BankAccountHandler.ListAccounts)
 	bankAccounts.Get("/global", handlers.BankAccountHandler.GetGlobalAccounts)
 	bankAccounts.Delete("/:id", handlers.BankAccountHandler.DeleteAccount)
