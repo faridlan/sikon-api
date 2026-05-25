@@ -8,12 +8,21 @@ import (
 	"github.com/faridlan/sikon-api/internal/utils"
 )
 
-type OrderHandler struct {
+type OrderHandler interface {
+	CreateOrder(c *fiber.Ctx) error
+	GetOrder(c *fiber.Ctx) error
+	ListOrders(c *fiber.Ctx) error
+	UpdateOrder(c *fiber.Ctx) error
+	UpdateOrderStatus(c *fiber.Ctx) error
+	DeleteOrder(c *fiber.Ctx) error
+}
+
+type orderHandler struct {
 	orderUsecase domain.OrderUsecase
 }
 
-func NewOrderHandler(ou domain.OrderUsecase) *OrderHandler {
-	return &OrderHandler{
+func NewOrderHandler(ou domain.OrderUsecase) OrderHandler {
+	return &orderHandler{
 		orderUsecase: ou,
 	}
 }
@@ -29,7 +38,7 @@ func NewOrderHandler(ou domain.OrderUsecase) *OrderHandler {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders [post]
-func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
+func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 	var req dto.OrderCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
@@ -73,7 +82,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id} [get]
-func (h *OrderHandler) GetOrder(c *fiber.Ctx) error {
+func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -96,7 +105,7 @@ func (h *OrderHandler) GetOrder(c *fiber.Ctx) error {
 // @Success 200 {object} utils.PaginatedResponse[dto.OrderResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders [get]
-func (h *OrderHandler) ListOrders(c *fiber.Ctx) error {
+func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
@@ -122,7 +131,7 @@ func (h *OrderHandler) ListOrders(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id} [put]
-func (h *OrderHandler) UpdateOrder(c *fiber.Ctx) error {
+func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -162,7 +171,7 @@ func (h *OrderHandler) UpdateOrder(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id}/status [patch]
-func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
+func (h *orderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -195,7 +204,7 @@ func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id} [delete]
-func (h *OrderHandler) DeleteOrder(c *fiber.Ctx) error {
+func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())

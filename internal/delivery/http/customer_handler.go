@@ -8,12 +8,20 @@ import (
 	"github.com/faridlan/sikon-api/internal/utils"
 )
 
-type CustomerHandler struct {
+type CustomerHandler interface {
+	CreateCustomer(c *fiber.Ctx) error
+	GetCustomer(c *fiber.Ctx) error
+	ListCustomers(c *fiber.Ctx) error
+	UpdateCustomer(c *fiber.Ctx) error
+	DeleteCustomer(c *fiber.Ctx) error
+}
+
+type customerHandler struct {
 	customerUsecase domain.CustomerUsecase
 }
 
-func NewCustomerHandler(cu domain.CustomerUsecase) *CustomerHandler {
-	return &CustomerHandler{
+func NewCustomerHandler(cu domain.CustomerUsecase) CustomerHandler {
+	return &customerHandler{
 		customerUsecase: cu,
 	}
 }
@@ -28,7 +36,7 @@ func NewCustomerHandler(cu domain.CustomerUsecase) *CustomerHandler {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers [post]
-func (h *CustomerHandler) CreateCustomer(c *fiber.Ctx) error {
+func (h *customerHandler) CreateCustomer(c *fiber.Ctx) error {
 	var req dto.CustomerCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
@@ -62,7 +70,7 @@ func (h *CustomerHandler) CreateCustomer(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers/{id} [get]
-func (h *CustomerHandler) GetCustomer(c *fiber.Ctx) error {
+func (h *customerHandler) GetCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -85,7 +93,7 @@ func (h *CustomerHandler) GetCustomer(c *fiber.Ctx) error {
 // @Success 200 {object} utils.PaginatedResponse[dto.CustomerResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers [get]
-func (h *CustomerHandler) ListCustomers(c *fiber.Ctx) error {
+func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
@@ -111,7 +119,7 @@ func (h *CustomerHandler) ListCustomers(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers/{id} [put]
-func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
+func (h *customerHandler) UpdateCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -148,7 +156,7 @@ func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers/{id} [delete]
-func (h *CustomerHandler) DeleteCustomer(c *fiber.Ctx) error {
+func (h *customerHandler) DeleteCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())

@@ -8,12 +8,20 @@ import (
 	"github.com/faridlan/sikon-api/internal/utils"
 )
 
-type ProductHandler struct {
+type ProductHandler interface {
+	CreateProduct(c *fiber.Ctx) error
+	GetProduct(c *fiber.Ctx) error
+	ListProducts(c *fiber.Ctx) error
+	UpdateProduct(c *fiber.Ctx) error
+	DeleteProduct(c *fiber.Ctx) error
+}
+
+type productHandler struct {
 	productUsecase domain.ProductUsecase
 }
 
-func NewProductHandler(pu domain.ProductUsecase) *ProductHandler {
-	return &ProductHandler{
+func NewProductHandler(pu domain.ProductUsecase) ProductHandler {
+	return &productHandler{
 		productUsecase: pu,
 	}
 }
@@ -28,7 +36,7 @@ func NewProductHandler(pu domain.ProductUsecase) *ProductHandler {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /products [post]
-func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
+func (h *productHandler) CreateProduct(c *fiber.Ctx) error {
 	var req dto.ProductCreateRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -64,7 +72,7 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /products/{id} [get]
-func (h *ProductHandler) GetProduct(c *fiber.Ctx) error {
+func (h *productHandler) GetProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -87,7 +95,7 @@ func (h *ProductHandler) GetProduct(c *fiber.Ctx) error {
 // @Success 200 {object} utils.PaginatedResponse[dto.ProductResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /products [get]
-func (h *ProductHandler) ListProducts(c *fiber.Ctx) error {
+func (h *productHandler) ListProducts(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
@@ -113,7 +121,7 @@ func (h *ProductHandler) ListProducts(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /products/{id} [put]
-func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
+func (h *productHandler) UpdateProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -152,7 +160,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /products/{id} [delete]
-func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
+func (h *productHandler) DeleteProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())

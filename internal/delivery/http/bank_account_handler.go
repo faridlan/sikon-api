@@ -8,12 +8,22 @@ import (
 	"github.com/faridlan/sikon-api/internal/utils"
 )
 
-type BankAccountHandler struct {
+type BankAccountHandler interface {
+	CreateAccount(c *fiber.Ctx) error
+	GetByID(c *fiber.Ctx) error
+	UpdateAccount(c *fiber.Ctx) error
+	ListAccounts(c *fiber.Ctx) error
+	GetGlobalAccounts(c *fiber.Ctx) error
+	GetUserAccounts(c *fiber.Ctx) error
+	DeleteAccount(c *fiber.Ctx) error
+}
+
+type bankAccountHandler struct {
 	bankAccountUsecase domain.BankAccountUsecase
 }
 
-func NewBankAccountHandler(bu domain.BankAccountUsecase) *BankAccountHandler {
-	return &BankAccountHandler{
+func NewBankAccountHandler(bu domain.BankAccountUsecase) BankAccountHandler {
+	return &bankAccountHandler{
 		bankAccountUsecase: bu,
 	}
 }
@@ -28,7 +38,7 @@ func NewBankAccountHandler(bu domain.BankAccountUsecase) *BankAccountHandler {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /bank-accounts [post]
-func (h *BankAccountHandler) CreateAccount(c *fiber.Ctx) error {
+func (h *bankAccountHandler) CreateAccount(c *fiber.Ctx) error {
 	var req dto.BankAccountCreateRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -55,7 +65,40 @@ func (h *BankAccountHandler) CreateAccount(c *fiber.Ctx) error {
 	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil menambahkan rekening", dto.ToBankAccountResponse(account))
 }
 
-func (h *BankAccountHandler) UpdateAccount(c *fiber.Ctx) error {
+// @Summary Get Bank Account by ID
+// @Description Mengambil detail rekening bank berdasarkan ID
+// @Tags Bank Accounts
+// @Produce json
+// @Param id path string true "Bank Account ID (UUID)"
+// @Success 200 {object} utils.SuccessResponse[dto.BankAccountResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /bank-accounts/{id} [get]
+func (h *bankAccountHandler) GetByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+	account, err := h.bankAccountUsecase.GetAccount(c.Context(), id)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data rekening", dto.ToBankAccountResponse(account))
+}
+
+// @Summary Update Bank Account
+// @Description Memperbarui informasi rekening bank
+// @Tags Bank Accounts
+// @Accept json
+// @Produce json
+// @Param id path string true "Bank Account ID (UUID)"
+// @Param request body dto.BankAccountUpdateRequest true "Data Rekening yang Diperbarui"
+// @Success 200 {object} utils.SuccessResponse[dto.BankAccountResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /bank-accounts/{id} [put]
+func (h *bankAccountHandler) UpdateAccount(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -94,7 +137,7 @@ func (h *BankAccountHandler) UpdateAccount(c *fiber.Ctx) error {
 // @Success 200 {object} utils.PaginatedResponse[dto.BankAccountResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /bank-accounts [get]
-func (h *BankAccountHandler) ListAccounts(c *fiber.Ctx) error {
+func (h *bankAccountHandler) ListAccounts(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
@@ -115,13 +158,36 @@ func (h *BankAccountHandler) ListAccounts(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[[]dto.BankAccountResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /bank-accounts/global [get]
-func (h *BankAccountHandler) GetGlobalAccounts(c *fiber.Ctx) error {
+func (h *bankAccountHandler) GetGlobalAccounts(c *fiber.Ctx) error {
 	accounts, err := h.bankAccountUsecase.GetGlobalAccounts(c.Context())
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil rekening global", dto.ToBankAccountResponseList(accounts))
+}
+
+// @Summary Get User's Bank Accounts
+// @Description Mengambil daftar rekening bank milik user tertentu
+// @Tags Bank Accounts
+// @Produce json
+// @Param user_id path string true "User ID (UUID)"
+// @Success 200 {object} utils.SuccessResponse[[]dto.BankAccountResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /bank-accounts/user/{user_id} [get]
+func (h *bankAccountHandler) GetUserAccounts(c *fiber.Ctx) error {
+	userID := c.Params("user_id")
+	if err := utils.ValidateUUID(userID, "user_id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	accounts, err := h.bankAccountUsecase.GetUserAccounts(c.Context(), userID)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil rekening user", dto.ToBankAccountResponseList(accounts))
 }
 
 // @Summary Delete Bank Account
@@ -133,7 +199,7 @@ func (h *BankAccountHandler) GetGlobalAccounts(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /bank-accounts/{id} [delete]
-func (h *BankAccountHandler) DeleteAccount(c *fiber.Ctx) error {
+func (h *bankAccountHandler) DeleteAccount(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
