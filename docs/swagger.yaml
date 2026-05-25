@@ -43,6 +43,18 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.BankAccountUpdateRequest:
+    properties:
+      account_name:
+        example: Budi Haryanto
+        type: string
+      account_number:
+        example: "0987654321"
+        type: string
+      bank_name:
+        example: Mandiri
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryRequest:
     properties:
       name:
@@ -518,6 +530,15 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentResponse'
+        type: array
+      message:
+        type: string
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse
   : properties:
       data:
@@ -665,6 +686,70 @@ paths:
       summary: Delete Bank Account
       tags:
       - Bank Accounts
+    get:
+      description: Mengambil detail rekening bank berdasarkan ID
+      parameters:
+      - description: Bank Account ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Bank Account by ID
+      tags:
+      - Bank Accounts
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui informasi rekening bank
+      parameters:
+      - description: Bank Account ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Rekening yang Diperbarui
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BankAccountUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Update Bank Account
+      tags:
+      - Bank Accounts
   /bank-accounts/global:
     get:
       description: Mengambil daftar rekening khusus perusahaan (User ID null)
@@ -680,6 +765,33 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       summary: Get Global Bank Accounts
+      tags:
+      - Bank Accounts
+  /bank-accounts/user/{user_id}:
+    get:
+      description: Mengambil daftar rekening bank milik user tertentu
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get User's Bank Accounts
       tags:
       - Bank Accounts
   /categories:
@@ -1183,6 +1295,37 @@ paths:
       summary: Update Order Status
       tags:
       - Orders
+  /orders/{order_id}/payments:
+    get:
+      description: Mengambil daftar pembayaran berdasarkan ID pesanan
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: order_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Payments by Order ID
+      tags:
+      - Payments
   /payments:
     get:
       description: Mengambil daftar seluruh pembayaran (History transaksi)
