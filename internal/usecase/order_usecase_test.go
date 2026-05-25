@@ -146,8 +146,10 @@ func TestOrderUsecase_UpdateOrder(t *testing.T) {
 func TestOrderUsecase_DeleteOrder(t *testing.T) {
 	mockOrderRepo, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
+	existingOrder := &domain.Order{ID: mockID, ShippingCost: 0}
 
 	t.Run("Success", func(t *testing.T) {
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(existingOrder, nil).Once()
 		mockOrderRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 		err := uc.DeleteOrder(context.Background(), mockID)
 		assert.NoError(t, err)

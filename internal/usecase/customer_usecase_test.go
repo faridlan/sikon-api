@@ -136,8 +136,10 @@ func TestCustomerUsecase_DeleteCustomer(t *testing.T) {
 	uc := usecase.NewCustomerUsecase(mockRepo, time.Second*2)
 
 	mockID := "cust-123"
+	existingCust := &domain.Customer{ID: mockID, Name: "PT Lama", Phone: "111"}
 
 	t.Run("Success", func(t *testing.T) {
+		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingCust, nil).Once()
 		mockRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 		err := uc.DeleteCustomer(context.Background(), mockID)
 		assert.NoError(t, err)

@@ -189,6 +189,8 @@ func TestPaymentUsecase_DeletePayment(t *testing.T) {
 	mockID := "pay-123"
 
 	t.Run("Success", func(t *testing.T) {
+		existingPayment := &domain.Payment{ID: mockID, ReferenceNumber: "TRX-LAMA"}
+		mockPaymentRepo.On("GetByID", mock.Anything, mockID).Return(existingPayment, nil).Once()
 		mockPaymentRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 		err := uc.DeletePayment(context.Background(), mockID)
 		assert.NoError(t, err)
