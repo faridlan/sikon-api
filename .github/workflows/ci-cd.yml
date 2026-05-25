@@ -1,0 +1,145 @@
+name: SIKOn API CI/CD
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    tags: [ "v*.*.*" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  test:
+    name: Testing (Unit & Integration)
+    runs-on: ubuntu-latest
+
+    # 1. MEMBUAT DATABASE SEMENTARA (SERVICE CONTAINER)
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: sikon_test_db
+        ports:
+          - 5432:5432
+        # Memastikan database benar-benar siap (ready) sebelum test dijalankan
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21' # Sesuaikan dengan go.mod Anda
+
+      # 2. MEMBUAT FILE .ENV.TEST SECARA DINAMIS (Diletakkan sebelum Unit Test)
+      - name: Create .env.test file for Testing
+        run: |
+          echo "Membuat file .env.test on-the-fly..."
+          echo "DB_HOST=localhost" >> .env.test
+          echo "DB_PORT=5432" >> .env.test
+          echo "DB_USER=test_user" >> .env.test
+          echo "DB_PASSWORD=test_password" >> .env.test
+          echo "DB_NAME=sikon_test_db" >> .env.test
+
+      - name: Run Unit Tests
+        run: |
+          echo "Menjalankan Unit Test..."
+          go test -v ./internal/usecase/... ./internal/utils/...
+
+      - name: Run Integration Tests
+        run: |
+          echo "Menjalankan Integration Test..."
+          # Integrasi test akan otomatis menggunakan .env.test yang baru dibuat
+          go test -v ./test/integration/...
+
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test # Akan dieksekusi HANYA jika Unit & Integration test sukses
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set Image Tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Mengambil v1.0.0 menjadi 1.0.0
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=development" >> $GITHUB_ENV
+          fi
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          # Ganti 'sikon-api' dengan nama repository Docker Hub yang Anda inginkan
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/sikon-api:${{ env.IMAGE_TAG }}
+
+  deploy-development:
+    name: Deploy to Dev Server
+    runs-on: self-hosted
+    needs: build-and-push
+    if: github.ref == 'refs/heads/dev' # Trigger hanya jika push ke branch dev
+
+    steps:
+      - name: Deploy Services via Docker Compose
+        run: |
+          echo "Memasuki ruang Development..."
+          # Pastikan path ini sudah ada di server self-hosted Anda
+          cd /home/nullhakim/apps/sikon-api/dev
+
+          echo "Menarik image development terbaru dari Docker Hub..."
+          sudo docker compose pull
+
+          echo "Me-restart container Development..."
+          sudo docker compose up -d
+
+          echo "Deployment Development Selesai! 🚀"
+
+  deploy-production:
+    name: Deploy to Production Server
+    runs-on: self-hosted
+    needs: build-and-push
+    # Job ini HANYA tereksekusi jika push berupa Tag (misal: v1.0.0)
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Deploy Services via Docker Compose
+        run: |
+          echo "🚀 Memasuki ruang Production..."
+          cd /home/nullhakim/apps/sikon-api/prod
+
+          echo "📦 Mengekstrak versi dari Git Tag..."
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Versi yang akan di-deploy: $VERSION"
+
+          echo "📝 Menulis versi ke file .env.version untuk Docker Compose..."
+          echo "API_VERSION=$VERSION" > .env.version
+
+          echo "⬇️ Menarik image versi $VERSION dari Docker Hub..."
+          sudo docker compose --env-file .env --env-file .env.version pull
+
+          echo "🔄 Me-restart container Production..."
+          sudo docker compose --env-file .env --env-file .env.version up -d
+
+          echo "✅ Deployment Production Selesai!"

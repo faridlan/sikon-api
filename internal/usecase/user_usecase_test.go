@@ -29,6 +29,7 @@ func TestUserUsecase_Register(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Ekspektasi: Repo Create dipanggil dengan parameter User yang nilainya cocok.
 		// Karena password di-hash secara acak, kita pakai mock.MatchedBy untuk mengecek nilai lainnya.
+		mockRepo.On("GetByEmail", mock.Anything, input.Email).Return(nil, domain.ErrNotFound).Once() // Pastikan email belum terdaftar
 		mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
 			return u.Name == input.Name && u.Email == input.Email && u.Role == input.Role
 		})).Return(nil).Once()
@@ -51,6 +52,8 @@ func TestUserUsecase_Register(t *testing.T) {
 		invalidInput := input
 		invalidInput.Role = "superadmin" // Role yang tidak diizinkan
 
+		mockRepo.On("GetByEmail", mock.Anything, invalidInput.Email).Return(nil, domain.ErrNotFound).Once()
+
 		result, err := uc.Register(context.Background(), invalidInput)
 
 		assert.Error(t, err)
@@ -64,6 +67,7 @@ func TestUserUsecase_Register(t *testing.T) {
 	t.Run("Error - Repo Failed", func(t *testing.T) {
 		repoError := errors.New("database error: email already exists")
 
+		mockRepo.On("GetByEmail", mock.Anything, input.Email).Return(nil, domain.ErrNotFound).Once()
 		mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.User")).Return(repoError).Once()
 
 		result, err := uc.Register(context.Background(), input)
@@ -209,8 +213,14 @@ func TestUserUsecase_DeleteUser(t *testing.T) {
 	uc := usecase.NewUserUsecase(mockRepo, time.Second*2)
 
 	mockID := "user-123"
+	existingUser := &domain.User{
+		ID:   mockID,
+		Name: "Budi Lama",
+		Role: domain.RoleSales,
+	}
 
 	t.Run("Success", func(t *testing.T) {
+		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingUser, nil).Once()
 		mockRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 
 		err := uc.DeleteUser(context.Background(), mockID)

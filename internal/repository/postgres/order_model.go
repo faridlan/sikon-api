@@ -37,7 +37,7 @@ type OrderModel struct {
 	UpdatedAt       time.Time `gorm:"autoUpdateTime"`
 
 	// Relasi
-	Items    []OrderItemModel `gorm:"foreignKey:OrderID"`
+	Items    []OrderItemModel `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Customer *CustomerModel   `gorm:"foreignKey:CustomerID"`
 	Sales    *UserModel       `gorm:"foreignKey:SalesID"`
 }

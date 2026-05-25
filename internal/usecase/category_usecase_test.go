@@ -121,8 +121,10 @@ func TestCategoryUsecase_DeleteCategory(t *testing.T) {
 	mockRepo := new(mocks.CategoryRepository)
 	uc := usecase.NewCategoryUsecase(mockRepo, time.Second*2)
 	mockID := "cat-123"
+	existingCat := &domain.Category{ID: mockID, Name: "Kaos"}
 
 	t.Run("Success", func(t *testing.T) {
+		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingCat, nil).Once()
 		mockRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 		err := uc.DeleteCategory(context.Background(), mockID)
 		assert.NoError(t, err)

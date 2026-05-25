@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"log"
+	"log/slog"
 	"os" // Jangan lupa import os
 	"time"
 
@@ -20,7 +20,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	// 1. Membaca .env.test
 	err := godotenv.Load("../../.env.test")
 	if err != nil {
-		log.Fatal("Gagal meload .env.test")
+		slog.Warn("Peringatan: Gagal meload .env.test, menggunakan environment variables dari OS/CI-CD")
 	}
 
 	// 2. Mengambil kredensial dari .env.test menggunakan os.Getenv
@@ -32,6 +32,8 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 
 	// 3. Inisiasi DB Test (Masukkan variabel di atas, JANGAN di-hardcode)
 	db := config.InitDB(dbUser, dbPassword, dbHost, dbPort, dbName)
+
+	db.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`)
 
 	// Jalankan AutoMigrate agar tabel selalu terbuat di DB test
 	db.AutoMigrate(

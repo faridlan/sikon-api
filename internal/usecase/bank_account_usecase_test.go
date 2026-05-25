@@ -112,8 +112,10 @@ func TestBankAccountUsecase_DeleteAccount(t *testing.T) {
 	mockRepo := new(mocks.BankAccountRepository)
 	uc := usecase.NewBankAccountUsecase(mockRepo, time.Second*2)
 	mockID := "bank-123"
+	existingAccount := &domain.BankAccount{ID: mockID, BankName: "BCA Lama"}
 
 	t.Run("Success", func(t *testing.T) {
+		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingAccount, nil).Once()
 		mockRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 		err := uc.DeleteAccount(context.Background(), mockID)
 		assert.NoError(t, err)

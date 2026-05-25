@@ -227,8 +227,11 @@ func TestProductUsecase_DeleteProduct(t *testing.T) {
 	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, time.Second*2)
 
 	mockID := "prod-123"
+	existingProd2 := &domain.Product{ID: mockID, CategoryID: "cat-old", Name: "Kaos Lama"}
 
 	t.Run("Success", func(t *testing.T) {
+
+		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd2, nil).Once()
 		mockProductRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 
 		err := uc.DeleteProduct(context.Background(), mockID)
@@ -239,6 +242,8 @@ func TestProductUsecase_DeleteProduct(t *testing.T) {
 
 	t.Run("Error - Failed to Delete", func(t *testing.T) {
 		dbErr := errors.New("db connection failed")
+
+		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd2, nil).Once()
 		mockProductRepo.On("Delete", mock.Anything, mockID).Return(dbErr).Once()
 
 		err := uc.DeleteProduct(context.Background(), mockID)
