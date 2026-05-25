@@ -1,0 +1,16 @@
+services:
+  sikon-api:
+    build: .
+    container_name: sikon-api-container
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    env_file:
+      - .env
+    networks:
+      - database_luar
+    restart: unless-stopped
+
+networks:
+  database_luar:
+    external: true
+    name: omni_network
