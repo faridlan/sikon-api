@@ -8,13 +8,21 @@ import (
 	"github.com/faridlan/sikon-api/internal/utils"
 )
 
-type UserHandler struct {
+type UserHandler interface {
+	Register(c *fiber.Ctx) error
+	GetProfile(c *fiber.Ctx) error
+	ListUsers(c *fiber.Ctx) error
+	UpdateUser(c *fiber.Ctx) error
+	DeleteUser(c *fiber.Ctx) error
+}
+
+type userHandler struct {
 	userUsecase domain.UserUsecase
 }
 
 // Constructor kini hanya mengembalikan instance handler tanpa menerima router
-func NewUserHandler(uu domain.UserUsecase) *UserHandler {
-	return &UserHandler{
+func NewUserHandler(uu domain.UserUsecase) *userHandler {
+	return &userHandler{
 		userUsecase: uu,
 	}
 }
@@ -30,7 +38,7 @@ func NewUserHandler(uu domain.UserUsecase) *UserHandler {
 // @Failure 409 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /users/register [post]
-func (h *UserHandler) Register(c *fiber.Ctx) error {
+func (h *userHandler) Register(c *fiber.Ctx) error {
 	var req dto.UserRegisterRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -66,7 +74,7 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /users/{id} [get]
-func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
+func (h *userHandler) GetProfile(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -89,7 +97,7 @@ func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
 // @Success 200 {object} utils.PaginatedResponse[dto.UserResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /users [get]
-func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
+func (h *userHandler) ListUsers(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
@@ -118,7 +126,7 @@ func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /users/{id} [put]
-func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
+func (h *userHandler) UpdateUser(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -155,7 +163,7 @@ func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /users/{id} [delete]
-func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
+func (h *userHandler) DeleteUser(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())

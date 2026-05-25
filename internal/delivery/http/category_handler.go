@@ -8,12 +8,20 @@ import (
 	"github.com/faridlan/sikon-api/internal/utils"
 )
 
-type CategoryHandler struct {
+type CategoryHandler interface {
+	CreateCategory(c *fiber.Ctx) error
+	GetCategory(c *fiber.Ctx) error
+	ListCategories(c *fiber.Ctx) error
+	UpdateCategory(c *fiber.Ctx) error
+	DeleteCategory(c *fiber.Ctx) error
+}
+
+type categoryHandler struct {
 	categoryUsecase domain.CategoryUsecase
 }
 
-func NewCategoryHandler(cu domain.CategoryUsecase) *CategoryHandler {
-	return &CategoryHandler{
+func NewCategoryHandler(cu domain.CategoryUsecase) CategoryHandler {
+	return &categoryHandler{
 		categoryUsecase: cu,
 	}
 }
@@ -28,7 +36,7 @@ func NewCategoryHandler(cu domain.CategoryUsecase) *CategoryHandler {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /categories [post]
-func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
+func (h *categoryHandler) CreateCategory(c *fiber.Ctx) error {
 	var req dto.CategoryRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -61,7 +69,7 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /categories/{id} [get]
-func (h *CategoryHandler) GetCategory(c *fiber.Ctx) error {
+func (h *categoryHandler) GetCategory(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -84,7 +92,7 @@ func (h *CategoryHandler) GetCategory(c *fiber.Ctx) error {
 // @Success 200 {object} utils.PaginatedResponse[dto.CategoryResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /categories [get]
-func (h *CategoryHandler) ListCategories(c *fiber.Ctx) error {
+func (h *categoryHandler) ListCategories(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
@@ -113,7 +121,7 @@ func (h *CategoryHandler) ListCategories(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /categories/{id} [put]
-func (h *CategoryHandler) UpdateCategory(c *fiber.Ctx) error {
+func (h *categoryHandler) UpdateCategory(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -149,7 +157,7 @@ func (h *CategoryHandler) UpdateCategory(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /categories/{id} [delete]
-func (h *CategoryHandler) DeleteCategory(c *fiber.Ctx) error {
+func (h *categoryHandler) DeleteCategory(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())

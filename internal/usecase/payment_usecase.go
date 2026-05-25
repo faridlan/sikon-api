@@ -171,3 +171,18 @@ func (u *paymentUsecase) DeletePayment(c context.Context, id string) error {
 
 	return u.paymentRepo.Delete(ctx, id)
 }
+
+func (u *paymentUsecase) GetPaymentsByOrderID(c context.Context, orderID string) ([]domain.Payment, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	order, err := u.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
+		}
+		return nil, err
+	}
+
+	return u.paymentRepo.GetByOrderID(ctx, order.ID)
+}

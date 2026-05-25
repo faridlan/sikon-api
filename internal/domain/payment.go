@@ -56,4 +56,5 @@ type PaymentUsecase interface {
 	ListPayments(c context.Context, query PaginationQuery) ([]Payment, PaginationMeta, error)
 	UpdatePayment(ctx context.Context, id string, input PaymentUpdateInput) error
 	DeletePayment(ctx context.Context, id string) error
+	GetPaymentsByOrderID(ctx context.Context, orderID string) ([]Payment, error)
 }
