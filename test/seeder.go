@@ -80,8 +80,9 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string) postgres.Orde
 	orderID := uuid.New().String()
 
 	order := postgres.OrderModel{
-		ID:            orderID,
-		OrderNumber:   "ORD-TEST-001",
+		ID: orderID,
+		// UBAH BARIS INI AGAR SELALU UNIK
+		OrderNumber:   "ORD-" + uuid.New().String()[:8],
 		CustomerID:    customerID,
 		SalesID:       salesID,
 		TotalAmount:   100000,
@@ -96,7 +97,7 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string) postgres.Orde
 		OrderID:   orderID,
 		ProductID: productID,
 		Qty:       2,
-		Price:     50000, // 2 * 50000 = 100000
+		Price:     50000,
 	}
 	db.Create(&orderItem)
 
