@@ -68,10 +68,10 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	// --- Bank Accounts Routes ---
 	bankAccounts := api.Group("/bank-accounts")
 	bankAccounts.Post("/", handlers.BankAccountHandler.CreateAccount)
-	bankAccounts.Get("/:id", handlers.BankAccountHandler.GetByID)
 	bankAccounts.Put("/:id", handlers.BankAccountHandler.UpdateAccount)
 	bankAccounts.Get("/", handlers.BankAccountHandler.ListAccounts)
 	bankAccounts.Get("/global", handlers.BankAccountHandler.GetGlobalAccounts)
+	bankAccounts.Get("/:id", handlers.BankAccountHandler.GetByID)
 	bankAccounts.Get("/user/:user_id", handlers.BankAccountHandler.GetUserAccounts)
 	bankAccounts.Delete("/:id", handlers.BankAccountHandler.DeleteAccount)
 
@@ -88,8 +88,8 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	payments := api.Group("/payments")
 	payments.Post("/", handlers.PaymentHandler.ProcessPayment)
 	payments.Get("/", handlers.PaymentHandler.ListPayments)
+	payments.Get("/order/:order_id", handlers.PaymentHandler.GetPaymentsByOrderID)
 	payments.Get("/:id", handlers.PaymentHandler.GetPayment)
 	payments.Put("/:id", handlers.PaymentHandler.UpdatePayment)
 	payments.Delete("/:id", handlers.PaymentHandler.DeletePayment)
-	payments.Get("/order/:order_id", handlers.PaymentHandler.GetPaymentsByOrderID)
 }

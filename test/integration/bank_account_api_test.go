@@ -265,3 +265,116 @@ func TestDeleteBankAccount_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	})
 }
+
+// ==========================================
+// 6. TEST GET BANK ACCOUNT BY ID (GET /api/bank-accounts/:id)
+// ==========================================
+func TestGetBankAccountByID_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	account := tests.SeedBankAccount(db, nil, "Bank Jago", "12345", "Global Jago")
+
+	t.Run("Success", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/bank-accounts/"+account.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.BankAccountResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Equal(t, account.ID, response.Data.ID)
+		assert.Equal(t, "Bank Jago", response.Data.BankName)
+	})
+
+	// --- SKENARIO GAGAL ---
+
+	t.Run("Failed_NotFound", func(t *testing.T) {
+		randomID := uuid.New().String()
+		req := httptest.NewRequest("GET", "/api/bank-accounts/"+randomID, nil)
+		resp, _ := app.Test(req, -1)
+
+		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode) // Harusnya 404
+	})
+
+	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/bank-accounts/bukan-uuid", nil)
+		resp, _ := app.Test(req, -1)
+
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya 400
+	})
+}
+
+// ==========================================
+// 7. TEST GET USER ACCOUNTS (GET /api/bank-accounts/user/:user_id)
+// ==========================================
+func TestGetUserBankAccounts_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	// 1. Setup Prasyarat: Buat 2 User Sales
+	user1 := tests.SeedUser(db, "Sales Pertama", "sales1@sikon.com", "sales")
+	user2 := tests.SeedUser(db, "Sales Kedua", "sales2@sikon.com", "sales")
+
+	// 2. Buat Rekening untuk User 1 (2 Rekening)
+	tests.SeedBankAccount(db, tests.StringPtr(user1.ID), "BCA", "111", "Rekening BCA Sales 1")
+	tests.SeedBankAccount(db, tests.StringPtr(user1.ID), "BRI", "222", "Rekening BRI Sales 1")
+
+	// 3. Buat Rekening untuk User 2 (1 Rekening) - Untuk memastikan data tidak bocor
+	tests.SeedBankAccount(db, tests.StringPtr(user2.ID), "Mandiri", "333", "Mandiri Sales 2")
+
+	// 4. Buat Rekening Global (UserID nil)
+	tests.SeedBankAccount(db, nil, "BNI", "444", "Global BNI")
+
+	t.Run("Success_Get_Specific_User_Accounts", func(t *testing.T) {
+		// Tembak API untuk mengambil rekening milik user 1 saja
+		req := httptest.NewRequest("GET", "/api/bank-accounts/user/"+user1.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[[]dto.BankAccountResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Verifikasi: Harus tepat mengembalikan 2 data
+		assert.Len(t, response.Data, 2)
+
+		// Verifikasi: Semua rekening yang kembali harus benar-benar milik User 1
+		for _, acc := range response.Data {
+			assert.NotNil(t, acc.UserID)
+			assert.Equal(t, user1.ID, *acc.UserID)
+		}
+	})
+
+	// --- SKENARIO GAGAL / NEGATIVE PATH ---
+
+	t.Run("Success_But_Empty", func(t *testing.T) {
+		// Jika kita mencari User ID yang tidak punya rekening (tapi format UUID valid)
+		randomID := uuid.New().String()
+		req := httptest.NewRequest("GET", "/api/bank-accounts/user/"+randomID, nil)
+		resp, _ := app.Test(req, -1)
+
+		// Catatan: Biasanya dalam case "mencari daftar data (list) by foreign key",
+		// API akan mengembalikan 200 OK namun dengan array kosong [], bukan 404.
+		// Jika Usecase Anda me-return 404, ubah StatusCode di bawah menjadi StatusNotFound.
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[[]dto.BankAccountResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Len(t, response.Data, 0) // Data kosong
+	})
+
+	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/bank-accounts/user/id-sales-ngasal", nil)
+		resp, _ := app.Test(req, -1)
+
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya 400
+	})
+}
