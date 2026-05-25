@@ -1,6 +1,8 @@
 package http
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	// Nanti Anda akan mengimpor module Swagger fiber di sini setelah setup selesai
 	// swagger "github.com/gofiber/swagger"
@@ -24,6 +26,13 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 		return c.JSON(fiber.Map{
 			"message": "Welcome to SIKOn API (Sistem Integrasi Konveksi Online)",
 			"version": "1.0",
+		})
+	})
+
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status": "OK",
+			"time":   time.Now().Format(time.RFC3339),
 		})
 	})
 
