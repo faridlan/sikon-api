@@ -134,7 +134,7 @@ func main() {
 		AllowOrigins:     frontendURL,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS",
-		AllowCredentials: true,
+		AllowCredentials: false,
 	}))
 
 	app.Use(logger.New(logger.Config{
