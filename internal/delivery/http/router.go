@@ -25,7 +25,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"message": "Welcome to SIKOn API (Sistem Integrasi Konveksi Online)",
-			"version": "1.0",
+			"version": "2.0",
 		})
 	})
 
