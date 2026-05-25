@@ -106,7 +106,7 @@ jobs:
         run: |
           echo "Memasuki ruang Development..."
           # Pastikan path ini sudah ada di server self-hosted Anda
-          cd /home/nullhakim/apps/sikon-api/dev
+          cd /home/nullhakim/apps/sikon/dev
 
           echo "Menarik image development terbaru dari Docker Hub..."
           sudo docker compose pull
@@ -127,7 +127,7 @@ jobs:
       - name: Deploy Services via Docker Compose
         run: |
           echo "🚀 Memasuki ruang Production..."
-          cd /home/nullhakim/apps/sikon-api/prod
+          cd /home/nullhakim/apps/sikon/prod
 
           echo "📦 Mengekstrak versi dari Git Tag..."
           VERSION=${GITHUB_REF#refs/tags/v}
