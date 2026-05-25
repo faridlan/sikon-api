@@ -33,6 +33,8 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	// 3. Inisiasi DB Test (Masukkan variabel di atas, JANGAN di-hardcode)
 	db := config.InitDB(dbUser, dbPassword, dbHost, dbPort, dbName)
 
+	db.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`)
+
 	// Jalankan AutoMigrate agar tabel selalu terbuat di DB test
 	db.AutoMigrate(
 		&postgres.CategoryModel{},
