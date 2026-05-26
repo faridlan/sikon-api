@@ -132,6 +132,57 @@ definitions:
         type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
+    properties:
+      courier_name:
+        example: JNE Trucking
+        type: string
+      customer_id:
+        example: 333e4567-e89b-12d3-a456-426614174000
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest'
+        minItems: 1
+        type: array
+      notes:
+        example: Tolong packing kayu
+        type: string
+      sales_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      shipping_address:
+        example: Jl. Sudirman No. 123, Jakarta
+        type: string
+      shipping_cost:
+        example: 50000
+        minimum: 0
+        type: number
+    required:
+    - customer_id
+    - items
+    - sales_id
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest:
+    properties:
+      details:
+        additionalProperties:
+          type: string
+        example:
+          ukuran: L
+          warna: Hitam
+        type: object
+      price:
+        example: 35000
+        type: number
+      product_id:
+        example: 999e4567-e89b-12d3-a456-426614174000
+        type: string
+      qty:
+        example: 100
+        type: integer
+    required:
+    - product_id
+    - qty
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse:
     properties:
@@ -215,22 +266,6 @@ definitions:
         type: string
     required:
     - order_status
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest:
-    properties:
-      courier_name:
-        example: SiCepat Gokil
-        type: string
-      notes:
-        example: Tambahan resi otomatis
-        type: string
-      shipping_address:
-        example: Jl. Sudirman No. 123, Jakarta Selatan
-        type: string
-      shipping_cost:
-        example: 75000
-        minimum: 0
-        type: number
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentCreateRequest:
     properties:
@@ -1232,7 +1267,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest'
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest'
       produces:
       - application/json
       responses:

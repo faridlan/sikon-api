@@ -927,7 +927,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest"
                         }
                     }
                 ],
@@ -1997,7 +1997,77 @@ const docTemplate = `{
             }
         },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "customer_id",
+                "items",
+                "sales_id"
+            ],
+            "properties": {
+                "courier_name": {
+                    "type": "string",
+                    "example": "JNE Trucking"
+                },
+                "customer_id": {
+                    "type": "string",
+                    "example": "333e4567-e89b-12d3-a456-426614174000"
+                },
+                "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest"
+                    }
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Tolong packing kayu"
+                },
+                "sales_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "shipping_address": {
+                    "type": "string",
+                    "example": "Jl. Sudirman No. 123, Jakarta"
+                },
+                "shipping_cost": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 50000
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest": {
+            "type": "object",
+            "required": [
+                "product_id",
+                "qty"
+            ],
+            "properties": {
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "example": {
+                        "ukuran": "L",
+                        "warna": "Hitam"
+                    }
+                },
+                "price": {
+                    "type": "number",
+                    "example": 35000
+                },
+                "product_id": {
+                    "type": "string",
+                    "example": "999e4567-e89b-12d3-a456-426614174000"
+                },
+                "qty": {
+                    "type": "integer",
+                    "example": 100
+                }
+            }
         },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse": {
             "type": "object",
@@ -2111,28 +2181,6 @@ const docTemplate = `{
                         "canceled"
                     ],
                     "example": "production"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest": {
-            "type": "object",
-            "properties": {
-                "courier_name": {
-                    "type": "string",
-                    "example": "SiCepat Gokil"
-                },
-                "notes": {
-                    "type": "string",
-                    "example": "Tambahan resi otomatis"
-                },
-                "shipping_address": {
-                    "type": "string",
-                    "example": "Jl. Sudirman No. 123, Jakarta Selatan"
-                },
-                "shipping_cost": {
-                    "type": "number",
-                    "minimum": 0,
-                    "example": 75000
                 }
             }
         },

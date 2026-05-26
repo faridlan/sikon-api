@@ -7,14 +7,14 @@ import (
 )
 
 type OrderItemModel struct {
-	ID        string                 `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderID   string                 `gorm:"type:uuid;not null"`
-	ProductID string                 `gorm:"type:uuid;not null"`
-	Qty       int                    `gorm:"not null"`
-	Price     float64                `gorm:"type:decimal(12,2);not null"`
-	Details   map[string]interface{} `gorm:"type:jsonb;serializer:json"` // Magic dari GORM
-	CreatedAt time.Time              `gorm:"autoCreateTime"`
-	UpdatedAt time.Time              `gorm:"autoUpdateTime"`
+	ID        string            `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderID   string            `gorm:"type:uuid;not null"`
+	ProductID string            `gorm:"type:uuid;not null"`
+	Qty       int               `gorm:"not null"`
+	Price     float64           `gorm:"type:decimal(12,2);not null"`
+	Details   map[string]string `gorm:"type:jsonb;serializer:json"` // Magic dari GORM
+	CreatedAt time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
 }
 
 func (OrderItemModel) TableName() string {
