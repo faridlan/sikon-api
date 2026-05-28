@@ -97,7 +97,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	payments := api.Group("/payments")
 	payments.Post("/", handlers.PaymentHandler.ProcessPayment)
 	payments.Get("/", handlers.PaymentHandler.ListPayments)
-	payments.Get("/orders/:order_id/payments", handlers.PaymentHandler.GetPaymentsByOrderID)
+	payments.Get("/order/:order_id", handlers.PaymentHandler.GetPaymentsByOrderID)
 	payments.Get("/:id", handlers.PaymentHandler.GetPayment)
 	payments.Put("/:id", handlers.PaymentHandler.UpdatePayment)
 	payments.Delete("/:id", handlers.PaymentHandler.DeletePayment)
