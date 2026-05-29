@@ -62,6 +62,36 @@ func (_m *PaymentUsecase) GetPayment(ctx context.Context, id string) (*domain.Pa
 	return r0, r1
 }
 
+// GetPaymentsByOrderID provides a mock function with given fields: ctx, orderID
+func (_m *PaymentUsecase) GetPaymentsByOrderID(ctx context.Context, orderID string) ([]domain.Payment, error) {
+	ret := _m.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPaymentsByOrderID")
+	}
+
+	var r0 []domain.Payment
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]domain.Payment, error)); ok {
+		return rf(ctx, orderID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []domain.Payment); ok {
+		r0 = rf(ctx, orderID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.Payment)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, orderID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListPayments provides a mock function with given fields: c, query
 func (_m *PaymentUsecase) ListPayments(c context.Context, query domain.PaginationQuery) ([]domain.Payment, domain.PaginationMeta, error) {
 	ret := _m.Called(c, query)

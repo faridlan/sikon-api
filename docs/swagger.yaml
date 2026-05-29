@@ -187,7 +187,8 @@ definitions:
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse:
     properties:
       details:
-        additionalProperties: true
+        additionalProperties:
+          type: string
         type: object
       id:
         example: item-uuid
@@ -266,6 +267,22 @@ definitions:
         type: string
     required:
     - order_status
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest:
+    properties:
+      courier_name:
+        example: SiCepat Gokil
+        type: string
+      notes:
+        example: Tambahan resi otomatis
+        type: string
+      shipping_address:
+        example: Jl. Sudirman No. 123, Jakarta Selatan
+        type: string
+      shipping_cost:
+        example: 75000
+        minimum: 0
+        type: number
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentCreateRequest:
     properties:
@@ -1178,7 +1195,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
           description: Bad Request
           schema:
@@ -1267,14 +1284,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest'
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
           description: Bad Request
           schema:
@@ -1314,7 +1331,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
           description: Bad Request
           schema:

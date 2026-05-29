@@ -33,7 +33,7 @@ func NewOrderHandler(ou domain.OrderUsecase) OrderHandler {
 // @Accept json
 // @Produce json
 // @Param request body dto.OrderCreateRequest true "Data Pesanan Baru"
-// @Success 201 {object} utils.SuccessResponse[utils.EmptyObj]
+// @Success 201 {object} utils.SuccessResponse[dto.OrderResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
@@ -65,11 +65,12 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.orderUsecase.CreateOrder(c.Context(), domainReq); err != nil {
+	order, err := h.orderUsecase.CreateOrder(c.Context(), domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil membuat pesanan", nil)
+	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil membuat pesanan", dto.ToOrderResponse(order))
 }
 
 // @Summary Get Order
@@ -126,7 +127,7 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 // @Produce json
 // @Param id path string true "Order ID (UUID)"
 // @Param request body dto.OrderUpdateRequest true "Data Update Pesanan"
-// @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
+// @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
@@ -152,11 +153,12 @@ func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 		Notes:           req.Notes,
 	}
 
-	if err := h.orderUsecase.UpdateOrder(c.Context(), id, domainReq); err != nil {
+	order, err := h.orderUsecase.UpdateOrder(c.Context(), id, domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui data pesanan", nil)
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui data pesanan", dto.ToOrderResponse(order))
 }
 
 // @Summary Update Order Status
@@ -166,7 +168,7 @@ func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 // @Produce json
 // @Param id path string true "Order ID (UUID)"
 // @Param request body dto.OrderStatusUpdateRequest true "Data Update Status"
-// @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
+// @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse

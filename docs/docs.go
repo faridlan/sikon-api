@@ -831,7 +831,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse"
                         }
                     },
                     "400": {
@@ -927,7 +927,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest"
                         }
                     }
                 ],
@@ -935,7 +935,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse"
                         }
                     },
                     "400": {
@@ -1033,7 +1033,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse"
                         }
                     },
                     "400": {
@@ -2074,7 +2074,9 @@ const docTemplate = `{
             "properties": {
                 "details": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "id": {
                     "type": "string",
@@ -2181,6 +2183,28 @@ const docTemplate = `{
                         "canceled"
                     ],
                     "example": "production"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "courier_name": {
+                    "type": "string",
+                    "example": "SiCepat Gokil"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Tambahan resi otomatis"
+                },
+                "shipping_address": {
+                    "type": "string",
+                    "example": "Jl. Sudirman No. 123, Jakarta Selatan"
+                },
+                "shipping_cost": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 75000
                 }
             }
         },

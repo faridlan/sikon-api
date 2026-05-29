@@ -90,10 +90,10 @@ type OrderRepository interface {
 }
 
 type OrderUsecase interface {
-	CreateOrder(ctx context.Context, input OrderCreateInput) error
+	CreateOrder(ctx context.Context, input OrderCreateInput) (*Order, error)
 	GetOrder(ctx context.Context, id string) (*Order, error)
 	ListOrders(c context.Context, query PaginationQuery) ([]Order, PaginationMeta, error)
-	UpdateOrder(ctx context.Context, id string, input OrderUpdateInput) error
+	UpdateOrder(ctx context.Context, id string, input OrderUpdateInput) (*Order, error)
 	DeleteOrder(ctx context.Context, id string) error
 	UpdateOrderStatus(ctx context.Context, id string, status OrderStatus) error
 }
