@@ -60,9 +60,10 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 				o.PaymentStatus == domain.PaymentStatusUnpaid
 		})).Return(nil).Once()
 
-		err := uc.CreateOrder(context.Background(), input)
+		order, err := uc.CreateOrder(context.Background(), input)
 
 		assert.NoError(t, err)
+		assert.NotNil(t, order)
 		mockCustomerRepo.AssertExpectations(t)
 		mockUserRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
@@ -72,9 +73,10 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 	t.Run("Error - Customer Not Found", func(t *testing.T) {
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(nil, domain.ErrNotFound).Once()
 
-		err := uc.CreateOrder(context.Background(), input)
+		order, err := uc.CreateOrder(context.Background(), input)
 
 		assert.Error(t, err)
+		assert.Nil(t, order)
 		var appErr *domain.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, "Customer tidak ditemukan", appErr.Message)
@@ -137,9 +139,10 @@ func TestOrderUsecase_UpdateOrder(t *testing.T) {
 			return o.ShippingCost == 15000 && o.CourierName == "JNE"
 		})).Return(nil).Once()
 
-		err := uc.UpdateOrder(context.Background(), mockID, input)
+		order, err := uc.UpdateOrder(context.Background(), mockID, input)
 
 		assert.NoError(t, err)
+		assert.NotNil(t, order)
 	})
 }
 

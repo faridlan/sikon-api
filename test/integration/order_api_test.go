@@ -52,6 +52,10 @@ func TestCreateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
 	})
 
 	t.Run("Failed_Validation_Empty_Items", func(t *testing.T) {
@@ -68,6 +72,10 @@ func TestCreateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+
+		var response utils.ErrorResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
 	})
 }
 
@@ -130,6 +138,10 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
 	})
 
 	// --- SKENARIO GAGAL (NEGATIVE PATH) ---
@@ -145,6 +157,10 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode) // Harusnya 404
+
+		var response utils.ErrorResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
 	})
 
 	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
@@ -157,6 +173,10 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya 400
+
+		var response utils.ErrorResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
 	})
 
 	t.Run("Failed_Validation_Negative_Shipping", func(t *testing.T) {
@@ -171,6 +191,10 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya 400
+
+		var response utils.ErrorResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
 	})
 }
 

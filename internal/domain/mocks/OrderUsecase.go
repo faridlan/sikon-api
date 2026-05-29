@@ -15,21 +15,33 @@ type OrderUsecase struct {
 }
 
 // CreateOrder provides a mock function with given fields: ctx, input
-func (_m *OrderUsecase) CreateOrder(ctx context.Context, input domain.OrderCreateInput) error {
+func (_m *OrderUsecase) CreateOrder(ctx context.Context, input domain.OrderCreateInput) (*domain.Order, error) {
 	ret := _m.Called(ctx, input)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateOrder")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.OrderCreateInput) error); ok {
+	var r0 *domain.Order
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.OrderCreateInput) (*domain.Order, error)); ok {
+		return rf(ctx, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.OrderCreateInput) *domain.Order); ok {
 		r0 = rf(ctx, input)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, domain.OrderCreateInput) error); ok {
+		r1 = rf(ctx, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // DeleteOrder provides a mock function with given fields: ctx, id
@@ -118,21 +130,33 @@ func (_m *OrderUsecase) ListOrders(c context.Context, query domain.PaginationQue
 }
 
 // UpdateOrder provides a mock function with given fields: ctx, id, input
-func (_m *OrderUsecase) UpdateOrder(ctx context.Context, id string, input domain.OrderUpdateInput) error {
+func (_m *OrderUsecase) UpdateOrder(ctx context.Context, id string, input domain.OrderUpdateInput) (*domain.Order, error) {
 	ret := _m.Called(ctx, id, input)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateOrder")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, domain.OrderUpdateInput) error); ok {
+	var r0 *domain.Order
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.OrderUpdateInput) (*domain.Order, error)); ok {
+		return rf(ctx, id, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.OrderUpdateInput) *domain.Order); ok {
 		r0 = rf(ctx, id, input)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string, domain.OrderUpdateInput) error); ok {
+		r1 = rf(ctx, id, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UpdateOrderStatus provides a mock function with given fields: ctx, id, status
