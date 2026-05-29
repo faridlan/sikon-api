@@ -11,12 +11,14 @@ import (
 
 type customerUsecase struct {
 	customerRepo   domain.CustomerRepository
+	userRepo       domain.UserRepository
 	contextTimeout time.Duration
 }
 
-func NewCustomerUsecase(cr domain.CustomerRepository, timeout time.Duration) domain.CustomerUsecase {
+func NewCustomerUsecase(cr domain.CustomerRepository, ur domain.UserRepository, timeout time.Duration) domain.CustomerUsecase {
 	return &customerUsecase{
 		customerRepo:   cr,
+		userRepo:       ur,
 		contextTimeout: timeout,
 	}
 }
@@ -25,11 +27,27 @@ func (u *customerUsecase) CreateCustomer(c context.Context, input domain.Custome
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	// --- TAMBAHAN LOGIKA BISNIS: Validasi Role Sales ---
+	if input.SalesID != "" {
+		// Cari user berdasarkan SalesID
+		salesUser, err := u.userRepo.GetByID(ctx, input.SalesID)
+		if err != nil {
+			return nil, domain.NewError(domain.ErrNotFound, "Sales ID tidak ditemukan di sistem")
+		}
+
+		// Pastikan user tersebut role-nya adalah Sales
+		if salesUser.Role != domain.RoleSales {
+			return nil, domain.NewError(domain.ErrBadParamInput, "User yang ditugaskan bukan seorang Sales")
+		}
+	}
+	// ---------------------------------------------------
+
 	customer := &domain.Customer{
 		Name:      input.Name,
 		Phone:     input.Phone,
 		Address:   input.Address,
 		CreatedBy: input.CreatedBy,
+		SalesID:   input.SalesID, // Simpan SalesID yang sudah tervalidasi
 	}
 
 	if err := u.customerRepo.Create(ctx, customer); err != nil {
@@ -39,8 +57,7 @@ func (u *customerUsecase) CreateCustomer(c context.Context, input domain.Custome
 	return customer, nil
 }
 
-func (u *customerUsecase) GetCustomer(c context.Context, id string) (*domain.Customer, error) {
-	// ... (Sama seperti sebelumnya)
+func (u *customerUsecase) GetCustomer(c context.Context, id string, operatorID string, operatorRole domain.Role) (*domain.Customer, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
@@ -51,18 +68,35 @@ func (u *customerUsecase) GetCustomer(c context.Context, id string) (*domain.Cus
 		}
 		return nil, err
 	}
+
+	// --- TAMBAHAN LOGIKA BISNIS: Keamanan Hak Akses ---
+	// Jika yang request adalah Sales, pastikan Customer ini adalah milik dia
+	if operatorRole == domain.RoleSales && customer.SalesID != operatorID {
+		return nil, domain.NewError(domain.ErrForbidden, "Akses ditolak. Anda tidak memiliki hak untuk melihat pelanggan ini.")
+	}
+	// (Jika operatorRole == RoleAdmin, logika di atas dilewati, sehingga Admin bisa melihat semuanya)
+	// --------------------------------------------------
+
 	return customer, nil
 }
 
-func (u *customerUsecase) ListCustomers(c context.Context, query domain.PaginationQuery) ([]domain.Customer, domain.PaginationMeta, error) {
-	// ... (Sama seperti sebelumnya)
+func (u *customerUsecase) ListCustomers(c context.Context, query domain.PaginationQuery, operatorID string, operatorRole domain.Role) ([]domain.Customer, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	customers, totalItems, err := u.customerRepo.Fetch(ctx, limit, offset)
+	// --- TAMBAHAN LOGIKA BISNIS: Penentuan Filter ---
+	var filterSalesID string
+	if operatorRole == domain.RoleSales {
+		// Paksa filter hanya mengambil data milik sales ini saja
+		filterSalesID = operatorID
+	}
+	// ------------------------------------------------
+
+	// Panggil Fetch dari Repo dengan menambahkan filterSalesID
+	customers, totalItems, err := u.customerRepo.Fetch(ctx, limit, offset, filterSalesID)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
 	}
@@ -88,6 +122,21 @@ func (u *customerUsecase) UpdateCustomer(c context.Context, id string, input dom
 		}
 		return nil, err
 	}
+
+	// --- TAMBAHAN LOGIKA BISNIS: Update Sales ID ---
+	// Cek apakah ada request perubahan SalesID dan ID-nya beda dari yang lama
+	if input.SalesID != "" && input.SalesID != existingCustomer.SalesID {
+		salesUser, err := u.userRepo.GetByID(ctx, input.SalesID)
+		if err != nil {
+			return nil, domain.NewError(domain.ErrNotFound, "Sales ID tidak ditemukan di sistem")
+		}
+		if salesUser.Role != domain.RoleSales {
+			return nil, domain.NewError(domain.ErrBadParamInput, "User yang ditugaskan bukan seorang Sales")
+		}
+		// Timpa data SalesID lama dengan yang baru
+		existingCustomer.SalesID = input.SalesID
+	}
+	// -----------------------------------------------
 
 	if input.Name != "" {
 		existingCustomer.Name = input.Name

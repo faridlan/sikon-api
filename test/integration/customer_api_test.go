@@ -23,11 +23,15 @@ func TestCreateCustomer_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	t.Run("Success", func(t *testing.T) {
+	// Buat user sales terlebih dahulu untuk dites
+	salesUser := tests.SeedUser(db, "Joko Sales", "joko@sikon.com", "sales")
+
+	t.Run("Success_With_SalesID", func(t *testing.T) {
 		reqBody := dto.CustomerCreateRequest{
 			Name:    "PT Maju Bersama",
 			Phone:   "081234567890",
 			Address: "Jl. Sudirman No. 1",
+			SalesID: salesUser.ID, // Menambahkan SalesID yang valid
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -44,6 +48,7 @@ func TestCreateCustomer_Integration(t *testing.T) {
 
 		assert.Equal(t, "PT Maju Bersama", response.Data.Name)
 		assert.NotEmpty(t, response.Data.ID)
+		assert.Equal(t, salesUser.ID, response.Data.SalesID) // Verifikasi SalesID tersimpan
 	})
 
 	t.Run("Failed_Validation_Missing_Phone", func(t *testing.T) {
@@ -70,7 +75,8 @@ func TestGetCustomer_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	customer := tests.SeedCustomer(db, "Budi Pelanggan", "0899999", "Jakarta")
+	salesUser := tests.SeedUser(db, "Rini Sales", "rini@sikon.com", "sales")
+	customer := tests.SeedCustomerWithSales(db, "Budi Pelanggan", "0899999", "Jakarta", salesUser.ID)
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/customers/"+customer.ID, nil)
@@ -85,6 +91,11 @@ func TestGetCustomer_Integration(t *testing.T) {
 
 		assert.Equal(t, customer.ID, response.Data.ID)
 		assert.Equal(t, "Budi Pelanggan", response.Data.Name)
+
+		// Verifikasi relasi Sales berhasil di-preload dan ditampilkan
+		assert.Equal(t, salesUser.ID, response.Data.SalesID)
+		assert.NotNil(t, response.Data.Sales)
+		assert.Equal(t, "Rini Sales", response.Data.Sales.Name)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
@@ -104,8 +115,9 @@ func TestListCustomers_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	tests.SeedCustomer(db, "Cust A", "111", "Alamat A")
-	tests.SeedCustomer(db, "Cust B", "222", "Alamat B")
+	salesUser := tests.SeedUser(db, "Deni Sales", "deni@sikon.com", "sales")
+	tests.SeedCustomerWithSales(db, "Cust A", "111", "Alamat A", salesUser.ID)
+	tests.SeedCustomerWithSales(db, "Cust B", "222", "Alamat B", salesUser.ID)
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/customers?page=1&limit=10", nil)
@@ -123,6 +135,7 @@ func TestListCustomers_Integration(t *testing.T) {
 
 		assert.Len(t, response.Data, 2)
 		assert.NotNil(t, response.Meta)
+		assert.Equal(t, salesUser.ID, response.Data[0].SalesID)
 	})
 }
 
@@ -134,12 +147,14 @@ func TestUpdateCustomer_Integration(t *testing.T) {
 	tests.ClearTables(db)
 
 	customer := tests.SeedCustomer(db, "Cust Lama", "0000", "Alamat Lama")
+	salesUserBaru := tests.SeedUser(db, "Rudi Sales", "rudi@sikon.com", "sales")
 
 	t.Run("Success", func(t *testing.T) {
 		reqBody := dto.CustomerUpdateRequest{
 			Name:    "Cust Baru",
 			Phone:   "1111",
 			Address: "Alamat Baru",
+			SalesID: salesUserBaru.ID, // Assign sales_id baru
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -156,6 +171,7 @@ func TestUpdateCustomer_Integration(t *testing.T) {
 
 		assert.Equal(t, "Cust Baru", response.Data.Name)
 		assert.Equal(t, "1111", response.Data.Phone)
+		assert.Equal(t, salesUserBaru.ID, response.Data.SalesID) // Verifikasi update ID Sales
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {

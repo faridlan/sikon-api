@@ -84,7 +84,7 @@ func main() {
 	userUsecase := usecase.NewUserUsecase(userRepo, contextTimeout)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, contextTimeout)
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, contextTimeout)
-	customerUsecase := usecase.NewCustomerUsecase(customerRepo, contextTimeout)
+	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, contextTimeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
 
 	// Order butuh banyak dependensi untuk validasi bisnis

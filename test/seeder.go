@@ -9,7 +9,7 @@ import (
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 )
 
-// SeedCategory membuat satu data kategori langsung ke Database dan mengembalikan modelnya
+// ... (Fungsi SeedCategory, SeedProduct, SeedUser tetap ada) ...
 func SeedCategory(db *gorm.DB, name string) postgres.CategoryModel {
 	category := postgres.CategoryModel{
 		ID:   uuid.New().String(),
@@ -58,6 +58,21 @@ func SeedCustomer(db *gorm.DB, name, phone, address string) postgres.CustomerMod
 	return customer
 }
 
+// TAMBAHAN: Fungsi seeder baru untuk customer yang memiliki SalesID
+func SeedCustomerWithSales(db *gorm.DB, name, phone, address string, salesID string) postgres.CustomerModel {
+	customer := postgres.CustomerModel{
+		ID:      uuid.New().String(),
+		Name:    name,
+		Phone:   phone,
+		Address: address,
+		SalesID: &salesID, // Memasukkan pointer string
+	}
+
+	db.Omit("created_by").Create(&customer)
+
+	return customer
+}
+
 func SeedBankAccount(db *gorm.DB, userID *string, bankName, accNumber, accName string) postgres.BankAccountModel {
 	account := postgres.BankAccountModel{
 		ID:            uuid.New().String(),
@@ -75,13 +90,11 @@ func StringPtr(s string) *string {
 	return &s
 }
 
-// SeedOrder mencetak 1 Order beserta 1 OrderItem di dalamnya
 func SeedOrder(db *gorm.DB, customerID, salesID, productID string) postgres.OrderModel {
 	orderID := uuid.New().String()
 
 	order := postgres.OrderModel{
-		ID: orderID,
-		// UBAH BARIS INI AGAR SELALU UNIK
+		ID:            orderID,
 		OrderNumber:   "ORD-" + uuid.New().String()[:8],
 		CustomerID:    customerID,
 		SalesID:       salesID,
@@ -111,7 +124,7 @@ func SeedPayment(db *gorm.DB, orderID, bankAccountID string, amount float64, pay
 		BankAccountID:   bankAccountID,
 		Amount:          amount,
 		PaymentDate:     time.Now(),
-		ReferenceNumber: "TRX-" + uuid.New().String()[:8], // Generate random string kecil
+		ReferenceNumber: "TRX-" + uuid.New().String()[:8],
 		PaymentType:     paymentType,
 	}
 	db.Create(&payment)

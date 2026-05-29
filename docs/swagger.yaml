@@ -89,6 +89,10 @@ definitions:
       phone:
         example: "081234567890"
         type: string
+      sales_id:
+        description: TAMBAHAN
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
     required:
     - name
     - phone
@@ -115,6 +119,14 @@ definitions:
       phone:
         example: "081234567890"
         type: string
+      sales:
+        allOf:
+        - $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse'
+        description: 'TAMBAHAN: Munculkan detail User(Sales)'
+      sales_id:
+        description: TAMBAHAN
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
       updated_at:
         example: "2023-10-01T15:00:00Z"
         type: string
@@ -129,6 +141,10 @@ definitions:
         type: string
       phone:
         example: "081299998888"
+        type: string
+      sales_id:
+        description: TAMBAHAN
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
@@ -1000,7 +1016,8 @@ paths:
       - Categories
   /customers:
     get:
-      description: Mengambil daftar seluruh pelanggan dengan pagination
+      description: Mengambil daftar seluruh pelanggan dengan pagination (Akan terfilter
+        otomatis jika user adalah Sales)
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -1083,7 +1100,8 @@ paths:
       tags:
       - Customers
     get:
-      description: Mengambil detail data pelanggan berdasarkan ID
+      description: Mengambil detail data pelanggan berdasarkan ID (Mendukung Data
+        Isolation per Role)
       parameters:
       - description: Customer ID (UUID)
         in: path
