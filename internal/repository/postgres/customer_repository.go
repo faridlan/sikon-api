@@ -40,7 +40,8 @@ func (r *customerRepository) Create(ctx context.Context, customer *domain.Custom
 func (r *customerRepository) GetByID(ctx context.Context, id string) (*domain.Customer, error) {
 	var model CustomerModel
 
-	err := r.db.WithContext(ctx).Preload("Creator").Where("id = ?", id).First(&model).Error
+	// TAMBAHAN: Tambahkan .Preload("Sales") agar data user(sales) ikut terbawa
+	err := r.db.WithContext(ctx).Preload("Creator").Preload("Sales").Where("id = ?", id).First(&model).Error
 	if err != nil {
 		return nil, TranslateError(err)
 	}
@@ -48,15 +49,26 @@ func (r *customerRepository) GetByID(ctx context.Context, id string) (*domain.Cu
 	return model.ToDomain(), nil
 }
 
-func (r *customerRepository) Fetch(ctx context.Context, limit, offset int) ([]domain.Customer, int64, error) {
+func (r *customerRepository) Fetch(ctx context.Context, limit, offset int, filterSalesID string) ([]domain.Customer, int64, error) {
 	var models []CustomerModel
 	var total int64
 
-	if err := r.db.WithContext(ctx).Model(&CustomerModel{}).Count(&total).Error; err != nil {
+	// Mulai query builder
+	query := r.db.WithContext(ctx).Model(&CustomerModel{})
+
+	// TAMBAHAN LOGIKA FILTERING:
+	// Jika ada filterSalesID (artinya yang request adalah sales), batasi query HANYA untuk sales tersebut
+	if filterSalesID != "" {
+		query = query.Where("sales_id = ?", filterSalesID)
+	}
+
+	// Hitung total data (sesuai filter jika ada)
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	if err := r.db.WithContext(ctx).Preload("Creator").Limit(limit).Offset(offset).Order("created_at DESC").Find(&models).Error; err != nil {
+	// Ambil data dengan Preload Creator & Sales
+	if err := query.Preload("Creator").Preload("Sales").Limit(limit).Offset(offset).Order("created_at DESC").Find(&models).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 

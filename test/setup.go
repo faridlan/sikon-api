@@ -62,7 +62,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, timeout) // <-- Tambahkan ini
 	userUsecase := usecase.NewUserUsecase(userRepo, timeout)
-	customerUsecase := usecase.NewCustomerUsecase(customerRepo, timeout)
+	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, timeout)

@@ -1,0 +1,1 @@
+ALTER TABLE customers DROP COLUMN sales_id;

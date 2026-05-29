@@ -536,7 +536,7 @@ const docTemplate = `{
         },
         "/customers": {
             "get": {
-                "description": "Mengambil daftar seluruh pelanggan dengan pagination",
+                "description": "Mengambil daftar seluruh pelanggan dengan pagination (Akan terfilter otomatis jika user adalah Sales)",
                 "produces": [
                     "application/json"
                 ],
@@ -622,7 +622,7 @@ const docTemplate = `{
         },
         "/customers/{id}": {
             "get": {
-                "description": "Mengambil detail data pelanggan berdasarkan ID",
+                "description": "Mengambil detail data pelanggan berdasarkan ID (Mendukung Data Isolation per Role)",
                 "produces": [
                     "application/json"
                 ],
@@ -1940,6 +1940,11 @@ const docTemplate = `{
                 "phone": {
                     "type": "string",
                     "example": "081234567890"
+                },
+                "sales_id": {
+                    "description": "TAMBAHAN",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 }
             }
         },
@@ -1973,6 +1978,19 @@ const docTemplate = `{
                     "type": "string",
                     "example": "081234567890"
                 },
+                "sales": {
+                    "description": "TAMBAHAN: Munculkan detail User(Sales)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse"
+                        }
+                    ]
+                },
+                "sales_id": {
+                    "description": "TAMBAHAN",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
                 "updated_at": {
                     "type": "string",
                     "example": "2023-10-01T15:00:00Z"
@@ -1993,6 +2011,11 @@ const docTemplate = `{
                 "phone": {
                     "type": "string",
                     "example": "081299998888"
+                },
+                "sales_id": {
+                    "description": "TAMBAHAN",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 }
             }
         },

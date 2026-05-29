@@ -50,9 +50,9 @@ func (_m *CustomerRepository) Delete(ctx context.Context, id string) error {
 	return r0
 }
 
-// Fetch provides a mock function with given fields: ctx, limit, offset
-func (_m *CustomerRepository) Fetch(ctx context.Context, limit int, offset int) ([]domain.Customer, int64, error) {
-	ret := _m.Called(ctx, limit, offset)
+// Fetch provides a mock function with given fields: ctx, limit, offset, filterSalesID
+func (_m *CustomerRepository) Fetch(ctx context.Context, limit int, offset int, filterSalesID string) ([]domain.Customer, int64, error) {
+	ret := _m.Called(ctx, limit, offset, filterSalesID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
@@ -61,25 +61,25 @@ func (_m *CustomerRepository) Fetch(ctx context.Context, limit int, offset int) 
 	var r0 []domain.Customer
 	var r1 int64
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) ([]domain.Customer, int64, error)); ok {
-		return rf(ctx, limit, offset)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, string) ([]domain.Customer, int64, error)); ok {
+		return rf(ctx, limit, offset, filterSalesID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) []domain.Customer); ok {
-		r0 = rf(ctx, limit, offset)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, string) []domain.Customer); ok {
+		r0 = rf(ctx, limit, offset, filterSalesID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Customer)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int, int) int64); ok {
-		r1 = rf(ctx, limit, offset)
+	if rf, ok := ret.Get(1).(func(context.Context, int, int, string) int64); ok {
+		r1 = rf(ctx, limit, offset, filterSalesID)
 	} else {
 		r1 = ret.Get(1).(int64)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, int, int) error); ok {
-		r2 = rf(ctx, limit, offset)
+	if rf, ok := ret.Get(2).(func(context.Context, int, int, string) error); ok {
+		r2 = rf(ctx, limit, offset, filterSalesID)
 	} else {
 		r2 = ret.Error(2)
 	}

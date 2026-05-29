@@ -12,11 +12,13 @@ type CustomerModel struct {
 	Phone     string    `gorm:"type:varchar(50);not null"`
 	Address   string    `gorm:"type:text"`
 	CreatedBy string    `gorm:"type:uuid"` // Foreign key ke users.id
+	SalesID   *string   `gorm:"type:uuid"` // Foreign key ke sales.id
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 
 	// Relasi (Preload)
 	Creator *UserModel `gorm:"foreignKey:CreatedBy"`
+	Sales   *UserModel `gorm:"foreignKey:SalesID"`
 }
 
 func (CustomerModel) TableName() string {
@@ -34,15 +36,23 @@ func (m *CustomerModel) ToDomain() *domain.Customer {
 		UpdatedAt: m.UpdatedAt,
 	}
 
+	if m.SalesID != nil {
+		customer.SalesID = *m.SalesID
+	}
+
 	if m.Creator != nil {
 		customer.Creator = m.Creator.ToDomain()
+	}
+
+	if m.Sales != nil {
+		customer.Sales = m.Sales.ToDomain()
 	}
 
 	return customer
 }
 
 func FromCustomerDomain(d *domain.Customer) *CustomerModel {
-	return &CustomerModel{
+	model := &CustomerModel{
 		ID:        d.ID,
 		Name:      d.Name,
 		Phone:     d.Phone,
@@ -51,4 +61,10 @@ func FromCustomerDomain(d *domain.Customer) *CustomerModel {
 		CreatedAt: d.CreatedAt,
 		UpdatedAt: d.UpdatedAt,
 	}
+
+	if d.SalesID != "" {
+		model.SalesID = &d.SalesID
+	}
+
+	return model
 }
