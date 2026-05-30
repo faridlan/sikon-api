@@ -29,10 +29,12 @@ type BankAccountResponse struct {
 	AccountName   string    `json:"account_name" example:"PT SIKOn Konveksi"`
 	CreatedAt     time.Time `json:"created_at" example:"2023-10-01T15:00:00Z"`
 	UpdatedAt     time.Time `json:"updated_at" example:"2023-10-01T15:00:00Z"`
+
+	User *UserResponse `json:"user,omitempty"` // Relasi ke User
 }
 
 func ToBankAccountResponse(ba *domain.BankAccount) BankAccountResponse {
-	return BankAccountResponse{
+	resp := BankAccountResponse{
 		ID:            ba.ID,
 		UserID:        ba.UserID,
 		BankName:      ba.BankName,
@@ -41,6 +43,13 @@ func ToBankAccountResponse(ba *domain.BankAccount) BankAccountResponse {
 		CreatedAt:     ba.CreatedAt,
 		UpdatedAt:     ba.UpdatedAt,
 	}
+
+	if ba.User != nil {
+		userResp := ToUserResponse(ba.User)
+		resp.User = &userResp
+	}
+
+	return resp
 }
 
 func ToBankAccountResponseList(accounts []domain.BankAccount) []BankAccountResponse {

@@ -29,7 +29,7 @@ func (r *bankAccountRepository) Create(ctx context.Context, account *domain.Bank
 
 func (r *bankAccountRepository) GetByID(ctx context.Context, id string) (*domain.BankAccount, error) {
 	var model BankAccountModel
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&model).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("User").Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 	return model.ToDomain(), nil
@@ -39,11 +39,13 @@ func (r *bankAccountRepository) Fetch(ctx context.Context, limit, offset int) ([
 	var models []BankAccountModel
 	var total int64
 
-	if err := r.db.WithContext(ctx).Model(&BankAccountModel{}).Count(&total).Error; err != nil {
+	query := r.db.WithContext(ctx).Model(&BankAccountModel{})
+
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	if err := r.db.WithContext(ctx).Limit(limit).Offset(offset).Order("created_at DESC").Find(&models).Error; err != nil {
+	if err := query.Preload("User").Limit(limit).Offset(offset).Order("created_at DESC").Find(&models).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
@@ -80,7 +82,7 @@ func (r *bankAccountRepository) GetByUserID(ctx context.Context, userID string) 
 		query = query.Where("user_id = ?", userID)
 	}
 
-	if err := query.Find(&models).Error; err != nil {
+	if err := query.Preload("User").Find(&models).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 

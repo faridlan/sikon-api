@@ -14,6 +14,9 @@ type BankAccountModel struct {
 	AccountName   string    `gorm:"type:varchar(255);not null"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
+
+	// Relasi
+	User *UserModel `gorm:"foreignKey:UserID"`
 }
 
 func (BankAccountModel) TableName() string {
@@ -21,7 +24,8 @@ func (BankAccountModel) TableName() string {
 }
 
 func (m *BankAccountModel) ToDomain() *domain.BankAccount {
-	return &domain.BankAccount{
+
+	bankAccount := &domain.BankAccount{
 		ID:            m.ID,
 		UserID:        m.UserID,
 		BankName:      m.BankName,
@@ -30,6 +34,12 @@ func (m *BankAccountModel) ToDomain() *domain.BankAccount {
 		CreatedAt:     m.CreatedAt,
 		UpdatedAt:     m.UpdatedAt,
 	}
+
+	if m.User != nil {
+		bankAccount.User = m.User.ToDomain()
+	}
+
+	return bankAccount
 }
 
 func FromBankAccountDomain(d *domain.BankAccount) *BankAccountModel {

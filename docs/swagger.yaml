@@ -39,6 +39,10 @@ definitions:
       updated_at:
         example: "2023-10-01T15:00:00Z"
         type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse'
+        description: Relasi ke User
       user_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
