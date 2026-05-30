@@ -59,6 +59,7 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Order
 		Preload("Items").
 		Preload("Customer").
 		Preload("Sales").
+		Preload("Items.Product"). // Preload produk di setiap item untuk detail yang lengkap
 		Where("id = ?", id).
 		First(&model).Error
 

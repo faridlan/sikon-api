@@ -15,6 +15,9 @@ type OrderItemModel struct {
 	Details   map[string]string `gorm:"type:jsonb;serializer:json"` // Magic dari GORM
 	CreatedAt time.Time         `gorm:"autoCreateTime"`
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
+
+	// Relasi
+	Product *ProductModel `gorm:"foreignKey:ProductID"`
 }
 
 func (OrderItemModel) TableName() string {
@@ -48,7 +51,7 @@ func (OrderModel) TableName() string {
 
 // --- Mapper Order Item ---
 func (m *OrderItemModel) ToDomain() domain.OrderItem {
-	return domain.OrderItem{
+	item := domain.OrderItem{
 		ID:        m.ID,
 		OrderID:   m.OrderID,
 		ProductID: m.ProductID,
@@ -58,6 +61,13 @@ func (m *OrderItemModel) ToDomain() domain.OrderItem {
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
 	}
+
+	if m.Product != nil {
+		productDomain := m.Product.ToDomain()
+		item.Product = productDomain
+	}
+
+	return item
 }
 
 // --- Mapper Order Utama ---

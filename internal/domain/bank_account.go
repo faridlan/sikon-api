@@ -13,6 +13,8 @@ type BankAccount struct {
 	AccountName   string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+
+	User *User
 }
 
 // Input struct khusus untuk Usecase Create
