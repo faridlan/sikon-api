@@ -1866,6 +1866,14 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2023-10-01T15:00:00Z"
                 },
+                "user": {
+                    "description": "Relasi ke User",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse"
+                        }
+                    ]
+                },
                 "user_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
