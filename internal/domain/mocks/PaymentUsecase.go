@@ -130,39 +130,63 @@ func (_m *PaymentUsecase) ListPayments(c context.Context, query domain.Paginatio
 }
 
 // ProcessPayment provides a mock function with given fields: ctx, input
-func (_m *PaymentUsecase) ProcessPayment(ctx context.Context, input domain.PaymentCreateInput) error {
+func (_m *PaymentUsecase) ProcessPayment(ctx context.Context, input domain.PaymentCreateInput) (*domain.Payment, error) {
 	ret := _m.Called(ctx, input)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ProcessPayment")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaymentCreateInput) error); ok {
+	var r0 *domain.Payment
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaymentCreateInput) (*domain.Payment, error)); ok {
+		return rf(ctx, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaymentCreateInput) *domain.Payment); ok {
 		r0 = rf(ctx, input)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Payment)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, domain.PaymentCreateInput) error); ok {
+		r1 = rf(ctx, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UpdatePayment provides a mock function with given fields: ctx, id, input
-func (_m *PaymentUsecase) UpdatePayment(ctx context.Context, id string, input domain.PaymentUpdateInput) error {
+func (_m *PaymentUsecase) UpdatePayment(ctx context.Context, id string, input domain.PaymentUpdateInput) (*domain.Payment, error) {
 	ret := _m.Called(ctx, id, input)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdatePayment")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, domain.PaymentUpdateInput) error); ok {
+	var r0 *domain.Payment
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.PaymentUpdateInput) (*domain.Payment, error)); ok {
+		return rf(ctx, id, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.PaymentUpdateInput) *domain.Payment); ok {
 		r0 = rf(ctx, id, input)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Payment)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string, domain.PaymentUpdateInput) error); ok {
+		r1 = rf(ctx, id, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // NewPaymentUsecase creates a new instance of PaymentUsecase. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -25,7 +25,7 @@ func NewPaymentUsecase(pr domain.PaymentRepository, or domain.OrderRepository, b
 	}
 }
 
-func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentCreateInput) error {
+func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentCreateInput) (*domain.Payment, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
@@ -33,23 +33,23 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 	order, err := u.orderRepo.GetByID(ctx, input.OrderID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrBadParamInput, "Order tidak ditemukan")
+			return nil, domain.NewError(domain.ErrBadParamInput, "Order tidak ditemukan")
 		}
-		return err
+		return nil, err
 	}
 
 	if _, err = u.bankAccountRepo.GetByID(ctx, input.BankAccountID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrBadParamInput, "Rekening bank tidak valid")
+			return nil, domain.NewError(domain.ErrBadParamInput, "Rekening bank tidak valid")
 		}
-		return err
+		return nil, err
 	}
 
 	grandTotal := order.TotalAmount + order.ShippingCost
 
 	existingPayments, err := u.paymentRepo.GetByOrderID(ctx, input.OrderID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var totalPaid float64
@@ -58,7 +58,7 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 	}
 
 	if totalPaid >= grandTotal {
-		return domain.NewError(domain.ErrConflict, "Pesanan ini sudah lunas sepenuhnya")
+		return nil, domain.NewError(domain.ErrConflict, "Pesanan ini sudah lunas sepenuhnya")
 	}
 
 	payment := &domain.Payment{
@@ -75,7 +75,7 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 	}
 
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {
-		return err
+		return nil, err
 	}
 
 	totalPaidSetelahMasuk := totalPaid + payment.Amount
@@ -86,10 +86,10 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 	}
 
 	if err := u.orderRepo.UpdateStatus(ctx, order.ID, "", newPaymentStatus); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return payment, nil
 }
 
 func (u *paymentUsecase) GetPayment(c context.Context, id string) (*domain.Payment, error) {
@@ -131,16 +131,16 @@ func (u *paymentUsecase) ListPayments(c context.Context, query domain.Pagination
 	return payments, meta, nil
 }
 
-func (u *paymentUsecase) UpdatePayment(c context.Context, id string, input domain.PaymentUpdateInput) error {
+func (u *paymentUsecase) UpdatePayment(c context.Context, id string, input domain.PaymentUpdateInput) (*domain.Payment, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	existingPayment, err := u.paymentRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrNotFound, "Data pembayaran tidak ditemukan")
+			return nil, domain.NewError(domain.ErrNotFound, "Data pembayaran tidak ditemukan")
 		}
-		return err
+		return nil, err
 	}
 
 	if input.ReferenceNumber != "" {
@@ -150,7 +150,13 @@ func (u *paymentUsecase) UpdatePayment(c context.Context, id string, input domai
 		existingPayment.PaymentType = input.PaymentType
 	}
 
-	return u.paymentRepo.Update(ctx, existingPayment)
+	err = u.paymentRepo.Update(ctx, existingPayment)
+	if err != nil {
+		return nil, err
+	}
+
+	return existingPayment, nil
+
 }
 
 func (u *paymentUsecase) DeletePayment(c context.Context, id string) error {

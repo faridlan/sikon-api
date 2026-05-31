@@ -1057,53 +1057,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{order_id}/payments": {
-            "get": {
-                "description": "Mengambil daftar pembayaran berdasarkan ID pesanan",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Payments"
-                ],
-                "summary": "Get Payments by Order ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID (UUID)",
-                        "name": "order_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/payments": {
             "get": {
                 "description": "Mengambil daftar seluruh pembayaran (History transaksi)",
@@ -1189,6 +1142,53 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments/order/{order_id}": {
+            "get": {
+                "description": "Mengambil daftar pembayaran berdasarkan ID pesanan",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Get Payments by Order ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
@@ -2287,6 +2287,9 @@ const docTemplate = `{
                     "type": "number",
                     "example": 1000000
                 },
+                "bank_account": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BankAccountResponse"
+                },
                 "bank_account_id": {
                     "type": "string",
                     "example": "777e4567-e89b-12d3-a456-426614174000"
@@ -2298,6 +2301,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string",
                     "example": "pay-uuid"
+                },
+                "order": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse"
                 },
                 "order_id": {
                     "type": "string",

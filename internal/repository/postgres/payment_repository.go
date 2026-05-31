@@ -29,7 +29,7 @@ func (r *paymentRepository) Create(ctx context.Context, payment *domain.Payment)
 
 func (r *paymentRepository) GetByID(ctx context.Context, id string) (*domain.Payment, error) {
 	var model PaymentModel
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&model).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 	return model.ToDomain(), nil
@@ -43,7 +43,7 @@ func (r *paymentRepository) Fetch(ctx context.Context, limit, offset int) ([]dom
 		return nil, 0, TranslateError(err)
 	}
 
-	if err := r.db.WithContext(ctx).Limit(limit).Offset(offset).Order("payment_date DESC").Find(&models).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Order").Preload("BankAccount").Limit(limit).Offset(offset).Order("payment_date DESC").Find(&models).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
@@ -72,7 +72,7 @@ func (r *paymentRepository) Delete(ctx context.Context, id string) error {
 func (r *paymentRepository) GetByOrderID(ctx context.Context, orderID string) ([]domain.Payment, error) {
 	var models []PaymentModel
 
-	if err := r.db.WithContext(ctx).Where("order_id = ?", orderID).Order("payment_date ASC").Find(&models).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("order_id = ?", orderID).Order("payment_date ASC").Find(&models).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 
