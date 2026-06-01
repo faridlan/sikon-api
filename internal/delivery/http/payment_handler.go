@@ -57,11 +57,12 @@ func (h *paymentHandler) ProcessPayment(c *fiber.Ctx) error {
 		PaymentType:     domain.PaymentType(req.PaymentType),
 	}
 
-	if err := h.paymentUsecase.ProcessPayment(c.Context(), domainReq); err != nil {
+	payment, err := h.paymentUsecase.ProcessPayment(c.Context(), domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil memproses pembayaran", nil)
+	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil memproses pembayaran", dto.ToPaymentResponse(payment))
 }
 
 // @Summary Get Payment
@@ -142,11 +143,12 @@ func (h *paymentHandler) UpdatePayment(c *fiber.Ctx) error {
 		PaymentType:     domain.PaymentType(req.PaymentType),
 	}
 
-	if err := h.paymentUsecase.UpdatePayment(c.Context(), id, domainReq); err != nil {
+	payment, err := h.paymentUsecase.UpdatePayment(c.Context(), id, domainReq)
+	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui data pembayaran", nil)
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui data pembayaran", dto.ToPaymentResponse(payment))
 }
 
 // @Summary Delete Payment
@@ -180,7 +182,7 @@ func (h *paymentHandler) DeletePayment(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
-// @Router /orders/{order_id}/payments [get]
+// @Router /payments/order/{order_id} [get]
 func (h *paymentHandler) GetPaymentsByOrderID(c *fiber.Ctx) error {
 	orderID := c.Params("order_id")
 	if err := utils.ValidateUUID(orderID, "order_id"); err != nil {

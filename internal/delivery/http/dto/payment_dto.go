@@ -23,19 +23,21 @@ type PaymentUpdateRequest struct {
 
 // --- RESPONSE ---
 type PaymentResponse struct {
-	ID              string    `json:"id" example:"pay-uuid"`
-	OrderID         string    `json:"order_id" example:"ord-uuid"`
-	BankAccountID   string    `json:"bank_account_id" example:"777e4567-e89b-12d3-a456-426614174000"`
-	Amount          float64   `json:"amount" example:"1000000"`
-	PaymentDate     time.Time `json:"payment_date" example:"2023-10-02T10:00:00Z"`
-	ReferenceNumber string    `json:"reference_number" example:"TRX-0987654321"`
-	PaymentType     string    `json:"payment_type" example:"dp"`
-	CreatedAt       time.Time `json:"created_at" example:"2023-10-02T10:05:00Z"`
-	UpdatedAt       time.Time `json:"updated_at" example:"2023-10-02T10:05:00Z"`
+	ID              string               `json:"id" example:"pay-uuid"`
+	OrderID         string               `json:"order_id" example:"ord-uuid"`
+	BankAccountID   string               `json:"bank_account_id" example:"777e4567-e89b-12d3-a456-426614174000"`
+	Amount          float64              `json:"amount" example:"1000000"`
+	PaymentDate     time.Time            `json:"payment_date" example:"2023-10-02T10:00:00Z"`
+	ReferenceNumber string               `json:"reference_number" example:"TRX-0987654321"`
+	PaymentType     string               `json:"payment_type" example:"dp"`
+	CreatedAt       time.Time            `json:"created_at" example:"2023-10-02T10:05:00Z"`
+	UpdatedAt       time.Time            `json:"updated_at" example:"2023-10-02T10:05:00Z"`
+	Order           *OrderResponse       `json:"order,omitempty"`
+	BankAccount     *BankAccountResponse `json:"bank_account,omitempty"`
 }
 
 func ToPaymentResponse(p *domain.Payment) PaymentResponse {
-	return PaymentResponse{
+	resp := PaymentResponse{
 		ID:              p.ID,
 		OrderID:         p.OrderID,
 		BankAccountID:   p.BankAccountID,
@@ -46,6 +48,20 @@ func ToPaymentResponse(p *domain.Payment) PaymentResponse {
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
 	}
+
+	// Map relasi Order jika tersedia
+	if p.Order != nil {
+		orderResp := ToOrderResponse(p.Order)
+		resp.Order = &orderResp
+	}
+
+	// Map relasi BankAccount jika tersedia
+	if p.BankAccount != nil {
+		bankAccountResp := ToBankAccountResponse(p.BankAccount)
+		resp.BankAccount = &bankAccountResp
+	}
+
+	return resp
 }
 
 func ToPaymentResponseList(payments []domain.Payment) []PaymentResponse {

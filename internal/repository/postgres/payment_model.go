@@ -16,6 +16,9 @@ type PaymentModel struct {
 	PaymentType     string    `gorm:"type:varchar(50);not null"` // "dp", "settlement", "installment"
 	CreatedAt       time.Time `gorm:"autoCreateTime"`
 	UpdatedAt       time.Time `gorm:"autoUpdateTime"`
+
+	Order       *OrderModel       `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	BankAccount *BankAccountModel `gorm:"foreignKey:BankAccountID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 func (PaymentModel) TableName() string {
@@ -23,7 +26,7 @@ func (PaymentModel) TableName() string {
 }
 
 func (m *PaymentModel) ToDomain() *domain.Payment {
-	return &domain.Payment{
+	payment := &domain.Payment{
 		ID:              m.ID,
 		OrderID:         m.OrderID,
 		BankAccountID:   m.BankAccountID,
@@ -34,6 +37,17 @@ func (m *PaymentModel) ToDomain() *domain.Payment {
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
 	}
+
+	// Map relasi Order jika tersedia
+	if m.Order != nil {
+		payment.Order = m.Order.ToDomain()
+	}
+	// Map relasi BankAccount jika tersedia
+	if m.BankAccount != nil {
+		payment.BankAccount = m.BankAccount.ToDomain()
+	}
+
+	return payment
 }
 
 func FromPaymentDomain(d *domain.Payment) *PaymentModel {

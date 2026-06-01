@@ -23,6 +23,9 @@ type Payment struct {
 	PaymentType     PaymentType
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+
+	Order       *Order
+	BankAccount *BankAccount
 }
 
 type PaymentCreateInput struct {
@@ -51,10 +54,10 @@ type PaymentRepository interface {
 }
 
 type PaymentUsecase interface {
-	ProcessPayment(ctx context.Context, input PaymentCreateInput) error
+	ProcessPayment(ctx context.Context, input PaymentCreateInput) (*Payment, error)
 	GetPayment(ctx context.Context, id string) (*Payment, error)
 	ListPayments(c context.Context, query PaginationQuery) ([]Payment, PaginationMeta, error)
-	UpdatePayment(ctx context.Context, id string, input PaymentUpdateInput) error
+	UpdatePayment(ctx context.Context, id string, input PaymentUpdateInput) (*Payment, error)
 	DeletePayment(ctx context.Context, id string) error
 	GetPaymentsByOrderID(ctx context.Context, orderID string) ([]Payment, error)
 }

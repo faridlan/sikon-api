@@ -58,9 +58,10 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		// 5. Update Status Order -> Partial (Karena 500rb < 1.1jt)
 		mockOrderRepo.On("UpdateStatus", mock.Anything, mockOrder.ID, domain.OrderStatus(""), domain.PaymentStatusPartial).Return(nil).Once()
 
-		err := uc.ProcessPayment(context.Background(), input)
+		payment, err := uc.ProcessPayment(context.Background(), input)
 
 		assert.NoError(t, err)
+		assert.NotNil(t, payment)
 		mockOrderRepo.AssertExpectations(t)
 		mockBankRepo.AssertExpectations(t)
 		mockPaymentRepo.AssertExpectations(t)
@@ -85,9 +86,10 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		// Total Paid sekarang: 500k (DP) + 600k (Pelunasan) = 1.1jt (== GrandTotal) -> Status jadi PAID
 		mockOrderRepo.On("UpdateStatus", mock.Anything, mockOrder.ID, domain.OrderStatus(""), domain.PaymentStatusPaid).Return(nil).Once()
 
-		err := uc.ProcessPayment(context.Background(), inputPelunasan)
+		payment, err := uc.ProcessPayment(context.Background(), inputPelunasan)
 
 		assert.NoError(t, err)
+		assert.NotNil(t, payment)
 	})
 
 	t.Run("Error - Already Fully Paid", func(t *testing.T) {
@@ -100,13 +102,14 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		mockBankRepo.On("GetByID", mock.Anything, input.BankAccountID).Return(&domain.BankAccount{}, nil).Once()
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, input.OrderID).Return(existingPayments, nil).Once()
 
-		err := uc.ProcessPayment(context.Background(), input)
+		payment, err := uc.ProcessPayment(context.Background(), input)
 
 		assert.Error(t, err)
 		var appErr *domain.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrConflict, appErr.ErrType)
 		assert.Equal(t, "Pesanan ini sudah lunas sepenuhnya", appErr.Message)
+		assert.Nil(t, payment)
 
 		// Pastikan Create dan UpdateStatus tidak dipanggil!
 		mockPaymentRepo.AssertNotCalled(t, "Create")
@@ -116,13 +119,14 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 	t.Run("Error - Order Not Found", func(t *testing.T) {
 		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(nil, domain.ErrNotFound).Once()
 
-		err := uc.ProcessPayment(context.Background(), input)
+		payment, err := uc.ProcessPayment(context.Background(), input)
 
 		assert.Error(t, err)
 		var appErr *domain.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
 		assert.Equal(t, "Order tidak ditemukan", appErr.Message)
+		assert.Nil(t, payment)
 	})
 }
 
@@ -178,9 +182,10 @@ func TestPaymentUsecase_UpdatePayment(t *testing.T) {
 			return p.ReferenceNumber == "TRX-REVISI"
 		})).Return(nil).Once()
 
-		err := uc.UpdatePayment(context.Background(), mockID, input)
+		payment, err := uc.UpdatePayment(context.Background(), mockID, input)
 
 		assert.NoError(t, err)
+		assert.NotNil(t, payment)
 	})
 }
 

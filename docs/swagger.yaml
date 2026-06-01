@@ -340,6 +340,8 @@ definitions:
       amount:
         example: 1000000
         type: number
+      bank_account:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BankAccountResponse'
       bank_account_id:
         example: 777e4567-e89b-12d3-a456-426614174000
         type: string
@@ -349,6 +351,8 @@ definitions:
       id:
         example: pay-uuid
         type: string
+      order:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse'
       order_id:
         example: ord-uuid
         type: string
@@ -1369,37 +1373,6 @@ paths:
       summary: Update Order Status
       tags:
       - Orders
-  /orders/{order_id}/payments:
-    get:
-      description: Mengambil daftar pembayaran berdasarkan ID pesanan
-      parameters:
-      - description: Order ID (UUID)
-        in: path
-        name: order_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-      summary: Get Payments by Order ID
-      tags:
-      - Payments
   /payments:
     get:
       description: Mengambil daftar seluruh pembayaran (History transaksi)
@@ -1558,6 +1531,37 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       summary: Update Payment
+      tags:
+      - Payments
+  /payments/order/{order_id}:
+    get:
+      description: Mengambil daftar pembayaran berdasarkan ID pesanan
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: order_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Payments by Order ID
       tags:
       - Payments
   /products:
