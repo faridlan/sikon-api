@@ -9,6 +9,7 @@ type OrderStatus string
 type PaymentStatus string
 
 const (
+	OrderStatusQuotation  OrderStatus = "quotation"
 	OrderStatusPending    OrderStatus = "pending"
 	OrderStatusProduction OrderStatus = "production"
 	OrderStatusCompleted  OrderStatus = "completed"
@@ -44,6 +45,8 @@ type Order struct {
 	ShippingAddress string
 	OrderStatus     OrderStatus
 	PaymentStatus   PaymentStatus
+	ValidUntil      *time.Time
+	TermsConditions string
 	Notes           string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -67,6 +70,8 @@ type OrderCreateInput struct {
 	ShippingCost    float64
 	CourierName     string
 	ShippingAddress string
+	ValidUntil      *time.Time
+	TermsConditions string
 	Notes           string
 	Items           []OrderItemInput
 }
@@ -75,6 +80,8 @@ type OrderUpdateInput struct {
 	ShippingCost    float64
 	CourierName     string
 	ShippingAddress string
+	ValidUntil      *time.Time
+	TermsConditions string
 	Notes           string
 }
 

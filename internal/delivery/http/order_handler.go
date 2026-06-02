@@ -54,6 +54,8 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 		CourierName:     req.CourierName,
 		ShippingAddress: req.ShippingAddress,
 		Notes:           req.Notes,
+		ValidUntil:      req.ValidUntil,
+		TermsConditions: req.TermsConditions,
 	}
 
 	for _, itemReq := range req.Items {
@@ -151,6 +153,8 @@ func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 		CourierName:     req.CourierName,
 		ShippingAddress: req.ShippingAddress,
 		Notes:           req.Notes,
+		ValidUntil:      req.ValidUntil,
+		TermsConditions: req.TermsConditions,
 	}
 
 	order, err := h.orderUsecase.UpdateOrder(c.Context(), id, domainReq)

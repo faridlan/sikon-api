@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -30,17 +31,21 @@ func TestCreateOrder_Integration(t *testing.T) {
 	product := tests.SeedProduct(db, category.ID, "Kemeja PDH", 150000)
 
 	t.Run("Success_Create_Order", func(t *testing.T) {
+		validUntil := time.Now().AddDate(0, 0, 7)
 		reqBody := dto.OrderCreateRequest{
 			CustomerID:      customer.ID,
 			SalesID:         sales.ID,
 			ShippingCost:    20000,
 			CourierName:     "JNE",
 			ShippingAddress: "Alamat Kirim",
+			ValidUntil:      &validUntil,    // <-- TAMBAHAN
+			TermsConditions: "Syarat 1 2 3", // <-- TAMBAHAN
 			Items: []dto.OrderItemRequest{
 				{
 					ProductID: product.ID,
 					Qty:       2,
 					Price:     150000,
+					Details:   map[string]string{"Ukuran": "L"}, // Cek fitur JSONB-nya juga
 				},
 			},
 		}
@@ -56,6 +61,12 @@ func TestCreateOrder_Integration(t *testing.T) {
 		var response utils.SuccessResponse[dto.OrderResponse]
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
+
+		// --- ASSERSI TAMBAHAN UNTUK SURAT PENAWARAN ---
+		assert.Equal(t, "quotation", response.Data.OrderStatus) // Default harus quotation
+		assert.Equal(t, "Syarat 1 2 3", response.Data.TermsConditions)
+		assert.NotNil(t, response.Data.ValidUntil)
+		assert.Equal(t, "L", response.Data.Items[0].Details["Ukuran"])
 	})
 
 	t.Run("Failed_Validation_Empty_Items", func(t *testing.T) {
@@ -123,12 +134,15 @@ func TestUpdateOrder_Integration(t *testing.T) {
 	prod := tests.SeedProduct(db, cat.ID, "Prod", 100)
 	order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
 
-	t.Run("Success_Update_Shipping", func(t *testing.T) {
+	t.Run("Success_Update_Shipping_And_Terms", func(t *testing.T) {
+		validUntilUpdate := time.Now().AddDate(0, 0, 14)
 		reqBody := dto.OrderUpdateRequest{
 			ShippingCost:    50000,
 			CourierName:     "SiCepat",
 			ShippingAddress: "Alamat Update",
 			Notes:           "Catatan Update",
+			ValidUntil:      &validUntilUpdate,     // <-- TAMBAHAN
+			TermsConditions: "Lunas Sebelum Kirim", // <-- TAMBAHAN
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -142,6 +156,9 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		var response utils.SuccessResponse[dto.OrderResponse]
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
+
+		// --- ASSERSI TAMBAHAN ---
+		assert.Equal(t, "Lunas Sebelum Kirim", response.Data.TermsConditions)
 	})
 
 	// --- SKENARIO GAGAL (NEGATIVE PATH) ---

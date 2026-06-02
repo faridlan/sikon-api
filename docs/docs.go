@@ -2066,6 +2066,14 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 0,
                     "example": 50000
+                },
+                "terms_conditions": {
+                    "type": "string",
+                    "example": "DP Minimal 50%, Waktu Pengerjaan 14 Hari"
+                },
+                "valid_until": {
+                    "type": "string",
+                    "example": "2026-06-15T00:00:00Z"
                 }
             }
         },
@@ -2189,6 +2197,10 @@ const docTemplate = `{
                     "type": "number",
                     "example": 50000
                 },
+                "terms_conditions": {
+                    "type": "string",
+                    "example": "DP Minimal 50%"
+                },
                 "total_amount": {
                     "type": "number",
                     "example": 3550000
@@ -2196,6 +2208,10 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2023-10-01T15:00:00Z"
+                },
+                "valid_until": {
+                    "type": "string",
+                    "example": "2026-06-15T00:00:00Z"
                 }
             }
         },
@@ -2208,6 +2224,7 @@ const docTemplate = `{
                 "order_status": {
                     "type": "string",
                     "enum": [
+                        "quotation",
                         "pending",
                         "production",
                         "completed",
@@ -2236,6 +2253,14 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 0,
                     "example": 75000
+                },
+                "terms_conditions": {
+                    "type": "string",
+                    "example": "DP Minimal 50%, Waktu Pengerjaan 14 Hari"
+                },
+                "valid_until": {
+                    "type": "string",
+                    "example": "2026-06-15T00:00:00Z"
                 }
             }
         },

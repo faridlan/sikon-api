@@ -177,6 +177,12 @@ definitions:
         example: 50000
         minimum: 0
         type: number
+      terms_conditions:
+        example: DP Minimal 50%, Waktu Pengerjaan 14 Hari
+        type: string
+      valid_until:
+        example: "2026-06-15T00:00:00Z"
+        type: string
     required:
     - customer_id
     - items
@@ -268,17 +274,24 @@ definitions:
       shipping_cost:
         example: 50000
         type: number
+      terms_conditions:
+        example: DP Minimal 50%
+        type: string
       total_amount:
         example: 3550000
         type: number
       updated_at:
         example: "2023-10-01T15:00:00Z"
         type: string
+      valid_until:
+        example: "2026-06-15T00:00:00Z"
+        type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderStatusUpdateRequest:
     properties:
       order_status:
         enum:
+        - quotation
         - pending
         - production
         - completed
@@ -303,6 +316,12 @@ definitions:
         example: 75000
         minimum: 0
         type: number
+      terms_conditions:
+        example: DP Minimal 50%, Waktu Pengerjaan 14 Hari
+        type: string
+      valid_until:
+        example: "2026-06-15T00:00:00Z"
+        type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentCreateRequest:
     properties:
