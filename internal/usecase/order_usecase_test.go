@@ -28,10 +28,13 @@ func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks
 func TestOrderUsecase_CreateOrder(t *testing.T) {
 	mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, uc := setupOrderTest()
 
+	validUntil := time.Now().AddDate(0, 0, 7) // Penawaran berlaku 7 hari
 	input := domain.OrderCreateInput{
-		CustomerID:   "cust-123",
-		SalesID:      "user-123",
-		ShippingCost: 50000,
+		CustomerID:      "cust-123",
+		SalesID:         "user-123",
+		ShippingCost:    50000,
+		ValidUntil:      &validUntil,
+		TermsConditions: "DP Minimal 50%",
 		Items: []domain.OrderItemInput{
 			{ProductID: "prod-1", Qty: 2, Price: 0},     // Price 0 -> harus fallback ke BasePrice produk
 			{ProductID: "prod-2", Qty: 1, Price: 15000}, // Price > 0 -> pakai price ini
@@ -49,15 +52,14 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
 
 		// 4. Kalkulasi ekspektasi:
-		// Item 1: 2 qty * 50000 (BasePrice) = 100000
-		// Item 2: 1 qty * 15000 (Input Price) = 15000
-		// TotalAmount = 115000
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			return o.CustomerID == input.CustomerID &&
 				o.TotalAmount == 115000 &&
 				len(o.Items) == 2 &&
-				o.OrderStatus == domain.OrderStatusPending &&
-				o.PaymentStatus == domain.PaymentStatusUnpaid
+				o.OrderStatus == domain.OrderStatusQuotation && // Default harus Quotation
+				o.PaymentStatus == domain.PaymentStatusUnpaid &&
+				o.TermsConditions == input.TermsConditions && // Validasi field baru
+				o.ValidUntil == input.ValidUntil // Validasi field baru
 		})).Return(nil).Once()
 
 		order, err := uc.CreateOrder(context.Background(), input)
@@ -126,9 +128,13 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 func TestOrderUsecase_UpdateOrder(t *testing.T) {
 	mockOrderRepo, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
+	validUntilUpdate := time.Now().AddDate(0, 0, 14)
+
 	input := domain.OrderUpdateInput{
-		ShippingCost: 15000,
-		CourierName:  "JNE",
+		ShippingCost:    15000,
+		CourierName:     "JNE",
+		ValidUntil:      &validUntilUpdate,
+		TermsConditions: "Pembayaran Lunas di awal",
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -136,7 +142,10 @@ func TestOrderUsecase_UpdateOrder(t *testing.T) {
 		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(existingOrder, nil).Once()
 
 		mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
-			return o.ShippingCost == 15000 && o.CourierName == "JNE"
+			return o.ShippingCost == 15000 &&
+				o.CourierName == "JNE" &&
+				o.TermsConditions == input.TermsConditions &&
+				o.ValidUntil == input.ValidUntil
 		})).Return(nil).Once()
 
 		order, err := uc.UpdateOrder(context.Background(), mockID, input)

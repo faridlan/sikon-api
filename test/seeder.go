@@ -92,16 +92,19 @@ func StringPtr(s string) *string {
 
 func SeedOrder(db *gorm.DB, customerID, salesID, productID string) postgres.OrderModel {
 	orderID := uuid.New().String()
+	validUntil := time.Now().AddDate(0, 0, 7)
 
 	order := postgres.OrderModel{
-		ID:            orderID,
-		OrderNumber:   "ORD-" + uuid.New().String()[:8],
-		CustomerID:    customerID,
-		SalesID:       salesID,
-		TotalAmount:   100000,
-		ShippingCost:  10000,
-		OrderStatus:   "pending",
-		PaymentStatus: "unpaid",
+		ID:              orderID,
+		OrderNumber:     "ORD-" + uuid.New().String()[:8],
+		CustomerID:      customerID,
+		SalesID:         salesID,
+		TotalAmount:     100000,
+		ShippingCost:    10000,
+		OrderStatus:     "quotation",
+		PaymentStatus:   "unpaid",
+		ValidUntil:      &validUntil,
+		TermsConditions: "DP Minimal 50%",
 	}
 	db.Create(&order)
 
@@ -111,6 +114,7 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string) postgres.Orde
 		ProductID: productID,
 		Qty:       2,
 		Price:     50000,
+		Details:   map[string]string{"ukuran": "L", "warna": "Hitam"},
 	}
 	db.Create(&orderItem)
 

@@ -25,19 +25,21 @@ func (OrderItemModel) TableName() string {
 }
 
 type OrderModel struct {
-	ID              string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderNumber     string    `gorm:"type:varchar(100);unique;not null"`
-	CustomerID      string    `gorm:"type:uuid;not null"`
-	SalesID         string    `gorm:"type:uuid;not null"`
-	TotalAmount     float64   `gorm:"type:decimal(15,2);not null"`
-	ShippingCost    float64   `gorm:"type:decimal(12,2);not null"`
-	CourierName     string    `gorm:"type:varchar(100)"`
-	ShippingAddress string    `gorm:"type:text"`
-	OrderStatus     string    `gorm:"type:varchar(50);not null"`
-	PaymentStatus   string    `gorm:"type:varchar(50);not null"`
-	Notes           string    `gorm:"type:text"`
-	CreatedAt       time.Time `gorm:"autoCreateTime"`
-	UpdatedAt       time.Time `gorm:"autoUpdateTime"`
+	ID              string     `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderNumber     string     `gorm:"type:varchar(100);unique;not null"`
+	CustomerID      string     `gorm:"type:uuid;not null"`
+	SalesID         string     `gorm:"type:uuid;not null"`
+	TotalAmount     float64    `gorm:"type:decimal(15,2);not null"`
+	ShippingCost    float64    `gorm:"type:decimal(12,2);not null"`
+	CourierName     string     `gorm:"type:varchar(100)"`
+	ShippingAddress string     `gorm:"type:text"`
+	OrderStatus     string     `gorm:"type:varchar(50);not null"`
+	PaymentStatus   string     `gorm:"type:varchar(50);not null"`
+	ValidUntil      *time.Time `gorm:"type:date"`
+	TermsConditions string     `gorm:"type:text"`
+	Notes           string     `gorm:"type:text"`
+	CreatedAt       time.Time  `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time  `gorm:"autoUpdateTime"`
 
 	// Relasi
 	Items    []OrderItemModel `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
@@ -83,6 +85,8 @@ func (m *OrderModel) ToDomain() *domain.Order {
 		ShippingAddress: m.ShippingAddress,
 		OrderStatus:     domain.OrderStatus(m.OrderStatus),
 		PaymentStatus:   domain.PaymentStatus(m.PaymentStatus),
+		ValidUntil:      m.ValidUntil,
+		TermsConditions: m.TermsConditions,
 		Notes:           m.Notes,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
@@ -118,6 +122,8 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 		ShippingAddress: d.ShippingAddress,
 		OrderStatus:     string(d.OrderStatus),
 		PaymentStatus:   string(d.PaymentStatus),
+		ValidUntil:      d.ValidUntil,
+		TermsConditions: d.TermsConditions,
 		Notes:           d.Notes,
 		CreatedAt:       d.CreatedAt,
 		UpdatedAt:       d.UpdatedAt,

@@ -54,7 +54,9 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		CourierName:     input.CourierName,
 		ShippingAddress: input.ShippingAddress,
 		Notes:           input.Notes,
-		OrderStatus:     domain.OrderStatusPending,
+		ValidUntil:      input.ValidUntil,
+		TermsConditions: input.TermsConditions,
+		OrderStatus:     domain.OrderStatusQuotation, // Default status saat buat order adalah Quotation
 		PaymentStatus:   domain.PaymentStatusUnpaid,
 	}
 
@@ -150,6 +152,8 @@ func (u *orderUsecase) UpdateOrder(c context.Context, id string, input domain.Or
 	existingOrder.CourierName = input.CourierName
 	existingOrder.ShippingAddress = input.ShippingAddress
 	existingOrder.Notes = input.Notes
+	existingOrder.ValidUntil = input.ValidUntil
+	existingOrder.TermsConditions = input.TermsConditions
 
 	err = u.orderRepo.Update(ctx, existingOrder)
 	if err != nil {
