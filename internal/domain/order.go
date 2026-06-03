@@ -73,6 +73,7 @@ type OrderCreateInput struct {
 	ValidUntil      *time.Time
 	TermsConditions string
 	Notes           string
+	OrderStatus     OrderStatus
 	Items           []OrderItemInput
 }
 

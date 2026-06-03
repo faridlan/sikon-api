@@ -26,53 +26,89 @@ func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks
 }
 
 func TestOrderUsecase_CreateOrder(t *testing.T) {
-	mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, uc := setupOrderTest()
-
 	validUntil := time.Now().AddDate(0, 0, 7) // Penawaran berlaku 7 hari
-	input := domain.OrderCreateInput{
+
+	// Base Input: Kita buat template input dasar yang akan dipakai di semua test case
+	baseInput := domain.OrderCreateInput{
 		CustomerID:      "cust-123",
 		SalesID:         "user-123",
 		ShippingCost:    50000,
 		ValidUntil:      &validUntil,
 		TermsConditions: "DP Minimal 50%",
 		Items: []domain.OrderItemInput{
-			{ProductID: "prod-1", Qty: 2, Price: 0},     // Price 0 -> harus fallback ke BasePrice produk
+			{ProductID: "prod-1", Qty: 2, Price: 0},     // Price 0 -> harus fallback ke BasePrice
 			{ProductID: "prod-2", Qty: 1, Price: 15000}, // Price > 0 -> pakai price ini
 		},
 	}
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Success - Create as Quotation (Surat Penawaran)", func(t *testing.T) {
+		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, uc := setupOrderTest()
+
+		input := baseInput
+		input.OrderStatus = domain.OrderStatusQuotation // Set eksplisit sebagai Quotation
+
 		// 1. Mock Customer & User exist
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(&domain.Customer{ID: input.CustomerID}, nil).Once()
 		mockUserRepo.On("GetByID", mock.Anything, input.SalesID).Return(&domain.User{ID: input.SalesID}, nil).Once()
 
-		// 2. Mock Product 1 (BasePrice: 50000)
+		// 2. Mock Product 1 & 2
 		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
-		// 3. Mock Product 2 (BasePrice: 10000 tapi user input 15000)
 		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
 
-		// 4. Kalkulasi ekspektasi:
+		// 3. Kalkulasi ekspektasi: Status harus Quotation
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			return o.CustomerID == input.CustomerID &&
 				o.TotalAmount == 115000 &&
 				len(o.Items) == 2 &&
-				o.OrderStatus == domain.OrderStatusQuotation && // Default harus Quotation
+				o.OrderStatus == domain.OrderStatusQuotation && // Validasi Status
 				o.PaymentStatus == domain.PaymentStatusUnpaid &&
-				o.TermsConditions == input.TermsConditions && // Validasi field baru
-				o.ValidUntil == input.ValidUntil // Validasi field baru
+				o.TermsConditions == input.TermsConditions &&
+				o.ValidUntil == input.ValidUntil
 		})).Return(nil).Once()
 
 		order, err := uc.CreateOrder(context.Background(), input)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, order)
+		assert.Equal(t, domain.OrderStatusQuotation, order.OrderStatus)
 		mockCustomerRepo.AssertExpectations(t)
 		mockUserRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
 		mockOrderRepo.AssertExpectations(t)
 	})
 
+	t.Run("Success - Create as Pending (Order Langsung)", func(t *testing.T) {
+		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, uc := setupOrderTest()
+
+		input := baseInput
+		input.OrderStatus = "" // Kosong (Simulasi jika Modal 1 frontend tidak ngirim status)
+
+		// 1. Mock Customer & User exist
+		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(&domain.Customer{ID: input.CustomerID}, nil).Once()
+		mockUserRepo.On("GetByID", mock.Anything, input.SalesID).Return(&domain.User{ID: input.SalesID}, nil).Once()
+
+		// 2. Mock Product 1 & 2
+		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
+		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
+
+		// 3. Kalkulasi ekspektasi: Status harus Pending
+		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
+			return o.TotalAmount == 115000 &&
+				o.OrderStatus == domain.OrderStatusPending // Validasi Status harus PENDING
+		})).Return(nil).Once()
+
+		order, err := uc.CreateOrder(context.Background(), input)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, order)
+		assert.Equal(t, domain.OrderStatusPending, order.OrderStatus) // Pastikan return-nya juga Pending
+		mockOrderRepo.AssertExpectations(t)
+	})
+
 	t.Run("Error - Customer Not Found", func(t *testing.T) {
+		_, mockCustomerRepo, _, _, uc := setupOrderTest()
+
+		input := baseInput
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(nil, domain.ErrNotFound).Once()
 
 		order, err := uc.CreateOrder(context.Background(), input)
@@ -84,7 +120,6 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.Equal(t, "Customer tidak ditemukan", appErr.Message)
 	})
 }
-
 func TestOrderUsecase_GetOrder(t *testing.T) {
 	mockOrderRepo, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
