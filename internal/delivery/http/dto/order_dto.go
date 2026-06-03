@@ -23,6 +23,7 @@ type OrderCreateRequest struct {
 	ValidUntil      *time.Time         `json:"valid_until" validate:"omitempty" example:"2026-06-15T00:00:00Z"`
 	TermsConditions string             `json:"terms_conditions" validate:"omitempty" example:"DP Minimal 50%, Waktu Pengerjaan 14 Hari"`
 	Notes           string             `json:"notes" validate:"omitempty" example:"Tolong packing kayu"`
+	OrderStatus     string             `json:"order_status" validate:"omitempty" example:"quotation"`
 	Items           []OrderItemRequest `json:"items" validate:"required,min=1,dive"`
 }
 

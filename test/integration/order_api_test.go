@@ -30,6 +30,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 	category := tests.SeedCategory(db, "Kemeja")
 	product := tests.SeedProduct(db, category.ID, "Kemeja PDH", 150000)
 
+	// 1. SKENARIO CREATE SURAT PENAWARAN (Default Status)
 	t.Run("Success_Create_Order", func(t *testing.T) {
 		validUntil := time.Now().AddDate(0, 0, 7)
 		reqBody := dto.OrderCreateRequest{
@@ -38,14 +39,15 @@ func TestCreateOrder_Integration(t *testing.T) {
 			ShippingCost:    20000,
 			CourierName:     "JNE",
 			ShippingAddress: "Alamat Kirim",
-			ValidUntil:      &validUntil,    // <-- TAMBAHAN
-			TermsConditions: "Syarat 1 2 3", // <-- TAMBAHAN
+			ValidUntil:      &validUntil,
+			TermsConditions: "Syarat 1 2 3",
+			OrderStatus:     "quotation", // <-- Frontend mengirim status quotation untuk membuat Surat Penawaran
 			Items: []dto.OrderItemRequest{
 				{
 					ProductID: product.ID,
 					Qty:       2,
 					Price:     150000,
-					Details:   map[string]string{"Ukuran": "L"}, // Cek fitur JSONB-nya juga
+					Details:   map[string]string{"Ukuran": "L"},
 				},
 			},
 		}
@@ -62,18 +64,53 @@ func TestCreateOrder_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		// --- ASSERSI TAMBAHAN UNTUK SURAT PENAWARAN ---
-		assert.Equal(t, "quotation", response.Data.OrderStatus) // Default harus quotation
+		assert.Equal(t, "quotation", response.Data.OrderStatus)
 		assert.Equal(t, "Syarat 1 2 3", response.Data.TermsConditions)
 		assert.NotNil(t, response.Data.ValidUntil)
 		assert.Equal(t, "L", response.Data.Items[0].Details["Ukuran"])
 	})
 
+	// 2. SKENARIO BARU: CREATE ORDER LANGSUNG (Status Pending dari Frontend)
+	t.Run("Success_Create_Order_Directly_As_Pending", func(t *testing.T) {
+		reqBody := dto.OrderCreateRequest{
+			CustomerID:      customer.ID,
+			SalesID:         sales.ID,
+			OrderStatus:     "pending", // <-- Frontend secara eksplisit mengirim status pending
+			ShippingCost:    20000,
+			CourierName:     "JNT",
+			ShippingAddress: "Alamat Langsung",
+			Items: []dto.OrderItemRequest{
+				{
+					ProductID: product.ID,
+					Qty:       1,
+					Price:     150000,
+					Details:   map[string]string{"Ukuran": "M"},
+				},
+			},
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// PASTIKAN: Sistem mencatatnya sebagai 'pending' (Pesanan Resmi), bukan 'quotation'
+		assert.Equal(t, "pending", response.Data.OrderStatus)
+	})
+
+	// 3. SKENARIO GAGAL VALIDASI
 	t.Run("Failed_Validation_Empty_Items", func(t *testing.T) {
 		reqBody := dto.OrderCreateRequest{
 			CustomerID: customer.ID,
 			SalesID:    sales.ID,
-			Items:      []dto.OrderItemRequest{}, // Items kosong (ditolak oleh tag min=1)
+			Items:      []dto.OrderItemRequest{}, // Items kosong
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 

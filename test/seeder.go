@@ -90,9 +90,14 @@ func StringPtr(s string) *string {
 	return &s
 }
 
-func SeedOrder(db *gorm.DB, customerID, salesID, productID string) postgres.OrderModel {
+func SeedOrder(db *gorm.DB, customerID, salesID, productID string, customStatus ...string) postgres.OrderModel {
 	orderID := uuid.New().String()
 	validUntil := time.Now().AddDate(0, 0, 7)
+
+	status := "quotation"
+	if len(customStatus) > 0 && customStatus[0] != "" {
+		status = customStatus[0]
+	}
 
 	order := postgres.OrderModel{
 		ID:              orderID,
@@ -101,7 +106,7 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string) postgres.Orde
 		SalesID:         salesID,
 		TotalAmount:     100000,
 		ShippingCost:    10000,
-		OrderStatus:     "quotation",
+		OrderStatus:     status,
 		PaymentStatus:   "unpaid",
 		ValidUntil:      &validUntil,
 		TermsConditions: "DP Minimal 50%",

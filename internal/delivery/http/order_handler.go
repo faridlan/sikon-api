@@ -54,6 +54,7 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 		CourierName:     req.CourierName,
 		ShippingAddress: req.ShippingAddress,
 		Notes:           req.Notes,
+		OrderStatus:     domain.OrderStatus(req.OrderStatus),
 		ValidUntil:      req.ValidUntil,
 		TermsConditions: req.TermsConditions,
 	}
