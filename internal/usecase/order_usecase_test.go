@@ -215,6 +215,14 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("Success - Quotation Status", func(t *testing.T) {
+		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatusQuotation, domain.PaymentStatus("")).Return(nil).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusQuotation)
+
+		assert.NoError(t, err)
+	})
+
 	t.Run("Error - Invalid Status", func(t *testing.T) {
 		err := uc.UpdateOrderStatus(context.Background(), mockID, "STATUS_NGAWUR")
 
