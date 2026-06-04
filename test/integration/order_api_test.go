@@ -279,6 +279,20 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 	})
 
+	t.Run("Success_Update_To_Quotation", func(t *testing.T) {
+		reqBody := dto.OrderStatusUpdateRequest{
+			OrderStatus: "quotation", // Status valid lainnya
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	})
+
 	t.Run("Failed_Invalid_Status_Enum", func(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{
 			OrderStatus: "status_ngasal", // Harus ditolak oleh validator "oneof"

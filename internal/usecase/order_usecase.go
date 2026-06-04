@@ -187,9 +187,15 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi status string
-	if status != domain.OrderStatusPending && status != domain.OrderStatusProduction &&
-		status != domain.OrderStatusCompleted && status != domain.OrderStatusCanceled {
+	validStatuses := map[domain.OrderStatus]bool{
+		domain.OrderStatusPending:    true,
+		domain.OrderStatusProduction: true,
+		domain.OrderStatusCompleted:  true,
+		domain.OrderStatusCanceled:   true,
+		domain.OrderStatusQuotation:  true,
+	}
+
+	if !validStatuses[status] {
 		return domain.NewError(domain.ErrBadParamInput, "Status order tidak valid")
 	}
 
