@@ -119,7 +119,7 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string, customStatus 
 		ProductID: productID,
 		Qty:       2,
 		Price:     50000,
-		Details:   map[string]string{"ukuran": "L", "warna": "Hitam"},
+		Details:   map[string]any{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}},
 	}
 	db.Create(&orderItem)
 
