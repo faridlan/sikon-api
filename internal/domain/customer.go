@@ -46,7 +46,7 @@ type CustomerRepository interface {
 type CustomerUsecase interface {
 	CreateCustomer(ctx context.Context, input CustomerCreateInput) (*Customer, error)
 	GetCustomer(ctx context.Context, id string, operatorID string, operatorRole Role) (*Customer, error)
-	ListCustomers(ctx context.Context, query PaginationQuery, operatorID string, operatorRole Role) ([]Customer, PaginationMeta, error)
+	ListCustomers(ctx context.Context, query PaginationQuery, requestedSalesID, operatorID string, operatorRole Role) ([]Customer, PaginationMeta, error)
 	UpdateCustomer(ctx context.Context, id string, input CustomerUpdateInput) (*Customer, error)
 	DeleteCustomer(ctx context.Context, id string) error
 }
