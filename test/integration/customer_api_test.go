@@ -137,6 +137,25 @@ func TestListCustomers_Integration(t *testing.T) {
 		assert.NotNil(t, response.Meta)
 		assert.Equal(t, salesUser.ID, response.Data[0].SalesID)
 	})
+
+	t.Run("Success_With_Filter_SalesID", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/customers?page=1&limit=10&sales_id="+salesUser.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data []dto.CustomerResponse `json:"data"`
+			Meta any                    `json:"meta"`
+		}
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Len(t, response.Data, 2)
+		assert.NotNil(t, response.Meta)
+		assert.Equal(t, salesUser.ID, response.Data[0].SalesID)
+	})
 }
 
 // ==========================================

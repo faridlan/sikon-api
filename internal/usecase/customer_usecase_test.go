@@ -156,7 +156,22 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 		// Perhatikan paramter ke-4 adalah "", artinya tidak ada filter SalesID
 		mockRepo.On("Fetch", mock.Anything, 10, 0, "").Return(mockCustomers, int64(2), nil).Once()
 
-		customers, meta, err := uc.ListCustomers(context.Background(), query, "admin-123", domain.RoleAdmin)
+		customers, meta, err := uc.ListCustomers(context.Background(), query, "", "admin-123", domain.RoleAdmin)
+
+		assert.NoError(t, err)
+		assert.Len(t, customers, 2)
+		assert.Equal(t, 1, meta.TotalPages)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Akses Admin (Dengan Filter SalesID Tertentu)", func(t *testing.T) {
+		mockRepo := new(mocks.CustomerRepository)
+		userRepo := new(mocks.UserRepository)
+		uc := usecase.NewCustomerUsecase(mockRepo, userRepo, time.Second*2)
+
+		mockRepo.On("Fetch", mock.Anything, 10, 0, "sales-123").Return(mockCustomers, int64(2), nil).Once()
+
+		customers, meta, err := uc.ListCustomers(context.Background(), query, "sales-123", "admin-123", domain.RoleAdmin)
 
 		assert.NoError(t, err)
 		assert.Len(t, customers, 2)
@@ -172,7 +187,7 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 		// Perhatikan paramter ke-4 adalah "sales-123", memicu filter di DB
 		mockRepo.On("Fetch", mock.Anything, 10, 0, "sales-123").Return(mockCustomers, int64(2), nil).Once()
 
-		customers, meta, err := uc.ListCustomers(context.Background(), query, "sales-123", domain.RoleSales)
+		customers, meta, err := uc.ListCustomers(context.Background(), query, "", "sales-123", domain.RoleSales)
 
 		assert.NoError(t, err)
 		assert.Len(t, customers, 2)

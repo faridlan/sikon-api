@@ -80,7 +80,7 @@ func (u *customerUsecase) GetCustomer(c context.Context, id string, operatorID s
 	return customer, nil
 }
 
-func (u *customerUsecase) ListCustomers(c context.Context, query domain.PaginationQuery, operatorID string, operatorRole domain.Role) ([]domain.Customer, domain.PaginationMeta, error) {
+func (u *customerUsecase) ListCustomers(c context.Context, query domain.PaginationQuery, requestedSalesID, operatorID string, operatorRole domain.Role) ([]domain.Customer, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
@@ -92,6 +92,9 @@ func (u *customerUsecase) ListCustomers(c context.Context, query domain.Paginati
 	if operatorRole == domain.RoleSales {
 		// Paksa filter hanya mengambil data milik sales ini saja
 		filterSalesID = operatorID
+	} else if requestedSalesID != "" {
+		// Jika ada request specific sales ID, gunakan itu
+		filterSalesID = requestedSalesID
 	}
 	// ------------------------------------------------
 

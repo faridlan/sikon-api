@@ -105,12 +105,17 @@ func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 10)
 
 	query := domain.PaginationQuery{Page: page, Limit: limit}
+	salesID := c.Query("sales_id") // TAMBAHAN: Query Param untuk filter berdasarkan SalesID (Admin bisa request dengan sales_id tertentu)
+
+	// TODO: Nanti ambil dari context JWT Auth Middleware
+	// Contoh: operatorID := c.Locals("userID").(string)
+	//         operatorRole := c.Locals("userRole").(domain.Role)
 
 	// MOCKING DATA LOGIN (Nanti ambil dari middleware JWT)
 	operatorID := "dummy-operator-id"
 	operatorRole := domain.RoleAdmin // Bisa diganti domain.RoleSales untuk test filter
 
-	customers, meta, err := h.customerUsecase.ListCustomers(c.Context(), query, operatorID, operatorRole)
+	customers, meta, err := h.customerUsecase.ListCustomers(c.Context(), query, salesID, operatorID, operatorRole)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
