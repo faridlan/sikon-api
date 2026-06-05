@@ -47,7 +47,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 					ProductID: product.ID,
 					Qty:       2,
 					Price:     150000,
-					Details:   map[string]string{"Ukuran": "L"},
+					Details:   map[string]any{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}}, // Contoh variasi produk yang lebih kompleks
 				},
 			},
 		}
@@ -67,7 +67,8 @@ func TestCreateOrder_Integration(t *testing.T) {
 		assert.Equal(t, "quotation", response.Data.OrderStatus)
 		assert.Equal(t, "Syarat 1 2 3", response.Data.TermsConditions)
 		assert.NotNil(t, response.Data.ValidUntil)
-		assert.Equal(t, "L", response.Data.Items[0].Details["Ukuran"])
+		assert.Equal(t, 150000.0, response.Data.Items[0].Price)
+		assert.Equal(t, "Hitam", response.Data.Items[0].Details["Bahan"].(map[string]any)["Color"])
 	})
 
 	// 2. SKENARIO BARU: CREATE ORDER LANGSUNG (Status Pending dari Frontend)
@@ -84,7 +85,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 					ProductID: product.ID,
 					Qty:       1,
 					Price:     150000,
-					Details:   map[string]string{"Ukuran": "M"},
+					Details:   map[string]any{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}}, // Contoh variasi produk yang lebih kompleks
 				},
 			},
 		}

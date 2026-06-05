@@ -8,10 +8,10 @@ import (
 
 // --- REQUEST ---
 type OrderItemRequest struct {
-	ProductID string            `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
-	Qty       int               `json:"qty" validate:"required,gt=0" example:"100"`
-	Price     float64           `json:"price" validate:"omitempty" example:"35000"`
-	Details   map[string]string `json:"details" example:"ukuran:L,warna:Hitam"`
+	ProductID string         `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
+	Qty       int            `json:"qty" validate:"required,gt=0" example:"100"`
+	Price     float64        `json:"price" validate:"omitempty" example:"35000"`
+	Details   map[string]any `json:"details" example:"ukuran:L,warna:Hitam"`
 }
 
 type OrderCreateRequest struct {
@@ -42,12 +42,12 @@ type OrderStatusUpdateRequest struct {
 
 // --- RESPONSE ---
 type OrderItemResponse struct {
-	ID        string            `json:"id" example:"item-uuid"`
-	ProductID string            `json:"product_id" example:"999e4567-e89b-12d3-a456-426614174000"`
-	Qty       int               `json:"qty" example:"100"`
-	Price     float64           `json:"price" example:"35000"`
-	Details   map[string]string `json:"details"`
-	Product   *ProductResponse  `json:"product,omitempty"`
+	ID        string           `json:"id" example:"item-uuid"`
+	ProductID string           `json:"product_id" example:"999e4567-e89b-12d3-a456-426614174000"`
+	Qty       int              `json:"qty" example:"100"`
+	Price     float64          `json:"price" example:"35000"`
+	Details   map[string]any   `json:"details"`
+	Product   *ProductResponse `json:"product,omitempty"`
 }
 
 type OrderResponse struct {
