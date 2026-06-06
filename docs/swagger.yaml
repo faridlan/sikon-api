@@ -152,72 +152,11 @@ definitions:
         type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
-    properties:
-      courier_name:
-        example: JNE Trucking
-        type: string
-      customer_id:
-        example: 333e4567-e89b-12d3-a456-426614174000
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest'
-        minItems: 1
-        type: array
-      notes:
-        example: Tolong packing kayu
-        type: string
-      order_status:
-        example: quotation
-        type: string
-      sales_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      shipping_address:
-        example: Jl. Sudirman No. 123, Jakarta
-        type: string
-      shipping_cost:
-        example: 50000
-        minimum: 0
-        type: number
-      terms_conditions:
-        example: DP Minimal 50%, Waktu Pengerjaan 14 Hari
-        type: string
-      valid_until:
-        example: "2026-06-15T00:00:00Z"
-        type: string
-    required:
-    - customer_id
-    - items
-    - sales_id
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest:
-    properties:
-      details:
-        additionalProperties:
-          type: string
-        example:
-          ukuran: L
-          warna: Hitam
-        type: object
-      price:
-        example: 35000
-        type: number
-      product_id:
-        example: 999e4567-e89b-12d3-a456-426614174000
-        type: string
-      qty:
-        example: 100
-        type: integer
-    required:
-    - product_id
-    - qty
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse:
     properties:
       details:
-        additionalProperties:
-          type: string
+        additionalProperties: {}
         type: object
       id:
         example: item-uuid
@@ -1200,7 +1139,7 @@ paths:
       - Customers
   /orders:
     get:
-      description: Mengambil daftar seluruh pesanan dengan pagination
+      description: Mengambil daftar seluruh pesanan dengan pagination dan filter
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -1212,6 +1151,35 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Cari berdasarkan Nomor Order
+        in: query
+        name: search
+        type: string
+      - description: Filter berdasarkan ID Customer
+        in: query
+        name: customer_id
+        type: string
+      - description: Filter berdasarkan ID Sales
+        in: query
+        name: sales_id
+        type: string
+      - description: Filter Status Order (quotation, pending, production, completed,
+          canceled)
+        in: query
+        name: order_status
+        type: string
+      - description: Filter Status Pembayaran (unpaid, partial, paid)
+        in: query
+        name: payment_status
+        type: string
+      - description: Tanggal Mulai (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal Selesai (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
       produces:
       - application/json
       responses:
