@@ -146,20 +146,48 @@ func TestOrderUsecase_GetOrder(t *testing.T) {
 
 func TestOrderUsecase_ListOrders(t *testing.T) {
 	mockOrderRepo, _, _, _, uc := setupOrderTest()
+
+	// 1. Siapkan mock input
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
+
+	// Tambahkan mock filter (boleh kosong atau diisi sebagai representasi request FE)
+	filter := domain.OrderFilter{
+		OrderStatus: "pending",
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		mockOrders := []domain.Order{{ID: "1"}, {ID: "2"}}
-		mockOrderRepo.On("Fetch", mock.Anything, 10, 0).Return(mockOrders, int64(2), nil).Once()
 
-		orders, meta, err := uc.ListOrders(context.Background(), query)
+		// Perhatikan penambahan parameter 'filter' pada mock.On()
+		mockOrderRepo.On("Fetch", mock.Anything, filter, 10, 0).
+			Return(mockOrders, int64(2), nil).Once()
+
+		// Panggil usecase dengan menyertakan parameter 'filter'
+		orders, meta, err := uc.ListOrders(context.Background(), filter, query)
 
 		assert.NoError(t, err)
 		assert.Len(t, orders, 2)
 		assert.Equal(t, 1, meta.TotalPages)
+		assert.Equal(t, int64(2), meta.TotalItems)
+		assert.Equal(t, 10, meta.Limit)
+	})
+
+	t.Run("Error_From_Repository", func(t *testing.T) {
+		// Mock ketika repository mengembalikan error (misal koneksi database terputus)
+		expectedErr := errors.New("database error")
+
+		mockOrderRepo.On("Fetch", mock.Anything, filter, 10, 0).
+			Return(nil, int64(0), expectedErr).Once()
+
+		orders, meta, err := uc.ListOrders(context.Background(), filter, query)
+
+		// Verifikasi bahwa usecase meneruskan error dengan benar
+		assert.Error(t, err)
+		assert.Nil(t, orders)
+		assert.Equal(t, expectedErr, err)
+		assert.Equal(t, 0, meta.TotalPages) // Meta harus kosong jika error
 	})
 }
-
 func TestOrderUsecase_UpdateOrder(t *testing.T) {
 	mockOrderRepo, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"

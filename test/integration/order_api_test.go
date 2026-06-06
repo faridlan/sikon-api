@@ -354,3 +354,115 @@ func TestDeleteOrder_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya 400
 	})
 }
+
+// ==========================================
+// 6. TEST LIST ORDERS (GET /api/orders)
+// ==========================================
+func TestListOrders_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	// --- 1. SETUP DATA PRASYARAT ---
+	salesA := tests.SeedUser(db, "Sales A", "salesA@sikon.com", "sales")
+	salesB := tests.SeedUser(db, "Sales B", "salesB@sikon.com", "sales")
+	customer := tests.SeedCustomer(db, "Cust List", "08112233", "Jakarta")
+	category := tests.SeedCategory(db, "Kaos")
+	product := tests.SeedProduct(db, category.ID, "Kaos Polos", 50000)
+
+	// Buat 3 Order dengan kombinasi Sales dan Status yang berbeda untuk test filter
+	order1 := tests.SeedOrder(db, customer.ID, salesA.ID, product.ID)
+	order2 := tests.SeedOrder(db, customer.ID, salesA.ID, product.ID)
+	order3 := tests.SeedOrder(db, customer.ID, salesB.ID, product.ID)
+
+	// Kita update statusnya secara manual via raw query GORM agar sesuai skenario filter
+	db.Exec("UPDATE orders SET order_status = 'quotation' WHERE id = ?", order1.ID)
+	db.Exec("UPDATE orders SET order_status = 'pending' WHERE id = ?", order2.ID)
+	db.Exec("UPDATE orders SET order_status = 'pending' WHERE id = ?", order3.ID)
+
+	// Struct untuk menangkap response JSON bertipe Paginated
+	type PaginatedOrderResponse struct {
+		Message string              `json:"message"`
+		Data    []dto.OrderResponse `json:"data"`
+		Meta    struct {
+			CurrentPage int   `json:"current_page"`
+			Limit       int   `json:"limit"`
+			TotalItems  int64 `json:"total_items"`
+			TotalPages  int   `json:"total_pages"`
+		} `json:"meta"`
+	}
+
+	// --- 2. SKENARIO PENGUJIAN ---
+
+	t.Run("Success_Get_All_Tanpa_Filter", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/orders", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response PaginatedOrderResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Harus mengembalikan semua order (Total 3)
+		assert.Len(t, response.Data, 3)
+		assert.Equal(t, int64(3), response.Meta.TotalItems)
+	})
+
+	t.Run("Success_Filter_By_OrderStatus", func(t *testing.T) {
+		// Test mencari order yang statusnya 'pending' saja
+		req := httptest.NewRequest("GET", "/api/orders?order_status=pending", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response PaginatedOrderResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Hanya ada 2 order dengan status pending
+		assert.Len(t, response.Data, 2)
+		assert.Equal(t, int64(2), response.Meta.TotalItems)
+		assert.Equal(t, "pending", response.Data[0].OrderStatus)
+		assert.Equal(t, "pending", response.Data[1].OrderStatus)
+	})
+
+	t.Run("Success_Filter_By_SalesID", func(t *testing.T) {
+		// Test mencari order milik Sales B saja
+		req := httptest.NewRequest("GET", "/api/orders?sales_id="+salesB.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response PaginatedOrderResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Sales B hanya punya 1 order
+		assert.Len(t, response.Data, 1)
+		assert.Equal(t, int64(1), response.Meta.TotalItems)
+		assert.Equal(t, salesB.ID, response.Data[0].SalesID)
+	})
+
+	t.Run("Success_Pagination_Limit", func(t *testing.T) {
+		// Test Pagination: Ambil halaman 1, tapi batasi hanya 2 data per halaman
+		req := httptest.NewRequest("GET", "/api/orders?page=1&limit=2", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response PaginatedOrderResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Karena dilimit 2, maka data yang keluar harus 2
+		assert.Len(t, response.Data, 2)
+		// Namun TotalItems keseluruhan tetap harus 3
+		assert.Equal(t, int64(3), response.Meta.TotalItems)
+		// Karena total 3 dibagi limit 2, maka TotalPages harus 2 (Ceil)
+		assert.Equal(t, 2, response.Meta.TotalPages)
+	})
+}

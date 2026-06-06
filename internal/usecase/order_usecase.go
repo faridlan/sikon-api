@@ -118,14 +118,15 @@ func (u *orderUsecase) GetOrder(c context.Context, id string) (*domain.Order, er
 	return order, nil
 }
 
-func (u *orderUsecase) ListOrders(c context.Context, query domain.PaginationQuery) ([]domain.Order, domain.PaginationMeta, error) {
+func (u *orderUsecase) ListOrders(c context.Context, filter domain.OrderFilter, query domain.PaginationQuery) ([]domain.Order, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	orders, totalItems, err := u.orderRepo.Fetch(ctx, limit, offset)
+	// Teruskan filter ke repository
+	orders, totalItems, err := u.orderRepo.Fetch(ctx, filter, limit, offset)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
 	}

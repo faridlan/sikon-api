@@ -92,9 +92,9 @@ func (_m *OrderUsecase) GetOrder(ctx context.Context, id string) (*domain.Order,
 	return r0, r1
 }
 
-// ListOrders provides a mock function with given fields: c, query
-func (_m *OrderUsecase) ListOrders(c context.Context, query domain.PaginationQuery) ([]domain.Order, domain.PaginationMeta, error) {
-	ret := _m.Called(c, query)
+// ListOrders provides a mock function with given fields: ctx, filter, query
+func (_m *OrderUsecase) ListOrders(ctx context.Context, filter domain.OrderFilter, query domain.PaginationQuery) ([]domain.Order, domain.PaginationMeta, error) {
+	ret := _m.Called(ctx, filter, query)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListOrders")
@@ -103,25 +103,25 @@ func (_m *OrderUsecase) ListOrders(c context.Context, query domain.PaginationQue
 	var r0 []domain.Order
 	var r1 domain.PaginationMeta
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) ([]domain.Order, domain.PaginationMeta, error)); ok {
-		return rf(c, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.OrderFilter, domain.PaginationQuery) ([]domain.Order, domain.PaginationMeta, error)); ok {
+		return rf(ctx, filter, query)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) []domain.Order); ok {
-		r0 = rf(c, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.OrderFilter, domain.PaginationQuery) []domain.Order); ok {
+		r0 = rf(ctx, filter, query)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Order)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery) domain.PaginationMeta); ok {
-		r1 = rf(c, query)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.OrderFilter, domain.PaginationQuery) domain.PaginationMeta); ok {
+		r1 = rf(ctx, filter, query)
 	} else {
 		r1 = ret.Get(1).(domain.PaginationMeta)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery) error); ok {
-		r2 = rf(c, query)
+	if rf, ok := ret.Get(2).(func(context.Context, domain.OrderFilter, domain.PaginationQuery) error); ok {
+		r2 = rf(ctx, filter, query)
 	} else {
 		r2 = ret.Error(2)
 	}

@@ -86,10 +86,20 @@ type OrderUpdateInput struct {
 	Notes           string
 }
 
+type OrderFilter struct {
+	Search        string // Untuk pencarian OrderNumber
+	CustomerID    string // Filter by Customer
+	SalesID       string // Filter by Sales
+	OrderStatus   string // Filter by Order Status
+	PaymentStatus string // Filter by Payment Status
+	StartDate     string // Filter dari tanggal (format: YYYY-MM-DD)
+	EndDate       string // Filter sampai tanggal (format: YYYY-MM-DD)
+}
+
 type OrderRepository interface {
 	Create(ctx context.Context, order *Order) error
 	GetByID(ctx context.Context, id string) (*Order, error)
-	Fetch(ctx context.Context, limit, offset int) ([]Order, int64, error)
+	Fetch(ctx context.Context, filter OrderFilter, limit, offset int) ([]Order, int64, error)
 	Update(ctx context.Context, order *Order) error
 	Delete(ctx context.Context, id string) error
 
@@ -100,7 +110,7 @@ type OrderRepository interface {
 type OrderUsecase interface {
 	CreateOrder(ctx context.Context, input OrderCreateInput) (*Order, error)
 	GetOrder(ctx context.Context, id string) (*Order, error)
-	ListOrders(c context.Context, query PaginationQuery) ([]Order, PaginationMeta, error)
+	ListOrders(ctx context.Context, filter OrderFilter, query PaginationQuery) ([]Order, PaginationMeta, error)
 	UpdateOrder(ctx context.Context, id string, input OrderUpdateInput) (*Order, error)
 	DeleteOrder(ctx context.Context, id string) error
 	UpdateOrderStatus(ctx context.Context, id string, status OrderStatus) error

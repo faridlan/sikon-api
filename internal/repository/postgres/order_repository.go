@@ -70,15 +70,46 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Order
 	return model.ToDomain(), nil
 }
 
-func (r *orderRepository) Fetch(ctx context.Context, limit, offset int) ([]domain.Order, int64, error) {
+func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, limit, offset int) ([]domain.Order, int64, error) {
 	var models []OrderModel
 	var total int64
 
-	if err := r.db.WithContext(ctx).Model(&OrderModel{}).Count(&total).Error; err != nil {
+	// 1. Inisiasi instance GORM Model
+	query := r.db.WithContext(ctx).Model(&OrderModel{})
+
+	// 2. Terapkan Filter Dinamis (Jika nilainya ada)
+	if filter.Search != "" {
+		// Menggunakan ILIKE untuk pencarian case-insensitive di Postgres
+		query = query.Where("order_number ILIKE ?", "%"+filter.Search+"%")
+	}
+	if filter.CustomerID != "" {
+		query = query.Where("customer_id = ?", filter.CustomerID)
+	}
+	if filter.SalesID != "" {
+		query = query.Where("sales_id = ?", filter.SalesID)
+	}
+	if filter.OrderStatus != "" {
+		query = query.Where("order_status = ?", filter.OrderStatus)
+	}
+	if filter.PaymentStatus != "" {
+		query = query.Where("payment_status = ?", filter.PaymentStatus)
+	}
+	if filter.StartDate != "" {
+		// Mulai dari jam 00:00:00
+		query = query.Where("created_at >= ?", filter.StartDate+" 00:00:00")
+	}
+	if filter.EndDate != "" {
+		// Sampai jam 23:59:59
+		query = query.Where("created_at <= ?", filter.EndDate+" 23:59:59")
+	}
+
+	// 3. Hitung Total Data (Penting! Harus dipanggil SETELAH filter diterapkan, tapi SEBELUM limit & offset)
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	err := r.db.WithContext(ctx).
+	// 4. Ambil Data dengan Pagination dan Preload
+	err := query.
 		Preload("Customer"). // Hanya Preload relasi utama untuk list agar ringan
 		Preload("Sales").
 		Limit(limit).
