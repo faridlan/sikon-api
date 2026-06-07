@@ -50,9 +50,9 @@ func (_m *PaymentRepository) Delete(ctx context.Context, id string) error {
 	return r0
 }
 
-// Fetch provides a mock function with given fields: ctx, limit, offset
-func (_m *PaymentRepository) Fetch(ctx context.Context, limit int, offset int) ([]domain.Payment, int64, error) {
-	ret := _m.Called(ctx, limit, offset)
+// Fetch provides a mock function with given fields: ctx, limit, offset, filter
+func (_m *PaymentRepository) Fetch(ctx context.Context, limit int, offset int, filter domain.PaymentFilter) ([]domain.Payment, int64, error) {
+	ret := _m.Called(ctx, limit, offset, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
@@ -61,25 +61,25 @@ func (_m *PaymentRepository) Fetch(ctx context.Context, limit int, offset int) (
 	var r0 []domain.Payment
 	var r1 int64
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) ([]domain.Payment, int64, error)); ok {
-		return rf(ctx, limit, offset)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, domain.PaymentFilter) ([]domain.Payment, int64, error)); ok {
+		return rf(ctx, limit, offset, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) []domain.Payment); ok {
-		r0 = rf(ctx, limit, offset)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, domain.PaymentFilter) []domain.Payment); ok {
+		r0 = rf(ctx, limit, offset, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Payment)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int, int) int64); ok {
-		r1 = rf(ctx, limit, offset)
+	if rf, ok := ret.Get(1).(func(context.Context, int, int, domain.PaymentFilter) int64); ok {
+		r1 = rf(ctx, limit, offset, filter)
 	} else {
 		r1 = ret.Get(1).(int64)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, int, int) error); ok {
-		r2 = rf(ctx, limit, offset)
+	if rf, ok := ret.Get(2).(func(context.Context, int, int, domain.PaymentFilter) error); ok {
+		r2 = rf(ctx, limit, offset, filter)
 	} else {
 		r2 = ret.Error(2)
 	}

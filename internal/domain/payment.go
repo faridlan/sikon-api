@@ -42,10 +42,17 @@ type PaymentUpdateInput struct {
 	PaymentType     PaymentType
 }
 
+type PaymentFilter struct {
+	Search      string
+	PaymentType string
+	StartDate   string
+	EndDate     string
+}
+
 type PaymentRepository interface {
 	Create(ctx context.Context, payment *Payment) error
 	GetByID(ctx context.Context, id string) (*Payment, error)
-	Fetch(ctx context.Context, limit, offset int) ([]Payment, int64, error)
+	Fetch(ctx context.Context, limit, offset int, filter PaymentFilter) ([]Payment, int64, error)
 	Update(ctx context.Context, payment *Payment) error
 	Delete(ctx context.Context, id string) error
 
@@ -56,7 +63,7 @@ type PaymentRepository interface {
 type PaymentUsecase interface {
 	ProcessPayment(ctx context.Context, input PaymentCreateInput) (*Payment, error)
 	GetPayment(ctx context.Context, id string) (*Payment, error)
-	ListPayments(c context.Context, query PaginationQuery) ([]Payment, PaginationMeta, error)
+	ListPayments(c context.Context, query PaginationQuery, filter PaymentFilter) ([]Payment, PaginationMeta, error)
 	UpdatePayment(ctx context.Context, id string, input PaymentUpdateInput) (*Payment, error)
 	DeletePayment(ctx context.Context, id string) error
 	GetPaymentsByOrderID(ctx context.Context, orderID string) ([]Payment, error)

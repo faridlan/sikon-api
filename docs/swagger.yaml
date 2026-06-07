@@ -1373,7 +1373,8 @@ paths:
       - Orders
   /payments:
     get:
-      description: Mengambil daftar seluruh pembayaran (History transaksi)
+      description: Mengambil daftar seluruh pembayaran (History transaksi) dengan
+        filter
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -1385,6 +1386,22 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Cari No Ref atau Order ID
+        in: query
+        name: search
+        type: string
+      - description: Filter Tipe Pembayaran (dp, settlement, installment)
+        in: query
+        name: payment_type
+        type: string
+      - description: Tanggal Mulai (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Tanggal Akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
       produces:
       - application/json
       responses:

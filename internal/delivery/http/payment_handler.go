@@ -90,11 +90,15 @@ func (h *paymentHandler) GetPayment(c *fiber.Ctx) error {
 }
 
 // @Summary List Payments
-// @Description Mengambil daftar seluruh pembayaran (History transaksi)
+// @Description Mengambil daftar seluruh pembayaran (History transaksi) dengan filter
 // @Tags Payments
 // @Produce json
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
+// @Param search query string false "Cari No Ref atau Order ID"
+// @Param payment_type query string false "Filter Tipe Pembayaran (dp, settlement, installment)"
+// @Param start_date query string false "Tanggal Mulai (YYYY-MM-DD)"
+// @Param end_date query string false "Tanggal Akhir (YYYY-MM-DD)"
 // @Success 200 {object} utils.PaginatedResponse[dto.PaymentResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /payments [get]
@@ -102,9 +106,18 @@ func (h *paymentHandler) ListPayments(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
+	// Tangkap filter dari URL
+	filter := domain.PaymentFilter{
+		Search:      c.Query("search"),
+		PaymentType: c.Query("payment_type"),
+		StartDate:   c.Query("start_date"),
+		EndDate:     c.Query("end_date"),
+	}
+
 	query := domain.PaginationQuery{Page: page, Limit: limit}
 
-	payments, meta, err := h.paymentUsecase.ListPayments(c.Context(), query)
+	// Teruskan filter ke usecase
+	payments, meta, err := h.paymentUsecase.ListPayments(c.Context(), query, filter)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
