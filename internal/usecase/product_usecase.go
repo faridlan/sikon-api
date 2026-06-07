@@ -65,14 +65,16 @@ func (u *productUsecase) GetProduct(c context.Context, id string) (*domain.Produ
 	return product, nil
 }
 
-func (u *productUsecase) ListProducts(c context.Context, query domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error) {
+// Tambahkan parameter filter domain.ProductFilter
+func (u *productUsecase) ListProducts(c context.Context, filter domain.ProductFilter, query domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	products, totalItems, err := u.productRepo.Fetch(ctx, limit, offset)
+	// Teruskan filter ke Repository
+	products, totalItems, err := u.productRepo.Fetch(ctx, filter, limit, offset)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
 	}

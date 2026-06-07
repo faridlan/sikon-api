@@ -107,18 +107,27 @@ func TestProductUsecase_ListProducts(t *testing.T) {
 	mockCategoryRepo := new(mocks.CategoryRepository)
 	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, time.Second*2)
 
+	// 1. Siapkan mock input query dan filter
 	query := domain.PaginationQuery{Page: 2, Limit: 5}
+	filter := domain.ProductFilter{
+		Search:     "Kemeja",
+		CategoryID: "cat-1",
+	}
+
 	mockProducts := []domain.Product{
-		{ID: "prod-1", Name: "Produk 1"},
-		{ID: "prod-2", Name: "Produk 2"},
+		{ID: "prod-1", Name: "Kemeja Lengan Pendek"},
+		{ID: "prod-2", Name: "Kemeja Lengan Panjang"},
 	}
 	var totalItems int64 = 12
 
 	t.Run("Success", func(t *testing.T) {
+		// 2. Tambahkan parameter 'filter' pada argumen mock.On()
 		// Offset dihitung: (Page 2 - 1) * 5 Limit = 5
-		mockProductRepo.On("Fetch", mock.Anything, 5, 5).Return(mockProducts, totalItems, nil).Once()
+		mockProductRepo.On("Fetch", mock.Anything, filter, 5, 5).
+			Return(mockProducts, totalItems, nil).Once()
 
-		products, meta, err := uc.ListProducts(context.Background(), query)
+		// 3. Sisipkan parameter 'filter' saat memanggil fungsi usecase
+		products, meta, err := uc.ListProducts(context.Background(), filter, query)
 
 		assert.NoError(t, err)
 		assert.Len(t, products, 2)
@@ -126,6 +135,24 @@ func TestProductUsecase_ListProducts(t *testing.T) {
 		// Total pages: ceil(12 / 5) = 3
 		assert.Equal(t, 3, meta.TotalPages)
 		assert.Equal(t, 2, meta.CurrentPage)
+
+		mockProductRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error_From_Repository", func(t *testing.T) {
+		// Skenario jika database gagal/error saat mencari data dengan filter
+		expectedErr := errors.New("database connection failed")
+
+		mockProductRepo.On("Fetch", mock.Anything, filter, 5, 5).
+			Return(nil, int64(0), expectedErr).Once()
+
+		products, meta, err := uc.ListProducts(context.Background(), filter, query)
+
+		// Verifikasi error handling
+		assert.Error(t, err)
+		assert.Nil(t, products)
+		assert.Equal(t, expectedErr, err)
+		assert.Equal(t, 0, meta.TotalPages) // Meta harus kosong saat error
 
 		mockProductRepo.AssertExpectations(t)
 	})

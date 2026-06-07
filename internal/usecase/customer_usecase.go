@@ -80,26 +80,24 @@ func (u *customerUsecase) GetCustomer(c context.Context, id string, operatorID s
 	return customer, nil
 }
 
-func (u *customerUsecase) ListCustomers(c context.Context, query domain.PaginationQuery, requestedSalesID, operatorID string, operatorRole domain.Role) ([]domain.Customer, domain.PaginationMeta, error) {
+func (u *customerUsecase) ListCustomers(c context.Context, query domain.PaginationQuery, filter domain.CustomerFilter, operatorID string, operatorRole domain.Role) ([]domain.Customer, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	// --- TAMBAHAN LOGIKA BISNIS: Penentuan Filter ---
-	var filterSalesID string
+	// --- LOGIKA BISNIS KEAMANAN ---
 	if operatorRole == domain.RoleSales {
-		// Paksa filter hanya mengambil data milik sales ini saja
-		filterSalesID = operatorID
-	} else if requestedSalesID != "" {
-		// Jika ada request specific sales ID, gunakan itu
-		filterSalesID = requestedSalesID
+		// Jika dia Sales, KITA TIMPA nilai `sales_id` yang mungkin dikirim dari Frontend.
+		// Paksa agar dia hanya menarik data milik dirinya sendiri.
+		filter.SalesID = operatorID
 	}
-	// ------------------------------------------------
+	// Jika Admin, biarkan filter.SalesID sesuai dengan apa yang diminta Frontend (c.Query)
+	// ------------------------------
 
-	// Panggil Fetch dari Repo dengan menambahkan filterSalesID
-	customers, totalItems, err := u.customerRepo.Fetch(ctx, limit, offset, filterSalesID)
+	// Lempar filter utuh ke Repository
+	customers, totalItems, err := u.customerRepo.Fetch(ctx, filter, limit, offset)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
 	}

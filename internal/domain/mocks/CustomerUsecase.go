@@ -92,9 +92,9 @@ func (_m *CustomerUsecase) GetCustomer(ctx context.Context, id string, operatorI
 	return r0, r1
 }
 
-// ListCustomers provides a mock function with given fields: ctx, query, requestedSalesID, operatorID, operatorRole
-func (_m *CustomerUsecase) ListCustomers(ctx context.Context, query domain.PaginationQuery, requestedSalesID string, operatorID string, operatorRole domain.Role) ([]domain.Customer, domain.PaginationMeta, error) {
-	ret := _m.Called(ctx, query, requestedSalesID, operatorID, operatorRole)
+// ListCustomers provides a mock function with given fields: ctx, query, filter, operatorID, operatorRole
+func (_m *CustomerUsecase) ListCustomers(ctx context.Context, query domain.PaginationQuery, filter domain.CustomerFilter, operatorID string, operatorRole domain.Role) ([]domain.Customer, domain.PaginationMeta, error) {
+	ret := _m.Called(ctx, query, filter, operatorID, operatorRole)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListCustomers")
@@ -103,25 +103,25 @@ func (_m *CustomerUsecase) ListCustomers(ctx context.Context, query domain.Pagin
 	var r0 []domain.Customer
 	var r1 domain.PaginationMeta
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, string, string, domain.Role) ([]domain.Customer, domain.PaginationMeta, error)); ok {
-		return rf(ctx, query, requestedSalesID, operatorID, operatorRole)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, domain.CustomerFilter, string, domain.Role) ([]domain.Customer, domain.PaginationMeta, error)); ok {
+		return rf(ctx, query, filter, operatorID, operatorRole)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, string, string, domain.Role) []domain.Customer); ok {
-		r0 = rf(ctx, query, requestedSalesID, operatorID, operatorRole)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, domain.CustomerFilter, string, domain.Role) []domain.Customer); ok {
+		r0 = rf(ctx, query, filter, operatorID, operatorRole)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Customer)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery, string, string, domain.Role) domain.PaginationMeta); ok {
-		r1 = rf(ctx, query, requestedSalesID, operatorID, operatorRole)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery, domain.CustomerFilter, string, domain.Role) domain.PaginationMeta); ok {
+		r1 = rf(ctx, query, filter, operatorID, operatorRole)
 	} else {
 		r1 = ret.Get(1).(domain.PaginationMeta)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery, string, string, domain.Role) error); ok {
-		r2 = rf(ctx, query, requestedSalesID, operatorID, operatorRole)
+	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery, domain.CustomerFilter, string, domain.Role) error); ok {
+		r2 = rf(ctx, query, filter, operatorID, operatorRole)
 	} else {
 		r2 = ret.Error(2)
 	}

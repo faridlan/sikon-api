@@ -133,24 +133,79 @@ func TestListProducts_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	category := tests.SeedCategory(db, "Jaket")
-	tests.SeedProduct(db, category.ID, "Jaket Bomber", 150000)
-	tests.SeedProduct(db, category.ID, "Jaket Parka", 175000)
+	// 1. Siapkan Data Seeder
+	catAtasan := tests.SeedCategory(db, "Atasan")
+	catBawahan := tests.SeedCategory(db, "Bawahan")
 
-	t.Run("Success_GetList", func(t *testing.T) {
+	// Produk Atasan
+	tests.SeedProduct(db, catAtasan.ID, "Kemeja Polos Hitam", 100000)
+	tests.SeedProduct(db, catAtasan.ID, "Kaos Sablon Premium", 75000)
+
+	// Produk Bawahan
+	tests.SeedProduct(db, catBawahan.ID, "Celana Jeans Denim", 150000)
+
+	t.Run("Success_GetAll_TanpaFilter", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/products", nil)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		var response struct {
-			Data []dto.ProductResponse `json:"data"`
-		}
-		respBody, _ := io.ReadAll(resp.Body)
-		json.Unmarshal(respBody, &response)
+		// Verifikasi total data harus 3
+		var body map[string]any
+		json.NewDecoder(resp.Body).Decode(&body)
 
-		assert.Len(t, response.Data, 2)
+		meta := body["meta"].(map[string]any)
+		assert.Equal(t, float64(3), meta["total_items"]) // JSON number di-parse sebagai float64
+	})
+
+	t.Run("Success_FilterBySearch_SatuKata", func(t *testing.T) {
+		// Cari kata "Kemeja" (case insensitive)
+		req := httptest.NewRequest("GET", "/api/products?search=kemeja", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var body map[string]any
+		json.NewDecoder(resp.Body).Decode(&body)
+
+		data := body["data"].([]any)
+		meta := body["meta"].(map[string]any)
+
+		assert.Len(t, data, 1) // Hanya ada 1 kemeja
+		assert.Equal(t, float64(1), meta["total_items"])
+	})
+
+	t.Run("Success_FilterByCategory", func(t *testing.T) {
+		// Filter semua produk dengan kategori "Atasan"
+		req := httptest.NewRequest("GET", "/api/products?category_id="+catAtasan.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var body map[string]any
+		json.NewDecoder(resp.Body).Decode(&body)
+
+		data := body["data"].([]any)
+		assert.Len(t, data, 2) // Kemeja dan Kaos
+	})
+
+	t.Run("Success_KombinasiSearchDanCategory", func(t *testing.T) {
+		// Cari kata "Celana" tapi memaksakan ID Kategorinya adalah "Atasan"
+		// Harusnya tidak ketemu, karena Celana ada di kategori Bawahan
+		req := httptest.NewRequest("GET", "/api/products?search=Celana&category_id="+catAtasan.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var body map[string]any
+		json.NewDecoder(resp.Body).Decode(&body)
+
+		data := body["data"].([]any)
+		assert.Len(t, data, 0) // Kosong (Empty State)
 	})
 }
 

@@ -92,9 +92,9 @@ func (_m *ProductUsecase) GetProduct(ctx context.Context, id string) (*domain.Pr
 	return r0, r1
 }
 
-// ListProducts provides a mock function with given fields: c, query
-func (_m *ProductUsecase) ListProducts(c context.Context, query domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error) {
-	ret := _m.Called(c, query)
+// ListProducts provides a mock function with given fields: c, filter, query
+func (_m *ProductUsecase) ListProducts(c context.Context, filter domain.ProductFilter, query domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error) {
+	ret := _m.Called(c, filter, query)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListProducts")
@@ -103,25 +103,25 @@ func (_m *ProductUsecase) ListProducts(c context.Context, query domain.Paginatio
 	var r0 []domain.Product
 	var r1 domain.PaginationMeta
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error)); ok {
-		return rf(c, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ProductFilter, domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error)); ok {
+		return rf(c, filter, query)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) []domain.Product); ok {
-		r0 = rf(c, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ProductFilter, domain.PaginationQuery) []domain.Product); ok {
+		r0 = rf(c, filter, query)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Product)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery) domain.PaginationMeta); ok {
-		r1 = rf(c, query)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ProductFilter, domain.PaginationQuery) domain.PaginationMeta); ok {
+		r1 = rf(c, filter, query)
 	} else {
 		r1 = ret.Get(1).(domain.PaginationMeta)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery) error); ok {
-		r2 = rf(c, query)
+	if rf, ok := ret.Get(2).(func(context.Context, domain.ProductFilter, domain.PaginationQuery) error); ok {
+		r2 = rf(c, filter, query)
 	} else {
 		r2 = ret.Error(2)
 	}

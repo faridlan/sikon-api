@@ -31,10 +31,15 @@ type ProductUpdateInput struct {
 	BasePrice   float64
 }
 
+type ProductFilter struct {
+	Search     string // Pencarian nama produk
+	CategoryID string // Filter kategori produk
+}
+
 type ProductRepository interface {
 	Create(ctx context.Context, product *Product) error
 	GetByID(ctx context.Context, id string) (*Product, error)
-	Fetch(ctx context.Context, limit, offset int) ([]Product, int64, error)
+	Fetch(ctx context.Context, filter ProductFilter, limit, offset int) ([]Product, int64, error)
 	Update(ctx context.Context, product *Product) error
 	Delete(ctx context.Context, id string) error
 }
@@ -42,7 +47,7 @@ type ProductRepository interface {
 type ProductUsecase interface {
 	CreateProduct(ctx context.Context, input ProductCreateInput) (*Product, error)
 	GetProduct(ctx context.Context, id string) (*Product, error)
-	ListProducts(c context.Context, query PaginationQuery) ([]Product, PaginationMeta, error)
+	ListProducts(c context.Context, filter ProductFilter, query PaginationQuery) ([]Product, PaginationMeta, error)
 	UpdateProduct(ctx context.Context, id string, input ProductUpdateInput) (*Product, error)
 	DeleteProduct(ctx context.Context, id string) error
 }

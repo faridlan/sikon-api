@@ -985,8 +985,8 @@ paths:
       - Categories
   /customers:
     get:
-      description: Mengambil daftar seluruh pelanggan dengan pagination (Akan terfilter
-        otomatis jika user adalah Sales)
+      description: Mengambil daftar seluruh pelanggan (terfilter otomatis untuk role
+        Sales)
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -998,6 +998,14 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Cari berdasarkan Nama atau Telepon
+        in: query
+        name: search
+        type: string
+      - description: Filter berdasarkan Sales ID (Admin Only)
+        in: query
+        name: sales_id
+        type: string
       produces:
       - application/json
       responses:

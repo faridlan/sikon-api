@@ -115,11 +115,16 @@ func TestListCustomers_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	salesUser := tests.SeedUser(db, "Deni Sales", "deni@sikon.com", "sales")
-	tests.SeedCustomerWithSales(db, "Cust A", "111", "Alamat A", salesUser.ID)
-	tests.SeedCustomerWithSales(db, "Cust B", "222", "Alamat B", salesUser.ID)
+	// 1. Buat 2 Sales berbeda
+	sales1 := tests.SeedUser(db, "Deni Sales", "deni@sikon.com", "sales")
+	sales2 := tests.SeedUser(db, "Rudi Sales", "rudi@sikon.com", "sales")
 
-	t.Run("Success", func(t *testing.T) {
+	// 2. Buat data Customer
+	tests.SeedCustomerWithSales(db, "Maju Jaya", "08111111", "Jakarta", sales1.ID)
+	tests.SeedCustomerWithSales(db, "Maju Terus", "08222222", "Bandung", sales1.ID)
+	tests.SeedCustomerWithSales(db, "Mundur Alon", "08333333", "Surabaya", sales2.ID)
+
+	t.Run("Success_Get_All", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/customers?page=1&limit=10", nil)
 		resp, err := app.Test(req, -1)
 
@@ -133,13 +138,13 @@ func TestListCustomers_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		assert.Len(t, response.Data, 2)
-		assert.NotNil(t, response.Meta)
-		assert.Equal(t, salesUser.ID, response.Data[0].SalesID)
+		// Tanpa filter, harus kembali 3
+		assert.Len(t, response.Data, 3)
 	})
 
-	t.Run("Success_With_Filter_SalesID", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/customers?page=1&limit=10&sales_id="+salesUser.ID, nil)
+	t.Run("Success_Search_By_Name", func(t *testing.T) {
+		// Kata kunci "Maju", harus mengembalikan "Maju Jaya" & "Maju Terus"
+		req := httptest.NewRequest("GET", "/api/customers?search=Maju", nil)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -147,14 +152,49 @@ func TestListCustomers_Integration(t *testing.T) {
 
 		var response struct {
 			Data []dto.CustomerResponse `json:"data"`
-			Meta any                    `json:"meta"`
 		}
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
 		assert.Len(t, response.Data, 2)
-		assert.NotNil(t, response.Meta)
-		assert.Equal(t, salesUser.ID, response.Data[0].SalesID)
+	})
+
+	t.Run("Success_Search_By_Phone", func(t *testing.T) {
+		// Kata kunci "0833", harus mengembalikan "Mundur Alon"
+		req := httptest.NewRequest("GET", "/api/customers?search=0833", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data []dto.CustomerResponse `json:"data"`
+		}
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Len(t, response.Data, 1)
+		assert.Equal(t, "Mundur Alon", response.Data[0].Name)
+	})
+
+	t.Run("Success_Filter_By_SalesID", func(t *testing.T) {
+		// Filter menggunakan ID milik sales1 (Deni), harus kembali 2
+		req := httptest.NewRequest("GET", "/api/customers?sales_id="+sales1.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data []dto.CustomerResponse `json:"data"`
+		}
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Len(t, response.Data, 2)
+		for _, c := range response.Data {
+			assert.Equal(t, sales1.ID, c.SalesID) // Pastikan benar-benar milik Deni
+		}
 	})
 }
 
