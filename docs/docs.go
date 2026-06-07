@@ -536,7 +536,7 @@ const docTemplate = `{
         },
         "/customers": {
             "get": {
-                "description": "Mengambil daftar seluruh pelanggan dengan pagination (Akan terfilter otomatis jika user adalah Sales)",
+                "description": "Mengambil daftar seluruh pelanggan (terfilter otomatis untuk role Sales)",
                 "produces": [
                     "application/json"
                 ],
@@ -557,6 +557,18 @@ const docTemplate = `{
                         "default": 10,
                         "description": "Batas Data per Halaman",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari berdasarkan Nama atau Telepon",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan Sales ID (Admin Only)",
+                        "name": "sales_id",
                         "in": "query"
                     }
                 ],

@@ -35,15 +35,39 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 	return model.ToDomain(), nil
 }
 
-func (r *productRepository) Fetch(ctx context.Context, limit, offset int) ([]domain.Product, int64, error) {
+// Tambahkan parameter filter domain.ProductFilter
+func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilter, limit, offset int) ([]domain.Product, int64, error) {
 	var models []ProductModel
 	var total int64
 
-	if err := r.db.WithContext(ctx).Model(&ProductModel{}).Count(&total).Error; err != nil {
+	// 1. Inisialisasi Instance Model
+	query := r.db.WithContext(ctx).Model(&ProductModel{})
+
+	// 2. Terapkan Filter Dinamis
+	if filter.Search != "" {
+		// Gunakan ILIKE untuk pencarian case-insensitive pada field nama
+		query = query.Where("name ILIKE ?", "%"+filter.Search+"%")
+	}
+
+	if filter.CategoryID != "" {
+		// Pencarian presisi untuk UUID Kategori
+		query = query.Where("category_id = ?", filter.CategoryID)
+	}
+
+	// 3. Count harus dipanggil setelah query kondisi dibuat
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	if err := r.db.WithContext(ctx).Preload("Category").Limit(limit).Offset(offset).Order("created_at DESC").Find(&models).Error; err != nil {
+	// 4. Tambahkan Preload, Limit, Offset, lalu Find
+	err := query.
+		Preload("Category").
+		Limit(limit).
+		Offset(offset).
+		Order("created_at DESC").
+		Find(&models).Error
+
+	if err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
@@ -51,6 +75,7 @@ func (r *productRepository) Fetch(ctx context.Context, limit, offset int) ([]dom
 	for i, model := range models {
 		products[i] = *model.ToDomain()
 	}
+
 	return products, total, nil
 }
 

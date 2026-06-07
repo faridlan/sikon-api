@@ -35,10 +35,15 @@ type CustomerUpdateInput struct {
 	SalesID string
 }
 
+type CustomerFilter struct {
+	Search  string // Untuk pencarian Nama atau Nomor Telepon
+	SalesID string // Untuk filter spesifik Sales
+}
+
 type CustomerRepository interface {
 	Create(ctx context.Context, customer *Customer) error
 	GetByID(ctx context.Context, id string) (*Customer, error)
-	Fetch(ctx context.Context, limit, offset int, filterSalesID string) ([]Customer, int64, error)
+	Fetch(ctx context.Context, filter CustomerFilter, limit, offset int) ([]Customer, int64, error)
 	Update(ctx context.Context, customer *Customer) error
 	Delete(ctx context.Context, id string) error
 }
@@ -46,7 +51,7 @@ type CustomerRepository interface {
 type CustomerUsecase interface {
 	CreateCustomer(ctx context.Context, input CustomerCreateInput) (*Customer, error)
 	GetCustomer(ctx context.Context, id string, operatorID string, operatorRole Role) (*Customer, error)
-	ListCustomers(ctx context.Context, query PaginationQuery, requestedSalesID, operatorID string, operatorRole Role) ([]Customer, PaginationMeta, error)
+	ListCustomers(ctx context.Context, query PaginationQuery, filter CustomerFilter, operatorID string, operatorRole Role) ([]Customer, PaginationMeta, error)
 	UpdateCustomer(ctx context.Context, id string, input CustomerUpdateInput) (*Customer, error)
 	DeleteCustomer(ctx context.Context, id string) error
 }

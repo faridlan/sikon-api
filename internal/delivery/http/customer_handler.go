@@ -92,11 +92,13 @@ func (h *customerHandler) GetCustomer(c *fiber.Ctx) error {
 }
 
 // @Summary List Customers
-// @Description Mengambil daftar seluruh pelanggan dengan pagination (Akan terfilter otomatis jika user adalah Sales)
+// @Description Mengambil daftar seluruh pelanggan (terfilter otomatis untuk role Sales)
 // @Tags Customers
 // @Produce json
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
+// @Param search query string false "Cari berdasarkan Nama atau Telepon"
+// @Param sales_id query string false "Filter berdasarkan Sales ID (Admin Only)"
 // @Success 200 {object} utils.PaginatedResponse[dto.CustomerResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers [get]
@@ -105,17 +107,19 @@ func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 10)
 
 	query := domain.PaginationQuery{Page: page, Limit: limit}
-	salesID := c.Query("sales_id") // TAMBAHAN: Query Param untuk filter berdasarkan SalesID (Admin bisa request dengan sales_id tertentu)
 
-	// TODO: Nanti ambil dari context JWT Auth Middleware
-	// Contoh: operatorID := c.Locals("userID").(string)
-	//         operatorRole := c.Locals("userRole").(domain.Role)
+	// Tangkap parameter dari URL Frontend
+	filter := domain.CustomerFilter{
+		Search:  c.Query("search"),
+		SalesID: c.Query("sales_id"),
+	}
 
 	// MOCKING DATA LOGIN (Nanti ambil dari middleware JWT)
 	operatorID := "dummy-operator-id"
-	operatorRole := domain.RoleAdmin // Bisa diganti domain.RoleSales untuk test filter
+	operatorRole := domain.RoleAdmin // Coba ganti ke domain.RoleSales untuk test keamanannya nanti
 
-	customers, meta, err := h.customerUsecase.ListCustomers(c.Context(), query, salesID, operatorID, operatorRole)
+	// Teruskan filter ke Usecase
+	customers, meta, err := h.customerUsecase.ListCustomers(c.Context(), query, filter, operatorID, operatorRole)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}

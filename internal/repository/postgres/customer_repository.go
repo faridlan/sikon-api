@@ -49,26 +49,40 @@ func (r *customerRepository) GetByID(ctx context.Context, id string) (*domain.Cu
 	return model.ToDomain(), nil
 }
 
-func (r *customerRepository) Fetch(ctx context.Context, limit, offset int, filterSalesID string) ([]domain.Customer, int64, error) {
+func (r *customerRepository) Fetch(ctx context.Context, filter domain.CustomerFilter, limit, offset int) ([]domain.Customer, int64, error) {
 	var models []CustomerModel
 	var total int64
 
-	// Mulai query builder
+	// 1. Mulai query builder
 	query := r.db.WithContext(ctx).Model(&CustomerModel{})
 
-	// TAMBAHAN LOGIKA FILTERING:
-	// Jika ada filterSalesID (artinya yang request adalah sales), batasi query HANYA untuk sales tersebut
-	if filterSalesID != "" {
-		query = query.Where("sales_id = ?", filterSalesID)
+	// 2. Filter Pencarian Teks (Nama atau Phone)
+	if filter.Search != "" {
+		searchTerm := "%" + filter.Search + "%"
+		// Menggunakan kurung () di dalam SQL agar OR tidak bocor ke logika AND lainnya
+		query = query.Where("(name ILIKE ? OR phone ILIKE ?)", searchTerm, searchTerm)
 	}
 
-	// Hitung total data (sesuai filter jika ada)
+	// 3. Filter Sales ID (Sudah aman karena disaring di Usecase)
+	if filter.SalesID != "" {
+		query = query.Where("sales_id = ?", filter.SalesID)
+	}
+
+	// 4. Hitung total data sesuai filter
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	// Ambil data dengan Preload Creator & Sales
-	if err := query.Preload("Creator").Preload("Sales").Limit(limit).Offset(offset).Order("created_at DESC").Find(&models).Error; err != nil {
+	// 5. Eksekusi Pagination dan Preload
+	err := query.
+		Preload("Creator").
+		Preload("Sales").
+		Limit(limit).
+		Offset(offset).
+		Order("created_at DESC").
+		Find(&models).Error
+
+	if err != nil {
 		return nil, 0, TranslateError(err)
 	}
 

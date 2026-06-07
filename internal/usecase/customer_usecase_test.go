@@ -150,28 +150,14 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 
 	t.Run("Success - Akses Admin (Tanpa Filter)", func(t *testing.T) {
 		mockRepo := new(mocks.CustomerRepository)
-		userRepo := new(mocks.UserRepository)
-		uc := usecase.NewCustomerUsecase(mockRepo, userRepo, time.Second*2)
+		mockUserRepo := new(mocks.UserRepository)
+		// asumsi usecase tidak panggil userRepo di ListCustomers
+		uc := usecase.NewCustomerUsecase(mockRepo, mockUserRepo, time.Second*2)
 
-		// Perhatikan paramter ke-4 adalah "", artinya tidak ada filter SalesID
-		mockRepo.On("Fetch", mock.Anything, 10, 0, "").Return(mockCustomers, int64(2), nil).Once()
+		emptyFilter := domain.CustomerFilter{}
+		mockRepo.On("Fetch", mock.Anything, emptyFilter, 10, 0).Return(mockCustomers, int64(2), nil).Once()
 
-		customers, meta, err := uc.ListCustomers(context.Background(), query, "", "admin-123", domain.RoleAdmin)
-
-		assert.NoError(t, err)
-		assert.Len(t, customers, 2)
-		assert.Equal(t, 1, meta.TotalPages)
-		mockRepo.AssertExpectations(t)
-	})
-
-	t.Run("Success - Akses Admin (Dengan Filter SalesID Tertentu)", func(t *testing.T) {
-		mockRepo := new(mocks.CustomerRepository)
-		userRepo := new(mocks.UserRepository)
-		uc := usecase.NewCustomerUsecase(mockRepo, userRepo, time.Second*2)
-
-		mockRepo.On("Fetch", mock.Anything, 10, 0, "sales-123").Return(mockCustomers, int64(2), nil).Once()
-
-		customers, meta, err := uc.ListCustomers(context.Background(), query, "sales-123", "admin-123", domain.RoleAdmin)
+		customers, meta, err := uc.ListCustomers(context.Background(), query, emptyFilter, "admin-123", domain.RoleAdmin)
 
 		assert.NoError(t, err)
 		assert.Len(t, customers, 2)
@@ -179,20 +165,46 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 
-	t.Run("Success - Akses Sales (Dengan Filter ID Sendiri)", func(t *testing.T) {
+	t.Run("Success - Akses Admin (Filter Search & SalesID dari Frontend)", func(t *testing.T) {
 		mockRepo := new(mocks.CustomerRepository)
-		userRepo := new(mocks.UserRepository)
-		uc := usecase.NewCustomerUsecase(mockRepo, userRepo, time.Second*2)
+		mockUserRepo := new(mocks.UserRepository)
+		uc := usecase.NewCustomerUsecase(mockRepo, mockUserRepo, time.Second*2)
 
-		// Perhatikan paramter ke-4 adalah "sales-123", memicu filter di DB
-		mockRepo.On("Fetch", mock.Anything, 10, 0, "sales-123").Return(mockCustomers, int64(2), nil).Once()
+		inputFilter := domain.CustomerFilter{Search: "Budi", SalesID: "sales-123"}
 
-		customers, meta, err := uc.ListCustomers(context.Background(), query, "", "sales-123", domain.RoleSales)
+		// Karena admin, filter diteruskan utuh ke Repo
+		mockRepo.On("Fetch", mock.Anything, inputFilter, 10, 0).Return(mockCustomers, int64(2), nil).Once()
+
+		customers, meta, err := uc.ListCustomers(context.Background(), query, inputFilter, "admin-123", domain.RoleAdmin)
 
 		assert.NoError(t, err)
 		assert.Len(t, customers, 2)
-		assert.Equal(t, 1, meta.TotalPages)
 		mockRepo.AssertExpectations(t)
+		assert.Equal(t, 1, meta.TotalPages)
+
+	})
+
+	t.Run("Success - KEAMANAN Sales: Menggagalkan By-Pass SalesID", func(t *testing.T) {
+		mockRepo := new(mocks.CustomerRepository)
+		mockUserRepo := new(mocks.UserRepository)
+		uc := usecase.NewCustomerUsecase(mockRepo, mockUserRepo, time.Second*2)
+
+		// SKENARIO: Sales (ID: "sales-asli-123") bertindak nakal dengan mengubah URL Frontend
+		// menjadi ?sales_id=sales-orang-lain-999
+		hackerFilter := domain.CustomerFilter{SalesID: "sales-orang-lain-999"}
+
+		// EKSPEKTASI REPO: Usecase HARUS menimpa input hacker dan menggantinya dengan ID Asli!
+		expectedFilter := domain.CustomerFilter{SalesID: "sales-asli-123"}
+
+		// Kita periksa apakah filter yang masuk ke Repo benar-benar sudah aman
+		mockRepo.On("Fetch", mock.Anything, expectedFilter, 10, 0).Return(mockCustomers, int64(2), nil).Once()
+
+		customers, meta, err := uc.ListCustomers(context.Background(), query, hackerFilter, "sales-asli-123", domain.RoleSales)
+
+		assert.NoError(t, err)
+		assert.Len(t, customers, 2)
+		mockRepo.AssertExpectations(t)
+		assert.Equal(t, 1, meta.TotalPages)
 	})
 }
 
