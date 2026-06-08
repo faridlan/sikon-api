@@ -62,9 +62,9 @@ func (_m *UserUsecase) GetProfile(ctx context.Context, userID string) (*domain.U
 	return r0, r1
 }
 
-// ListUsers provides a mock function with given fields: ctx, query
-func (_m *UserUsecase) ListUsers(ctx context.Context, query domain.PaginationQuery) ([]domain.User, domain.PaginationMeta, error) {
-	ret := _m.Called(ctx, query)
+// ListUsers provides a mock function with given fields: c, query, filter
+func (_m *UserUsecase) ListUsers(c context.Context, query domain.PaginationQuery, filter domain.UserFilter) ([]domain.User, domain.PaginationMeta, error) {
+	ret := _m.Called(c, query, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListUsers")
@@ -73,25 +73,25 @@ func (_m *UserUsecase) ListUsers(ctx context.Context, query domain.PaginationQue
 	var r0 []domain.User
 	var r1 domain.PaginationMeta
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) ([]domain.User, domain.PaginationMeta, error)); ok {
-		return rf(ctx, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, domain.UserFilter) ([]domain.User, domain.PaginationMeta, error)); ok {
+		return rf(c, query, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) []domain.User); ok {
-		r0 = rf(ctx, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, domain.UserFilter) []domain.User); ok {
+		r0 = rf(c, query, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.User)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery) domain.PaginationMeta); ok {
-		r1 = rf(ctx, query)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery, domain.UserFilter) domain.PaginationMeta); ok {
+		r1 = rf(c, query, filter)
 	} else {
 		r1 = ret.Get(1).(domain.PaginationMeta)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery) error); ok {
-		r2 = rf(ctx, query)
+	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery, domain.UserFilter) error); ok {
+		r2 = rf(c, query, filter)
 	} else {
 		r2 = ret.Error(2)
 	}

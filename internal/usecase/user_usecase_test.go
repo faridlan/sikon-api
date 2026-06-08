@@ -131,27 +131,52 @@ func TestUserUsecase_ListUsers(t *testing.T) {
 	}
 	var totalItems int64 = 15
 
-	t.Run("Success", func(t *testing.T) {
-		// Offset dihitung: (Page - 1) * Limit -> (1 - 1) * 10 = 0
-		mockRepo.On("Fetch", mock.Anything, 10, 0).Return(mockUsers, totalItems, nil).Once()
+	t.Run("Success_TanpaFilter", func(t *testing.T) {
+		emptyFilter := domain.UserFilter{} // Buat filter kosong
 
-		users, meta, err := uc.ListUsers(context.Background(), query)
+		// Tambahkan emptyFilter ke expectation mock
+		mockRepo.On("Fetch", mock.Anything, 10, 0, emptyFilter).Return(mockUsers, totalItems, nil).Once()
+
+		// Sisipkan emptyFilter ke pemanggilan Usecase
+		users, meta, err := uc.ListUsers(context.Background(), query, emptyFilter)
 
 		assert.NoError(t, err)
 		assert.Len(t, users, 2)
-
-		// Total Pages seharusnya 2 (karena totalItems 15 / limit 10 -> dibulatkan ke atas jadi 2)
 		assert.Equal(t, 2, meta.TotalPages)
 		assert.Equal(t, int64(15), meta.TotalItems)
 
 		mockRepo.AssertExpectations(t)
 	})
 
-	t.Run("Error - Repo Failed", func(t *testing.T) {
-		repoError := errors.New("db error")
-		mockRepo.On("Fetch", mock.Anything, 10, 0).Return(nil, int64(0), repoError).Once()
+	t.Run("Success_DenganFilterRole", func(t *testing.T) {
+		// Simulasi permintaan memfilter role sales
+		activeFilter := domain.UserFilter{Role: "sales"}
 
-		users, _, err := uc.ListUsers(context.Background(), query)
+		mockSalesUsers := []domain.User{
+			{ID: "1", Name: "User 1"}, // Asumsi hanya 1 data yang sesuai
+		}
+
+		// Pastikan Mocking mengharapkan activeFilter
+		mockRepo.On("Fetch", mock.Anything, 10, 0, activeFilter).Return(mockSalesUsers, int64(1), nil).Once()
+
+		users, meta, err := uc.ListUsers(context.Background(), query, activeFilter)
+
+		assert.NoError(t, err)
+		assert.Len(t, users, 1) // Memastikan hasil sesuai mock (1 data)
+		assert.Equal(t, 1, meta.TotalPages)
+		assert.Equal(t, int64(1), meta.TotalItems)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error_DariRepository", func(t *testing.T) {
+		emptyFilter := domain.UserFilter{}
+		repoError := errors.New("db error")
+
+		// Tambahkan emptyFilter ke expectation mock
+		mockRepo.On("Fetch", mock.Anything, 10, 0, emptyFilter).Return(nil, int64(0), repoError).Once()
+
+		users, _, err := uc.ListUsers(context.Background(), query, emptyFilter)
 
 		assert.Error(t, err)
 		assert.Nil(t, users)

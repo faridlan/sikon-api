@@ -52,15 +52,31 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*domain.
 	return model.ToDomain(), nil
 }
 
-func (r *userRepository) Fetch(ctx context.Context, limit, offset int) ([]domain.User, int64, error) {
+func (r *userRepository) Fetch(ctx context.Context, limit, offset int, filter domain.UserFilter) ([]domain.User, int64, error) {
 	var models []UserModel
 	var total int64
 
-	if err := r.db.WithContext(ctx).Model(&UserModel{}).Count(&total).Error; err != nil {
-		return nil, 0, TranslateError(err) // Jangan lupa pakai helper di sini juga
+	query := r.db.WithContext(ctx).Model(&UserModel{})
+
+	// 1. Filter Pencarian Teks (Nama atau Email)
+	if filter.Search != "" {
+		searchTerm := "%" + filter.Search + "%"
+		query = query.Where("name ILIKE ? OR email ILIKE ?", searchTerm, searchTerm)
 	}
 
-	if err := r.db.WithContext(ctx).Limit(limit).Offset(offset).Order("created_at DESC").Find(&models).Error; err != nil {
+	// 2. Filter Role
+	if filter.Role != "" {
+		query = query.Where("role = ?", filter.Role)
+	}
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, TranslateError(err)
+	}
+
+	err = query.Limit(limit).Offset(offset).Find(&models).Error
+
+	if err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
