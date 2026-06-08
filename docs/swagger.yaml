@@ -1745,6 +1745,14 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Pencarian berdasarkan nama atau email
+        in: query
+        name: search
+        type: string
+      - description: Filter berdasarkan role (admin/sales)
+        in: query
+        name: role
+        type: string
       produces:
       - application/json
       responses:

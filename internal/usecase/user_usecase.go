@@ -71,14 +71,14 @@ func (u *userUsecase) GetProfile(c context.Context, userID string) (*domain.User
 	return user, nil
 }
 
-func (u *userUsecase) ListUsers(c context.Context, query domain.PaginationQuery) ([]domain.User, domain.PaginationMeta, error) {
+func (u *userUsecase) ListUsers(c context.Context, query domain.PaginationQuery, filter domain.UserFilter) ([]domain.User, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	users, totalItems, err := u.userRepo.Fetch(ctx, limit, offset)
+	users, totalItems, err := u.userRepo.Fetch(ctx, limit, offset, filter)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
 	}

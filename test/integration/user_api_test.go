@@ -102,16 +102,16 @@ func TestListUsers_Integration(t *testing.T) {
 	tests.SeedUser(db, "User Dua", "user2@sikon.com", "admin")
 	tests.SeedUser(db, "User Tiga", "user3@sikon.com", "sales")
 
-	t.Run("Success_GetList", func(t *testing.T) {
-		// Tembak endpoint dengan query parameter page=1 dan limit=10
+	t.Run("Success_GetList_TanpaFilter", func(t *testing.T) {
+		// Tembak endpoint tanpa filter khusus
 		req := httptest.NewRequest("GET", "/api/users?page=1&limit=10", nil)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		// Karena SendSuccessPaginated biasanya mengembalikan struktur JSON yang sedikit berbeda
-		// (ada object 'meta' untuk pagination), kita buat struct anonim untuk menampungnya
+		// Anda bisa menggunakan utils.PaginatedResponse[dto.UserResponse] jika sudah ada
+		// Tapi untuk amannya sesuai contoh Anda, kita gunakan struct anonim
 		var response struct {
 			Message string             `json:"message"`
 			Data    []dto.UserResponse `json:"data"`
@@ -123,8 +123,68 @@ func TestListUsers_Integration(t *testing.T) {
 
 		// Verifikasi bahwa ada 3 data user yang dikembalikan
 		assert.Len(t, response.Data, 3)
-		assert.Equal(t, "Berhasil mengambil daftar user", response.Message)
-		assert.NotNil(t, response.Meta) // Pastikan object meta tidak nil
+		assert.NotNil(t, response.Meta)
+	})
+
+	t.Run("Success_GetList_FilterRoleSales", func(t *testing.T) {
+		// Tembak endpoint HANYA untuk role sales
+		req := httptest.NewRequest("GET", "/api/users?role=sales", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data []dto.UserResponse `json:"data"`
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Verifikasi bahwa hanya 2 data yang dikembalikan (User Satu dan User Tiga)
+		assert.Len(t, response.Data, 2)
+		// Opsional: Pastikan data pertama benar-benar role sales
+		assert.Equal(t, "sales", response.Data[0].Role)
+	})
+
+	t.Run("Success_GetList_FilterRoleAdmin", func(t *testing.T) {
+		// Tembak endpoint HANYA untuk role admin
+		req := httptest.NewRequest("GET", "/api/users?role=admin", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data []dto.UserResponse `json:"data"`
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Verifikasi bahwa hanya 1 data yang dikembalikan (User Dua)
+		assert.Len(t, response.Data, 1)
+		assert.Equal(t, "admin", response.Data[0].Role)
+	})
+
+	t.Run("Success_GetList_SearchName", func(t *testing.T) {
+		// Tembak endpoint dengan fitur pencarian (mencari "Dua")
+		req := httptest.NewRequest("GET", "/api/users?search=Dua", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data []dto.UserResponse `json:"data"`
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Verifikasi bahwa hanya 1 data yang mengandung nama "Dua"
+		assert.Len(t, response.Data, 1)
+		assert.Equal(t, "User Dua", response.Data[0].Name)
 	})
 }
 

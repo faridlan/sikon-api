@@ -1676,6 +1676,18 @@ const docTemplate = `{
                         "description": "Batas Data per Halaman",
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pencarian berdasarkan nama atau email",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan role (admin/sales)",
+                        "name": "role",
+                        "in": "query"
                     }
                 ],
                 "responses": {

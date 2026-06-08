@@ -94,6 +94,8 @@ func (h *userHandler) GetProfile(c *fiber.Ctx) error {
 // @Produce json
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
+// @Param search query string false "Pencarian berdasarkan nama atau email"
+// @Param role query string false "Filter berdasarkan role (admin/sales)"
 // @Success 200 {object} utils.PaginatedResponse[dto.UserResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /users [get]
@@ -106,7 +108,12 @@ func (h *userHandler) ListUsers(c *fiber.Ctx) error {
 		Limit: limit,
 	}
 
-	users, meta, err := h.userUsecase.ListUsers(c.Context(), query)
+	filter := domain.UserFilter{
+		Search: c.Query("search", ""),
+		Role:   c.Query("role", ""),
+	}
+
+	users, meta, err := h.userUsecase.ListUsers(c.Context(), query, filter)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
