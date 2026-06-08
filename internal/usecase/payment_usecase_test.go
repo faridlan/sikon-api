@@ -154,18 +154,55 @@ func TestPaymentUsecase_GetPayment(t *testing.T) {
 }
 
 func TestPaymentUsecase_ListPayments(t *testing.T) {
-	mockPaymentRepo, _, _, uc := setupPaymentTest()
+	mockPaymentRepo, _, _, uc := setupPaymentTest() // Sesuaikan dengan setup test Anda
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Success_TanpaFilter", func(t *testing.T) {
+		emptyFilter := domain.PaymentFilter{} // Filter kosong
 		mockPayments := []domain.Payment{{ID: "1"}, {ID: "2"}}
-		mockPaymentRepo.On("Fetch", mock.Anything, 10, 0).Return(mockPayments, int64(2), nil).Once()
 
-		payments, meta, err := uc.ListPayments(context.Background(), query)
+		// Tambahkan emptyFilter pada .On("Fetch")
+		mockPaymentRepo.On("Fetch", mock.Anything, 10, 0, emptyFilter).Return(mockPayments, int64(2), nil).Once()
+
+		// Tambahkan emptyFilter pada pemanggilan ListPayments
+		payments, meta, err := uc.ListPayments(context.Background(), query, emptyFilter)
 
 		assert.NoError(t, err)
 		assert.Len(t, payments, 2)
 		assert.Equal(t, 1, meta.TotalPages)
+	})
+
+	t.Run("Success_DenganFilter", func(t *testing.T) {
+		// Simulasi Frontend mengirim query params lengkap
+		activeFilter := domain.PaymentFilter{
+			Search:      "TRX-123",
+			PaymentType: string(domain.PaymentTypeDP),
+			StartDate:   "2023-10-01",
+			EndDate:     "2023-10-31",
+		}
+		mockPayments := []domain.Payment{{ID: "1"}} // Misalnya hasil pencarian hanya 1
+
+		// Pastikan Mocking mengharapkan activeFilter
+		mockPaymentRepo.On("Fetch", mock.Anything, 10, 0, activeFilter).Return(mockPayments, int64(1), nil).Once()
+
+		payments, meta, err := uc.ListPayments(context.Background(), query, activeFilter)
+
+		assert.NoError(t, err)
+		assert.Len(t, payments, 1) // Memastikan data sesuai return mock (1 data)
+		assert.Equal(t, 1, meta.TotalPages)
+		assert.Equal(t, int64(1), meta.TotalItems)
+	})
+
+	t.Run("Error_DariRepository", func(t *testing.T) {
+		emptyFilter := domain.PaymentFilter{}
+
+		// Simulasi jika Database sedang down atau error
+		mockPaymentRepo.On("Fetch", mock.Anything, 10, 0, emptyFilter).Return(nil, int64(0), errors.New("database connection failed")).Once()
+
+		payments, _, err := uc.ListPayments(context.Background(), query, emptyFilter)
+
+		assert.Error(t, err)
+		assert.Nil(t, payments)
 	})
 }
 

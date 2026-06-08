@@ -1107,7 +1107,7 @@
         },
         "/payments": {
             "get": {
-                "description": "Mengambil daftar seluruh pembayaran (History transaksi)",
+                "description": "Mengambil daftar seluruh pembayaran (History transaksi) dengan filter",
                 "produces": [
                     "application/json"
                 ],
@@ -1128,6 +1128,30 @@
                         "default": 10,
                         "description": "Batas Data per Halaman",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cari No Ref atau Order ID",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Tipe Pembayaran (dp, settlement, installment)",
+                        "name": "payment_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal Mulai (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal Akhir (YYYY-MM-DD)",
+                        "name": "end_date",
                         "in": "query"
                     }
                 ],

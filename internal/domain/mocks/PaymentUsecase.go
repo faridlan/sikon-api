@@ -92,9 +92,9 @@ func (_m *PaymentUsecase) GetPaymentsByOrderID(ctx context.Context, orderID stri
 	return r0, r1
 }
 
-// ListPayments provides a mock function with given fields: c, query
-func (_m *PaymentUsecase) ListPayments(c context.Context, query domain.PaginationQuery) ([]domain.Payment, domain.PaginationMeta, error) {
-	ret := _m.Called(c, query)
+// ListPayments provides a mock function with given fields: c, query, filter
+func (_m *PaymentUsecase) ListPayments(c context.Context, query domain.PaginationQuery, filter domain.PaymentFilter) ([]domain.Payment, domain.PaginationMeta, error) {
+	ret := _m.Called(c, query, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPayments")
@@ -103,25 +103,25 @@ func (_m *PaymentUsecase) ListPayments(c context.Context, query domain.Paginatio
 	var r0 []domain.Payment
 	var r1 domain.PaginationMeta
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) ([]domain.Payment, domain.PaginationMeta, error)); ok {
-		return rf(c, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, domain.PaymentFilter) ([]domain.Payment, domain.PaginationMeta, error)); ok {
+		return rf(c, query, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery) []domain.Payment); ok {
-		r0 = rf(c, query)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.PaginationQuery, domain.PaymentFilter) []domain.Payment); ok {
+		r0 = rf(c, query, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Payment)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery) domain.PaginationMeta); ok {
-		r1 = rf(c, query)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.PaginationQuery, domain.PaymentFilter) domain.PaginationMeta); ok {
+		r1 = rf(c, query, filter)
 	} else {
 		r1 = ret.Get(1).(domain.PaginationMeta)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery) error); ok {
-		r2 = rf(c, query)
+	if rf, ok := ret.Get(2).(func(context.Context, domain.PaginationQuery, domain.PaymentFilter) error); ok {
+		r2 = rf(c, query, filter)
 	} else {
 		r2 = ret.Error(2)
 	}

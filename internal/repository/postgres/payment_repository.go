@@ -35,15 +35,44 @@ func (r *paymentRepository) GetByID(ctx context.Context, id string) (*domain.Pay
 	return model.ToDomain(), nil
 }
 
-func (r *paymentRepository) Fetch(ctx context.Context, limit, offset int) ([]domain.Payment, int64, error) {
+func (r *paymentRepository) Fetch(ctx context.Context, limit, offset int, filter domain.PaymentFilter) ([]domain.Payment, int64, error) {
 	var models []PaymentModel
 	var total int64
 
-	if err := r.db.WithContext(ctx).Model(&PaymentModel{}).Count(&total).Error; err != nil {
+	// Mulai query base
+	query := r.db.WithContext(ctx).Model(&PaymentModel{})
+
+	// 1. Filter Search (mencari substring di No Ref atau exact match di OrderID)
+	if filter.Search != "" {
+		searchParam := "%" + filter.Search + "%"
+		// ::text digunakan di PostgreSQL untuk memungkinkan ILIKE pada tipe data UUID (OrderID)
+		query = query.Where("reference_number ILIKE ? OR order_id::text ILIKE ?", searchParam, searchParam)
+	}
+
+	// 2. Filter Payment Type
+	if filter.PaymentType != "" {
+		query = query.Where("payment_type = ?", filter.PaymentType)
+	}
+
+	// 3. Filter Start Date (dari awal hari)
+	if filter.StartDate != "" {
+		query = query.Where("payment_date >= ?", filter.StartDate+" 00:00:00")
+	}
+
+	// 4. Filter End Date (hingga akhir hari)
+	if filter.EndDate != "" {
+		query = query.Where("payment_date <= ?", filter.EndDate+" 23:59:59")
+	}
+
+	// Hitung total data yang cocok dengan query
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	if err := r.db.WithContext(ctx).Preload("Order").Preload("BankAccount").Limit(limit).Offset(offset).Order("payment_date DESC").Find(&models).Error; err != nil {
+	// Eksekusi pengambilan datanya
+	if err := query.Preload("Order").Preload("BankAccount").
+		Limit(limit).Offset(offset).Order("payment_date DESC").
+		Find(&models).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 

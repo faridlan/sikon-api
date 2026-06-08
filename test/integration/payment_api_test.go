@@ -35,7 +35,7 @@ func setupPaymentDependencies(db *gorm.DB) (orderID string, bankAccountID string
 }
 
 // ==========================================
-// 1. TEST CREATE PAYMENT (POST /api/payments)
+// 2. TEST CREATE PAYMENT (POST /api/payments)
 // ==========================================
 func TestCreatePayment_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
@@ -102,9 +102,9 @@ func TestCreatePayment_Integration(t *testing.T) {
 }
 
 // ==========================================
-// 2. TEST GET & LIST PAYMENT
+// 1. TEST GET PAYMENT BY ID
 // ==========================================
-func TestGetPayment_Integration(t *testing.T) {
+func TestGetPaymentByID_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
@@ -131,16 +131,88 @@ func TestGetPayment_Integration(t *testing.T) {
 		resp, _ := app.Test(req, -1)
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	})
+}
 
-	t.Run("Success_List_Payments", func(t *testing.T) {
+// ==========================================
+// 3. TEST LIST PAYMENTS & FILTER
+// ==========================================
+func TestListPayments_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	orderID, bankID := setupPaymentDependencies(db)
+
+	// Seed 2 data dengan tipe yang berbeda agar bisa di-filter
+	// Asumsi parameter SeedPayment: db, orderID, bankAccountID, amount, paymentType
+	tests.SeedPayment(db, orderID, bankID, 50000, "dp")
+	tests.SeedPayment(db, orderID, bankID, 150000, "settlement")
+
+	t.Run("Success_List_SemuaData_TanpaFilter", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/payments", nil)
-		resp, _ := app.Test(req, -1)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.PaginatedResponse[dto.PaymentResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Harus mengembalikan 2 data karena tidak ada filter
+		assert.Len(t, response.Data, 2)
+		assert.Equal(t, int64(2), response.Meta.TotalItems)
+	})
+
+	t.Run("Success_List_DenganFilter_PaymentType", func(t *testing.T) {
+		// Frontend hanya ingin melihat pembayaran dengan tipe "dp"
+		req := httptest.NewRequest("GET", "/api/payments?payment_type=dp", nil)
+		resp, _ := app.Test(req, -1)
+
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.PaginatedResponse[dto.PaymentResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Harus hanya mengembalikan 1 data (karena yang tipe "dp" cuma 1)
+		assert.Len(t, response.Data, 1)
+		assert.Equal(t, "dp", response.Data[0].PaymentType)
+	})
+
+	t.Run("Success_List_DenganFilter_SearchOrderID", func(t *testing.T) {
+		// Frontend mencari berdasarkan orderID
+		req := httptest.NewRequest("GET", "/api/payments?search="+orderID, nil)
+		resp, _ := app.Test(req, -1)
+
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.PaginatedResponse[dto.PaymentResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Kebetulan kedua payment di-seed menggunakan orderID yang sama
+		assert.Len(t, response.Data, 2)
+	})
+
+	t.Run("Success_List_FilterTidakKetemu", func(t *testing.T) {
+		// Frontend mencari keyword yang tidak ada di database
+		req := httptest.NewRequest("GET", "/api/payments?search=TRX-TIDAKADA", nil)
+		resp, _ := app.Test(req, -1)
+
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.PaginatedResponse[dto.PaymentResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Datanya harus kosong, tapi response status tetap 200 OK
+		assert.Len(t, response.Data, 0)
+		assert.Equal(t, int64(0), response.Meta.TotalItems)
 	})
 }
 
 // ==========================================
-// 3. TEST UPDATE PAYMENT (PUT /api/payments/:id)
+// 4. TEST UPDATE PAYMENT (PUT /api/payments/:id)
 // ==========================================
 func TestUpdatePayment_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
@@ -177,7 +249,7 @@ func TestUpdatePayment_Integration(t *testing.T) {
 }
 
 // ==========================================
-// 4. TEST DELETE PAYMENT (DELETE /api/payments/:id)
+// 5. TEST DELETE PAYMENT (DELETE /api/payments/:id)
 // ==========================================
 func TestDeletePayment_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
@@ -202,7 +274,7 @@ func TestDeletePayment_Integration(t *testing.T) {
 }
 
 // ==========================================
-// 5. TEST GET PAYMENTS BY ORDER ID (GET /api/payments/order/:order_id)
+// 6. TEST GET PAYMENTS BY ORDER ID (GET /api/payments/order/:order_id)
 // ==========================================
 func TestGetPaymentsByOrderID_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()

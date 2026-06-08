@@ -107,14 +107,15 @@ func (u *paymentUsecase) GetPayment(c context.Context, id string) (*domain.Payme
 	return payment, nil
 }
 
-func (u *paymentUsecase) ListPayments(c context.Context, query domain.PaginationQuery) ([]domain.Payment, domain.PaginationMeta, error) {
+func (u *paymentUsecase) ListPayments(c context.Context, query domain.PaginationQuery, filter domain.PaymentFilter) ([]domain.Payment, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	payments, totalItems, err := u.paymentRepo.Fetch(ctx, limit, offset)
+	// Tambahkan filter ke parameter Fetch
+	payments, totalItems, err := u.paymentRepo.Fetch(ctx, limit, offset, filter)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
 	}
