@@ -69,6 +69,12 @@ func TestCreateOrder_Integration(t *testing.T) {
 		assert.NotNil(t, response.Data.ValidUntil)
 		assert.Equal(t, 150000.0, response.Data.Items[0].Price)
 		assert.Equal(t, "Hitam", response.Data.Items[0].Details["Bahan"].(map[string]any)["Color"])
+
+		// --- TAMBAHAN ASSERSI PERHITUNGAN KEUANGAN ---
+		// Subtotal = 2 Qty * 150.000 = 300.000
+		assert.Equal(t, 300000.0, response.Data.Subtotal)
+		// Grand Total = Subtotal (300.000) + ShippingCost (20.000) = 320.000
+		assert.Equal(t, 320000.0, response.Data.TotalAmount)
 	})
 
 	// 2. SKENARIO BARU: CREATE ORDER LANGSUNG (Status Pending dari Frontend)
@@ -175,12 +181,12 @@ func TestUpdateOrder_Integration(t *testing.T) {
 	t.Run("Success_Update_Shipping_And_Terms", func(t *testing.T) {
 		validUntilUpdate := time.Now().AddDate(0, 0, 14)
 		reqBody := dto.OrderUpdateRequest{
-			ShippingCost:    50000,
+			ShippingCost:    50000, // Ongkir DIUBAH jadi 50.000
 			CourierName:     "SiCepat",
 			ShippingAddress: "Alamat Update",
 			Notes:           "Catatan Update",
-			ValidUntil:      &validUntilUpdate,     // <-- TAMBAHAN
-			TermsConditions: "Lunas Sebelum Kirim", // <-- TAMBAHAN
+			ValidUntil:      &validUntilUpdate,
+			TermsConditions: "Lunas Sebelum Kirim",
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -197,6 +203,11 @@ func TestUpdateOrder_Integration(t *testing.T) {
 
 		// --- ASSERSI TAMBAHAN ---
 		assert.Equal(t, "Lunas Sebelum Kirim", response.Data.TermsConditions)
+		assert.Equal(t, 50000.0, response.Data.ShippingCost)
+
+		// Kunci Uji Coba: Subtotal dari DB Seeder adalah 100.000
+		// Ketika ongkir di-update jadi 50.000, Grand Total BARU harus menjadi 150.000
+		assert.Equal(t, 150000.0, response.Data.TotalAmount)
 	})
 
 	// --- SKENARIO GAGAL (NEGATIVE PATH) ---
@@ -307,6 +318,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
+
 }
 
 // ==========================================

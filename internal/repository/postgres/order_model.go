@@ -29,6 +29,10 @@ type OrderModel struct {
 	OrderNumber     string     `gorm:"type:varchar(100);unique;not null"`
 	CustomerID      string     `gorm:"type:uuid;not null"`
 	SalesID         string     `gorm:"type:uuid;not null"`
+	Subtotal        float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
+	DiscountAmount  float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
+	TaxPpn          float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
+	TaxPph          float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
 	TotalAmount     float64    `gorm:"type:decimal(15,2);not null"`
 	ShippingCost    float64    `gorm:"type:decimal(12,2);not null"`
 	CourierName     string     `gorm:"type:varchar(100)"`
@@ -79,6 +83,10 @@ func (m *OrderModel) ToDomain() *domain.Order {
 		OrderNumber:     m.OrderNumber,
 		CustomerID:      m.CustomerID,
 		SalesID:         m.SalesID,
+		Subtotal:        m.Subtotal,       // Mapping Baru
+		DiscountAmount:  m.DiscountAmount, // Mapping Baru
+		TaxPpn:          m.TaxPpn,         // Mapping Baru
+		TaxPph:          m.TaxPph,         // Mapping Baru
 		TotalAmount:     m.TotalAmount,
 		ShippingCost:    m.ShippingCost,
 		CourierName:     m.CourierName,
@@ -116,6 +124,10 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 		OrderNumber:     d.OrderNumber,
 		CustomerID:      d.CustomerID,
 		SalesID:         d.SalesID,
+		Subtotal:        d.Subtotal,       // Mapping Baru
+		DiscountAmount:  d.DiscountAmount, // Mapping Baru
+		TaxPpn:          d.TaxPpn,         // Mapping Baru
+		TaxPph:          d.TaxPph,         // Mapping Baru
 		TotalAmount:     d.TotalAmount,
 		ShippingCost:    d.ShippingCost,
 		CourierName:     d.CourierName,

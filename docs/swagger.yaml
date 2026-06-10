@@ -186,6 +186,9 @@ definitions:
       customer_id:
         example: 333e4567-e89b-12d3-a456-426614174000
         type: string
+      discount_amount:
+        example: 0
+        type: number
       id:
         example: ord-uuid
         type: string
@@ -215,6 +218,15 @@ definitions:
         type: string
       shipping_cost:
         example: 50000
+        type: number
+      subtotal:
+        example: 3500000
+        type: number
+      tax_ph:
+        example: 0
+        type: number
+      tax_ppn:
+        example: 0
         type: number
       terms_conditions:
         example: DP Minimal 50%

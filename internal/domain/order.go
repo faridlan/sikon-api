@@ -39,6 +39,10 @@ type Order struct {
 	OrderNumber     string
 	CustomerID      string
 	SalesID         string
+	Subtotal        float64
+	DiscountAmount  float64
+	TaxPpn          float64
+	TaxPph          float64
 	TotalAmount     float64
 	ShippingCost    float64
 	CourierName     string

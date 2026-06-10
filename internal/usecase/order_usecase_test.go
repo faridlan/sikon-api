@@ -36,8 +36,9 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		ValidUntil:      &validUntil,
 		TermsConditions: "DP Minimal 50%",
 		Items: []domain.OrderItemInput{
-			{ProductID: "prod-1", Qty: 2, Price: 0},     // Price 0 -> harus fallback ke BasePrice
-			{ProductID: "prod-2", Qty: 1, Price: 15000}, // Price > 0 -> pakai price ini
+			{ProductID: "prod-1", Qty: 2, Price: 0},     // Price 0 -> harus fallback ke BasePrice (50000 * 2 = 100000)
+			{ProductID: "prod-2", Qty: 1, Price: 15000}, // Price > 0 -> pakai price ini (15000 * 1 = 15000)
+			// Total Harga Barang (Subtotal) = 115000
 		},
 	}
 
@@ -55,10 +56,14 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
 
-		// 3. Kalkulasi ekspektasi: Status harus Quotation
+		// 3. Kalkulasi ekspektasi: Subtotal & Grand Total
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			return o.CustomerID == input.CustomerID &&
-				o.TotalAmount == 115000 &&
+				o.Subtotal == 115000 && // Harga barang saja
+				o.TotalAmount == 165000 && // Subtotal + Shipping Cost (115000 + 50000)
+				o.DiscountAmount == 0 &&
+				o.TaxPpn == 0 &&
+				o.TaxPph == 0 &&
 				len(o.Items) == 2 &&
 				o.OrderStatus == domain.OrderStatusQuotation && // Validasi Status
 				o.PaymentStatus == domain.PaymentStatusUnpaid &&
@@ -93,7 +98,8 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 
 		// 3. Kalkulasi ekspektasi: Status harus Pending
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
-			return o.TotalAmount == 115000 &&
+			return o.Subtotal == 115000 &&
+				o.TotalAmount == 165000 &&
 				o.OrderStatus == domain.OrderStatusPending // Validasi Status harus PENDING
 		})).Return(nil).Once()
 
@@ -120,6 +126,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.Equal(t, "Customer tidak ditemukan", appErr.Message)
 	})
 }
+
 func TestOrderUsecase_GetOrder(t *testing.T) {
 	mockOrderRepo, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
@@ -188,6 +195,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 		assert.Equal(t, 0, meta.TotalPages) // Meta harus kosong jika error
 	})
 }
+
 func TestOrderUsecase_UpdateOrder(t *testing.T) {
 	mockOrderRepo, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
@@ -201,11 +209,23 @@ func TestOrderUsecase_UpdateOrder(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		existingOrder := &domain.Order{ID: mockID, ShippingCost: 0}
+		// Simulasikan order lama yang ada di DB.
+		// Kita taruh Subtotal 100rb, agar test bisa membuktikan bahwa Grand Total
+		// benar-benar terupdate menjadi (Subtotal + ShippingCost baru).
+		existingOrder := &domain.Order{
+			ID:             mockID,
+			ShippingCost:   0,
+			Subtotal:       100000,
+			DiscountAmount: 0,
+			TaxPpn:         0,
+			TaxPph:         0,
+			TotalAmount:    100000, // Total lama (sebelum ada ongkir)
+		}
 		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(existingOrder, nil).Once()
 
 		mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			return o.ShippingCost == 15000 &&
+				o.TotalAmount == 115000 && // Subtotal (100.000) + Ongkir Baru (15.000)
 				o.CourierName == "JNE" &&
 				o.TermsConditions == input.TermsConditions &&
 				o.ValidUntil == input.ValidUntil
