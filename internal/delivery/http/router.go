@@ -91,6 +91,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	orders.Get("/:id", handlers.OrderHandler.GetOrder)
 	orders.Put("/:id", handlers.OrderHandler.UpdateOrder)
 	orders.Patch("/:id/status", handlers.OrderHandler.UpdateOrderStatus)
+	orders.Patch("/:id/payment-status", handlers.OrderHandler.UpdatePaymentStatus)
 	orders.Delete("/:id", handlers.OrderHandler.DeleteOrder)
 
 	// --- Payments Routes ---

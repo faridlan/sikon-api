@@ -342,6 +342,17 @@ definitions:
         example: "2023-10-02T10:05:00Z"
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentStatusUpdateRequest:
+    properties:
+      payment_status:
+        enum:
+        - unpaid
+        - partial
+        - paid
+        type: string
+    required:
+    - payment_status
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentUpdateRequest:
     properties:
       payment_type:
@@ -569,6 +580,12 @@ definitions:
         type: string
       meta:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
+  github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any:
+    properties:
+      data: {}
+      message:
+        type: string
     type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse
   : properties:
@@ -1341,6 +1358,45 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       summary: Update Order Data
+      tags:
+      - Orders
+  /orders/{id}/payment-status:
+    patch:
+      consumes:
+      - application/json
+      description: Memperbarui status pembayaran pesanan (unpaid, partial, paid)
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Update Status Pembayaran
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentStatusUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Update Payment Status
       tags:
       - Orders
   /orders/{id}/status:

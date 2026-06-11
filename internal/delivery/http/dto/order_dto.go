@@ -40,6 +40,10 @@ type OrderStatusUpdateRequest struct {
 	OrderStatus string `json:"order_status" validate:"required,oneof=quotation pending production completed canceled" example:"production"`
 }
 
+type PaymentStatusUpdateRequest struct {
+	PaymentStatus string `json:"payment_status" validate:"required,oneof=unpaid partial paid"`
+}
+
 // --- RESPONSE ---
 type OrderItemResponse struct {
 	ID        string           `json:"id" example:"item-uuid"`

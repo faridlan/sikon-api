@@ -478,3 +478,66 @@ func TestListOrders_Integration(t *testing.T) {
 		assert.Equal(t, 2, response.Meta.TotalPages)
 	})
 }
+
+func TestUpdatePaymentStatus_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	// Persiapan Data (Seeding)
+	sales := tests.SeedUser(db, "S", "s@s.com", "sales")
+	cust := tests.SeedCustomer(db, "C", "08", "Jkt")
+	cat := tests.SeedCategory(db, "Cat")
+	prod := tests.SeedProduct(db, cat.ID, "Prod", 100)
+	order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
+
+	t.Run("Success_Update_To_Paid", func(t *testing.T) {
+		reqBody := dto.PaymentStatusUpdateRequest{
+			PaymentStatus: "paid",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		// Perhatikan: Endpoint-nya adalah /payment-status
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		// Opsional & Sangat Disarankan untuk Integration Test:
+		// Verifikasi langsung ke Database apakah nilainya benar-benar berubah
+		/*
+		   var updatedOrder order_model.OrderModel // Sesuaikan dengan nama model GORM Anda
+		   db.First(&updatedOrder, "id = ?", order.ID)
+		   assert.Equal(t, "paid", updatedOrder.PaymentStatus)
+		*/
+	})
+
+	t.Run("Success_Update_To_Partial", func(t *testing.T) {
+		reqBody := dto.PaymentStatusUpdateRequest{
+			PaymentStatus: "partial",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("Failed_Invalid_Status_Enum", func(t *testing.T) {
+		reqBody := dto.PaymentStatusUpdateRequest{
+			PaymentStatus: "status_ngasal", // Harus ditolak oleh validator "oneof=unpaid partial paid"
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Ekspektasi Error 400
+	})
+}

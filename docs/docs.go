@@ -1052,6 +1052,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/orders/{id}/payment-status": {
+            "patch": {
+                "description": "Memperbarui status pembayaran pesanan (unpaid, partial, paid)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Update Payment Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data Update Status Pembayaran",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentStatusUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/orders/{id}/status": {
             "patch": {
                 "description": "Memperbarui status pengerjaan pesanan (pending, production, completed, canceled)",
@@ -2378,6 +2437,22 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentStatusUpdateRequest": {
+            "type": "object",
+            "required": [
+                "payment_status"
+            ],
+            "properties": {
+                "payment_status": {
+                    "type": "string",
+                    "enum": [
+                        "unpaid",
+                        "partial",
+                        "paid"
+                    ]
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentUpdateRequest": {
             "type": "object",
             "properties": {
@@ -2705,6 +2780,15 @@ const docTemplate = `{
                 },
                 "meta": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
                 }
             }
         },

@@ -118,4 +118,5 @@ type OrderUsecase interface {
 	UpdateOrder(ctx context.Context, id string, input OrderUpdateInput) (*Order, error)
 	DeleteOrder(ctx context.Context, id string) error
 	UpdateOrderStatus(ctx context.Context, id string, status OrderStatus) error
+	UpdatePaymentStatus(ctx context.Context, id string, status PaymentStatus) error
 }

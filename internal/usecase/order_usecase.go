@@ -215,3 +215,23 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 
 	return u.orderRepo.UpdateStatus(ctx, id, status, "")
 }
+
+func (u *orderUsecase) UpdatePaymentStatus(c context.Context, id string, status domain.PaymentStatus) error {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// Validasi input status pembayaran
+	validStatuses := map[domain.PaymentStatus]bool{
+		domain.PaymentStatusUnpaid:  true,
+		domain.PaymentStatusPartial: true,
+		domain.PaymentStatusPaid:    true,
+	}
+
+	if !validStatuses[status] {
+		return domain.NewError(domain.ErrBadParamInput, "Status pembayaran tidak valid")
+	}
+
+	// Perhatikan: orderStatus dikosongkan (""), hanya paymentStatus yang diisi
+	// karena fungsi repo Anda akan mendeteksinya otomatis
+	return u.orderRepo.UpdateStatus(ctx, id, "", status)
+}
