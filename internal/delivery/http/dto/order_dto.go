@@ -55,6 +55,10 @@ type OrderResponse struct {
 	OrderNumber     string     `json:"order_number" example:"ORD-20231001-1234"`
 	CustomerID      string     `json:"customer_id" example:"333e4567-e89b-12d3-a456-426614174000"`
 	SalesID         string     `json:"sales_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Subtotal        float64    `json:"subtotal" example:"3500000"`
+	DiscountAmount  float64    `json:"discount_amount" example:"0"`
+	TaxPpn          float64    `json:"tax_ppn" example:"0"`
+	TaxPph          float64    `json:"tax_ph" example:"0"`
 	TotalAmount     float64    `json:"total_amount" example:"3550000"`
 	ShippingCost    float64    `json:"shipping_cost" example:"50000"`
 	CourierName     string     `json:"courier_name" example:"JNE Trucking"`
@@ -79,6 +83,10 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 		OrderNumber:     o.OrderNumber,
 		CustomerID:      o.CustomerID,
 		SalesID:         o.SalesID,
+		Subtotal:        o.Subtotal,
+		DiscountAmount:  o.DiscountAmount,
+		TaxPpn:          o.TaxPpn,
+		TaxPph:          o.TaxPph,
 		TotalAmount:     o.TotalAmount,
 		ShippingCost:    o.ShippingCost,
 		CourierName:     o.CourierName,

@@ -1,0 +1,5 @@
+ALTER TABLE orders
+DROP COLUMN IF EXISTS subtotal,
+DROP COLUMN IF EXISTS discount_amount,
+DROP COLUMN IF EXISTS tax_ppn,
+DROP COLUMN IF EXISTS tax_pph;

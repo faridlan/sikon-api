@@ -2166,6 +2166,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "333e4567-e89b-12d3-a456-426614174000"
                 },
+                "discount_amount": {
+                    "type": "number",
+                    "example": 0
+                },
                 "id": {
                     "type": "string",
                     "example": "ord-uuid"
@@ -2206,6 +2210,18 @@ const docTemplate = `{
                 "shipping_cost": {
                     "type": "number",
                     "example": 50000
+                },
+                "subtotal": {
+                    "type": "number",
+                    "example": 3500000
+                },
+                "tax_ph": {
+                    "type": "number",
+                    "example": 0
+                },
+                "tax_ppn": {
+                    "type": "number",
+                    "example": 0
                 },
                 "terms_conditions": {
                     "type": "string",

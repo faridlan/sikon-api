@@ -100,12 +100,14 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string, customStatus 
 	}
 
 	order := postgres.OrderModel{
-		ID:              orderID,
-		OrderNumber:     "ORD-" + uuid.New().String()[:8],
-		CustomerID:      customerID,
-		SalesID:         salesID,
-		TotalAmount:     100000,
-		ShippingCost:    10000,
+		ID:           orderID,
+		OrderNumber:  "ORD-" + uuid.New().String()[:8],
+		CustomerID:   customerID,
+		SalesID:      salesID,
+		Subtotal:     100000, // <-- TAMBAHAN: Harga 2 item @ 50.000
+		TotalAmount:  110000, // <-- UPDATE: Subtotal (100.000) + ShippingCost (10.000)
+		ShippingCost: 10000,
+		// Tax & Discount biarkan kosong (default 0)
 		OrderStatus:     status,
 		PaymentStatus:   "unpaid",
 		ValidUntil:      &validUntil,
@@ -125,7 +127,6 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string, customStatus 
 
 	return order
 }
-
 func SeedPayment(db *gorm.DB, orderID, bankAccountID string, amount float64, paymentType string) postgres.PaymentModel {
 	payment := postgres.PaymentModel{
 		ID:              uuid.New().String(),

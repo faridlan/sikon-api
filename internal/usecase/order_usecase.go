@@ -64,9 +64,12 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		TermsConditions: input.TermsConditions,
 		OrderStatus:     statusOrder,
 		PaymentStatus:   domain.PaymentStatusUnpaid,
+		DiscountAmount:  0,
+		TaxPpn:          0,
+		TaxPph:          0,
 	}
 
-	var totalAmount float64
+	var subtotal float64 // Variabel penampung total harga barang murni
 	for _, itemInput := range input.Items {
 		product, err := u.productRepo.GetByID(ctx, itemInput.ProductID)
 		if err != nil {
@@ -81,7 +84,8 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 			price = product.BasePrice
 		}
 
-		totalAmount += price * float64(itemInput.Qty)
+		// Hitung subtotal akumulatif barang
+		subtotal += price * float64(itemInput.Qty)
 
 		order.Items = append(order.Items, domain.OrderItem{
 			ProductID: itemInput.ProductID,
@@ -91,7 +95,12 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		})
 	}
 
-	order.TotalAmount = totalAmount
+	// Masukkan nilai subtotal murni ke entity order
+	order.Subtotal = subtotal
+
+	// Rumus Grand Total Masa Depan (Saat ini discount, ppn, pph masih bernilai 0)
+	order.TotalAmount = (order.Subtotal - order.DiscountAmount) + order.TaxPpn - order.TaxPph + order.ShippingCost
+
 	randomStr := rand.Intn(9999)
 	order.OrderNumber = fmt.Sprintf("ORD-%s-%04d", time.Now().Format("20060102"), randomStr)
 
@@ -155,12 +164,16 @@ func (u *orderUsecase) UpdateOrder(c context.Context, id string, input domain.Or
 		return nil, err
 	}
 
+	// Perbarui komponen biaya pengiriman
 	existingOrder.ShippingCost = input.ShippingCost
 	existingOrder.CourierName = input.CourierName
 	existingOrder.ShippingAddress = input.ShippingAddress
 	existingOrder.Notes = input.Notes
 	existingOrder.ValidUntil = input.ValidUntil
 	existingOrder.TermsConditions = input.TermsConditions
+
+	// Hitung ulang Grand Total berdasarkan kondisi data terbaru
+	existingOrder.TotalAmount = (existingOrder.Subtotal - existingOrder.DiscountAmount) + existingOrder.TaxPpn - existingOrder.TaxPph + existingOrder.ShippingCost
 
 	err = u.orderRepo.Update(ctx, existingOrder)
 	if err != nil {
