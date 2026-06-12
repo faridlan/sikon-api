@@ -283,3 +283,48 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
 }
+
+func TestOrderUsecase_UpdatePaymentStatus(t *testing.T) {
+	// Asumsi Anda memiliki fungsi setupOrderTest() untuk inisialisasi mock repo & usecase
+	// mockOrderRepo, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, uc := setupOrderTest()
+	mockID := "order-123"
+
+	t.Run("Success", func(t *testing.T) {
+		// Ekspektasi: Repo UpdateStatus dipanggil dengan OrderStatus kosong ("")
+		// dan PaymentStatus valid ("paid")
+		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatus(""), domain.PaymentStatusPaid).Return(nil).Once()
+
+		err := uc.UpdatePaymentStatus(context.Background(), mockID, domain.PaymentStatusPaid)
+
+		// Assertions
+		assert.NoError(t, err)
+		mockOrderRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error_InvalidStatus", func(t *testing.T) {
+		// Kita paksa mengirim status yang tidak ada di map validasi
+		invalidStatus := domain.PaymentStatus("ngutang_dulu")
+
+		err := uc.UpdatePaymentStatus(context.Background(), mockID, invalidStatus)
+
+		// Assertions: Harus error dan repo TIDAK BOLEH dipanggil
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Status pembayaran tidak valid")
+		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
+	})
+
+	t.Run("Error_FromRepository", func(t *testing.T) {
+		repoError := errors.New("database connection lost")
+
+		// Ekspektasi: Repo mengembalikan error
+		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatus(""), domain.PaymentStatusPartial).Return(repoError).Once()
+
+		err := uc.UpdatePaymentStatus(context.Background(), mockID, domain.PaymentStatusPartial)
+
+		// Assertions
+		assert.Error(t, err)
+		assert.Equal(t, repoError, err)
+		mockOrderRepo.AssertExpectations(t)
+	})
+}

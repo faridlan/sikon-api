@@ -14,6 +14,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
+	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -47,7 +49,7 @@ func TestCreatePayment_Integration(t *testing.T) {
 		reqBody := dto.PaymentCreateRequest{
 			OrderID:         orderID,
 			BankAccountID:   bankID,
-			Amount:          50000,
+			Amount:          50000, // Bayar DP 50.000
 			PaymentDate:     time.Now(),
 			ReferenceNumber: "TRX-DP-001",
 			PaymentType:     "dp",
@@ -62,7 +64,7 @@ func TestCreatePayment_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
 	})
 
-	// --- SKENARIO GAGAL ---
+	// --- SKENARIO GAGAL (VALIDASI INPUT) ---
 
 	t.Run("Failed_Validation_Amount_Zero", func(t *testing.T) {
 		reqBody := dto.PaymentCreateRequest{
@@ -88,7 +90,7 @@ func TestCreatePayment_Integration(t *testing.T) {
 			BankAccountID:   bankID,
 			Amount:          100000,
 			ReferenceNumber: "TRX-FAILED-2",
-			PaymentType:     "ngutang_dulu", // <-- Gagal: Bukan bagian dari enum (dp, settlement, installment)
+			PaymentType:     "ngutang_dulu", // <-- Gagal: Bukan bagian dari enum
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -98,6 +100,87 @@ func TestCreatePayment_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	})
+
+	// --- SKENARIO BUSINESS RULES (BARU) ---
+
+	t.Run("Failed_Overpayment", func(t *testing.T) {
+		// Kasir menginput nominal yang sangat besar melampaui sisa tagihan
+		reqBody := dto.PaymentCreateRequest{
+			OrderID:         orderID,
+			BankAccountID:   bankID,
+			Amount:          999999999, // <-- Gagal: Melebihi sisa tagihan
+			ReferenceNumber: "TRX-OVER-001",
+			PaymentType:     "settlement",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		// Harus melempar error 400 Bad Request karena masuk validasi ErrBadParamInput
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("Success_Create_Settlement_And_Check_Status", func(t *testing.T) {
+		// Di Integration Test, kita tidak tahu persis berapa TotalAmount di seeder Anda.
+		// Agar dinamis dan tidak mudah fail, kita ambil sisa tagihannya langsung dari DB DB Testing!
+		type OrderModel struct {
+			ID            string
+			TotalAmount   float64
+			PaymentStatus string
+		}
+		var testOrder OrderModel
+		db.Table("orders").Where("id = ?", orderID).First(&testOrder)
+
+		var totalPaid float64
+		db.Table("payments").Where("order_id = ?", orderID).Select("COALESCE(SUM(amount), 0)").Scan(&totalPaid)
+
+		sisaTagihan := testOrder.TotalAmount - totalPaid
+
+		reqBody := dto.PaymentCreateRequest{
+			OrderID:         orderID,
+			BankAccountID:   bankID,
+			Amount:          sisaTagihan, // <-- Bayar LUNAS sesuai sisa tagihan
+			PaymentDate:     time.Now(),
+			ReferenceNumber: "TRX-LUNAS-001",
+			PaymentType:     "settlement",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		// VERIFIKASI PENTING: Apakah Status Order benar-benar berubah jadi "paid"?
+		db.Table("orders").Where("id = ?", orderID).First(&testOrder)
+		assert.Equal(t, "paid", testOrder.PaymentStatus)
+	})
+
+	t.Run("Failed_Already_Fully_Paid", func(t *testing.T) {
+		// Karena di test case sebelumnya ("Success_Create_Settlement...") tagihan sudah LUNAS,
+		// maka jika kita coba bayar lagi, harusnya ditolak oleh sistem.
+		reqBody := dto.PaymentCreateRequest{
+			OrderID:         orderID,
+			BankAccountID:   bankID,
+			Amount:          10000,
+			ReferenceNumber: "TRX-LATE-001",
+			PaymentType:     "settlement",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		// Harus melempar 409 Conflict sesuai domain.ErrConflict "Pesanan sudah lunas sepenuhnya"
+		assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 	})
 }
 
@@ -253,22 +336,62 @@ func TestUpdatePayment_Integration(t *testing.T) {
 // ==========================================
 func TestDeletePayment_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
-	tests.ClearTables(db)
 
-	orderID, bankID := setupPaymentDependencies(db)
-	payment := tests.SeedPayment(db, orderID, bankID, 50000, "dp")
+	t.Run("Success_Delete_RevertsToUnpaid", func(t *testing.T) {
+		tests.ClearTables(db) // Bersihkan state sebelum test
+		orderID, bankID := setupPaymentDependencies(db)
 
-	t.Run("Success_Delete", func(t *testing.T) {
+		// Skenario: Hanya ada 1 pembayaran.
+		payment := tests.SeedPayment(db, orderID, bankID, 50000, "dp")
+
 		req := httptest.NewRequest("DELETE", "/api/payments/"+payment.ID, nil)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		// ASERSI DATABASE 1: Pastikan data payment benar-benar hilang dari tabel payments
+		var paymentCount int64
+		db.Model(&domain.Payment{}).Where("id = ?", payment.ID).Count(&paymentCount)
+		assert.Equal(t, int64(0), paymentCount)
+
+		// ASERSI DATABASE 2: Pastikan status order berubah menjadi "unpaid" karena tidak ada sisa pembayaran
+		var order postgres.OrderModel
+		db.First(&order, "id = ?", orderID)
+		assert.Equal(t, "unpaid", order.PaymentStatus)
+	})
+
+	t.Run("Success_Delete_RevertsToPartial", func(t *testing.T) {
+		tests.ClearTables(db) // Bersihkan state sebelum test
+		orderID, bankID := setupPaymentDependencies(db)
+
+		// Skenario: Ada 2 kali pembayaran. (Asumsi total tagihan Order cukup besar)
+		payment1 := tests.SeedPayment(db, orderID, bankID, 50000, "dp")
+		_ = tests.SeedPayment(db, orderID, bankID, 50000, "pelunasan") // Payment ke-2 (tidak dihapus)
+
+		// Hapus HANYA payment pertama
+		req := httptest.NewRequest("DELETE", "/api/payments/"+payment1.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		// ASERSI DATABASE 1: Pastikan payment1 hilang
+		var paymentCount int64
+		db.Model(&domain.Payment{}).Where("id = ?", payment1.ID).Count(&paymentCount)
+		assert.Equal(t, int64(0), paymentCount)
+
+		// ASERSI DATABASE 2: Pastikan status order berubah menjadi "partial" karena masih tersisa Payment ke-2
+		var order postgres.OrderModel
+		db.First(&order, "id = ?", orderID)
+		assert.Equal(t, "partial", order.PaymentStatus)
 	})
 
 	t.Run("Failed_Delete_NotFound", func(t *testing.T) {
+		tests.ClearTables(db)
 		req := httptest.NewRequest("DELETE", "/api/payments/"+uuid.New().String(), nil)
 		resp, _ := app.Test(req, -1)
+
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	})
 }

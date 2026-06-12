@@ -15,6 +15,7 @@ type OrderHandler interface {
 	UpdateOrder(c *fiber.Ctx) error
 	UpdateOrderStatus(c *fiber.Ctx) error
 	DeleteOrder(c *fiber.Ctx) error
+	UpdatePaymentStatus(c *fiber.Ctx) error
 }
 
 type orderHandler struct {
@@ -241,4 +242,40 @@ func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menghapus pesanan", nil)
+}
+
+// @Summary Update Payment Status
+// @Description Memperbarui status pembayaran pesanan (unpaid, partial, paid)
+// @Tags Orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID (UUID)"
+// @Param request body dto.PaymentStatusUpdateRequest true "Data Update Status Pembayaran"
+// @Success 200 {object} utils.SuccessResponse[any]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /orders/{id}/payment-status [patch]
+func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	var req dto.PaymentStatusUpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	status := domain.PaymentStatus(req.PaymentStatus)
+
+	if err := h.orderUsecase.UpdatePaymentStatus(c.Context(), id, status); err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui status pembayaran", nil)
 }

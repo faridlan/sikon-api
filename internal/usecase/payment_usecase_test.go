@@ -36,11 +36,12 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		PaymentType:     domain.PaymentTypeDP,
 	}
 
+	// UPDATE: Kita hapus ekspektasi ShippingCost karena sudah include di TotalAmount.
+	// Sekarang Grand Total murni = 1.000.000
 	mockOrder := &domain.Order{
-		ID:           "ord-123",
-		TotalAmount:  1000000,
-		ShippingCost: 100000,
-	} // GrandTotal = 1.100.000
+		ID:          "ord-123",
+		TotalAmount: 1000000,
+	}
 
 	t.Run("Success - Partial Payment (DP)", func(t *testing.T) {
 		// 1. Order Ditemukan
@@ -55,7 +56,7 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 			return p.Amount == input.Amount && p.ReferenceNumber == input.ReferenceNumber
 		})).Return(nil).Once()
 
-		// 5. Update Status Order -> Partial (Karena 500rb < 1.1jt)
+		// 5. Update Status Order -> Partial (Karena 500rb < 1jt)
 		mockOrderRepo.On("UpdateStatus", mock.Anything, mockOrder.ID, domain.OrderStatus(""), domain.PaymentStatusPartial).Return(nil).Once()
 
 		payment, err := uc.ProcessPayment(context.Background(), input)
@@ -69,7 +70,8 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 
 	t.Run("Success - Full Payment (Paid)", func(t *testing.T) {
 		inputPelunasan := input
-		inputPelunasan.Amount = 600000 // Uang yang dibayar pelunasan
+		// UPDATE: Uang yang dibayar pelunasan harus 500.000 agar pas 1.000.000
+		inputPelunasan.Amount = 500000
 		inputPelunasan.PaymentType = domain.PaymentTypeSettlement
 
 		// Simulasi sudah pernah bayar DP 500.000
@@ -83,7 +85,7 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 
 		mockPaymentRepo.On("Create", mock.Anything, mock.Anything).Return(nil).Once()
 
-		// Total Paid sekarang: 500k (DP) + 600k (Pelunasan) = 1.1jt (== GrandTotal) -> Status jadi PAID
+		// Total Paid sekarang: 500k (DP) + 500k (Pelunasan) = 1jt (== GrandTotal) -> Status jadi PAID
 		mockOrderRepo.On("UpdateStatus", mock.Anything, mockOrder.ID, domain.OrderStatus(""), domain.PaymentStatusPaid).Return(nil).Once()
 
 		payment, err := uc.ProcessPayment(context.Background(), inputPelunasan)
@@ -93,9 +95,9 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 	})
 
 	t.Run("Error - Already Fully Paid", func(t *testing.T) {
-		// Simulasi tagihan sudah lunas sebelumnya
+		// UPDATE: Simulasi tagihan sudah lunas (1.000.000)
 		existingPayments := []domain.Payment{
-			{Amount: 1100000},
+			{Amount: 1000000},
 		}
 
 		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
@@ -111,7 +113,35 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		assert.Equal(t, "Pesanan ini sudah lunas sepenuhnya", appErr.Message)
 		assert.Nil(t, payment)
 
-		// Pastikan Create dan UpdateStatus tidak dipanggil!
+		mockPaymentRepo.AssertNotCalled(t, "Create")
+		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
+	})
+
+	// TAMBAHAN TEST BARU: Validasi pencegahan Overpayment
+	t.Run("Error - Overpayment", func(t *testing.T) {
+		inputOverpayment := input
+		// Simulasi kasir menginput pembayaran 600.000
+		inputOverpayment.Amount = 600000
+
+		// Padahal customer sudah bayar DP 500.000 (Sisa tagihan tinggal 500.000)
+		existingPayments := []domain.Payment{
+			{Amount: 500000},
+		}
+
+		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
+		mockBankRepo.On("GetByID", mock.Anything, input.BankAccountID).Return(&domain.BankAccount{}, nil).Once()
+		mockPaymentRepo.On("GetByOrderID", mock.Anything, input.OrderID).Return(existingPayments, nil).Once()
+
+		payment, err := uc.ProcessPayment(context.Background(), inputOverpayment)
+
+		assert.Error(t, err)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
+		assert.Contains(t, appErr.Message, "Jumlah bayar melebihi sisa tagihan")
+		assert.Nil(t, payment)
+
+		// Pastikan tidak ada data yang masuk ke database
 		mockPaymentRepo.AssertNotCalled(t, "Create")
 		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
@@ -129,7 +159,6 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		assert.Nil(t, payment)
 	})
 }
-
 func TestPaymentUsecase_GetPayment(t *testing.T) {
 	mockPaymentRepo, _, _, uc := setupPaymentTest()
 	mockID := "pay-123"
@@ -227,14 +256,96 @@ func TestPaymentUsecase_UpdatePayment(t *testing.T) {
 }
 
 func TestPaymentUsecase_DeletePayment(t *testing.T) {
-	mockPaymentRepo, _, _, uc := setupPaymentTest()
-	mockID := "pay-123"
+	// Update destructuring: kita butuh mockOrderRepo sekarang!
+	mockPaymentRepo, mockOrderRepo, _, uc := setupPaymentTest()
 
-	t.Run("Success", func(t *testing.T) {
-		existingPayment := &domain.Payment{ID: mockID, ReferenceNumber: "TRX-LAMA"}
-		mockPaymentRepo.On("GetByID", mock.Anything, mockID).Return(existingPayment, nil).Once()
-		mockPaymentRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
-		err := uc.DeletePayment(context.Background(), mockID)
+	paymentID := "pay-123"
+	orderID := "ord-123"
+
+	// Setup data mock dasar
+	mockPayment := &domain.Payment{
+		ID:      paymentID,
+		OrderID: orderID,
+		Amount:  500000,
+	}
+
+	mockOrder := &domain.Order{
+		ID:          orderID,
+		TotalAmount: 1000000, // Total tagihan 1 juta
+	}
+
+	t.Run("Success - Status Reverts to Partial", func(t *testing.T) {
+		// Skenario: Customer bayar DP 2x @500rb (Lunas).
+		// Kasir menghapus pembayaran pertama, sehingga order kembali jadi "Partial".
+		existingPayments := []domain.Payment{
+			{ID: "pay-123", Amount: 500000},
+			{ID: "pay-456", Amount: 500000},
+		}
+
+		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(mockPayment, nil).Once()
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(mockOrder, nil).Once()
+		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(existingPayments, nil).Once()
+
+		// Ekspektasi: 1jt - 500rb = 500rb. Karena 500rb < TotalAmount(1jt), status = Partial
+		mockOrderRepo.On("UpdateStatus", mock.Anything, orderID, domain.OrderStatus(""), domain.PaymentStatusPartial).Return(nil).Once()
+		mockPaymentRepo.On("Delete", mock.Anything, paymentID).Return(nil).Once()
+
+		err := uc.DeletePayment(context.Background(), paymentID)
+
 		assert.NoError(t, err)
+		mockPaymentRepo.AssertExpectations(t)
+		mockOrderRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Status Reverts to Unpaid", func(t *testing.T) {
+		// Skenario: Hanya ada 1x pembayaran DP.
+		// Jika dihapus, maka total uang masuk jadi 0, status order harus "Unpaid".
+		existingPayments := []domain.Payment{
+			{ID: "pay-123", Amount: 500000},
+		}
+
+		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(mockPayment, nil).Once()
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(mockOrder, nil).Once()
+		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(existingPayments, nil).Once()
+
+		// Ekspektasi: 500rb - 500rb = 0. Karena 0, status = Unpaid
+		mockOrderRepo.On("UpdateStatus", mock.Anything, orderID, domain.OrderStatus(""), domain.PaymentStatusUnpaid).Return(nil).Once()
+		mockPaymentRepo.On("Delete", mock.Anything, paymentID).Return(nil).Once()
+
+		err := uc.DeletePayment(context.Background(), paymentID)
+
+		assert.NoError(t, err)
+		mockPaymentRepo.AssertExpectations(t)
+		mockOrderRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - Payment Not Found", func(t *testing.T) {
+		// Skenario: Data yang mau dihapus tidak ada di DB
+		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(nil, domain.ErrNotFound).Once()
+
+		err := uc.DeletePayment(context.Background(), paymentID)
+
+		assert.Error(t, err)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrNotFound, appErr.ErrType)
+
+		// Pastikan method lain tidak dipanggil
+		mockOrderRepo.AssertNotCalled(t, "GetByID")
+		mockPaymentRepo.AssertNotCalled(t, "Delete")
+	})
+
+	t.Run("Error - Order Not Found", func(t *testing.T) {
+		// Skenario: Payment ada, tapi Order terkait hilang secara aneh di DB
+		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(mockPayment, nil).Once()
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(nil, domain.ErrNotFound).Once()
+
+		err := uc.DeletePayment(context.Background(), paymentID)
+
+		assert.Error(t, err)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
+		assert.Contains(t, appErr.Message, "Order terkait tidak ditemukan")
 	})
 }
