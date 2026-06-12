@@ -64,7 +64,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	userUsecase := usecase.NewUserUsecase(userRepo, timeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
-	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, timeout)
+	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, timeout)
 
 	// 3. Masukkan ke struct Handlers

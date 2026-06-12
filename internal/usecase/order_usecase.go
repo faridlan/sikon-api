@@ -17,15 +17,17 @@ type orderUsecase struct {
 	customerRepo   domain.CustomerRepository
 	userRepo       domain.UserRepository // Untuk memvalidasi Sales
 	productRepo    domain.ProductRepository
+	paymentRepo    domain.PaymentRepository
 	contextTimeout time.Duration
 }
 
-func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, timeout time.Duration) domain.OrderUsecase {
+func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, payRepo domain.PaymentRepository, timeout time.Duration) domain.OrderUsecase {
 	return &orderUsecase{
 		orderRepo:      or,
 		customerRepo:   cr,
 		userRepo:       ur,
 		productRepo:    pr,
+		paymentRepo:    payRepo,
 		contextTimeout: timeout,
 	}
 }
@@ -255,7 +257,33 @@ func (u *orderUsecase) recalculateOrderTotal(ctx context.Context, orderID string
 	order.Subtotal = subtotal
 	order.TotalAmount = (order.Subtotal - order.DiscountAmount) + order.TaxPpn - order.TaxPph + order.ShippingCost
 
-	// 4. Update Header Order-nya saja ke Database
+	// =========================================================
+	// 🚨 TAMBAHAN BARU: RE-EVALUASI STATUS PEMBAYARAN 🚨
+	// =========================================================
+
+	// Ambil semua histori pembayaran untuk order ini
+	existingPayments, err := u.paymentRepo.GetByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Jumlahkan total yang sudah dibayar (kas nyata yang masuk)
+	var totalPaid float64
+	for _, p := range existingPayments {
+		totalPaid += p.Amount
+	}
+
+	// Tentukan status pembayaran baru berdasarkan selisih
+	if totalPaid <= 0 {
+		order.PaymentStatus = domain.PaymentStatusUnpaid
+	} else if totalPaid < order.TotalAmount {
+		order.PaymentStatus = domain.PaymentStatusPartial
+	} else {
+		order.PaymentStatus = domain.PaymentStatusPaid
+	}
+	// =========================================================
+
+	// 4. Update Header Order-nya saja ke Database (Subtotal, TotalAmount, & PaymentStatus ikut terupdate)
 	err = u.orderRepo.Update(ctx, order)
 	if err != nil {
 		return nil, err
