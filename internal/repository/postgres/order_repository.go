@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/faridlan/sikon-api/internal/domain"
 	"gorm.io/gorm"
@@ -155,7 +156,7 @@ func (r *orderRepository) Delete(ctx context.Context, id string) error {
 
 // Custom Query: Update Status secara spesifik
 func (r *orderRepository) UpdateStatus(ctx context.Context, id string, orderStatus domain.OrderStatus, paymentStatus domain.PaymentStatus) error {
-	updates := map[string]interface{}{}
+	updates := map[string]any{}
 
 	if orderStatus != "" {
 		updates["order_status"] = string(orderStatus)
@@ -173,5 +174,80 @@ func (r *orderRepository) UpdateStatus(ctx context.Context, id string, orderStat
 		return TranslateError(err)
 	}
 
+	return nil
+}
+
+func (r *orderRepository) GetItemByID(ctx context.Context, orderID, itemID string) (*domain.OrderItem, error) {
+	var item domain.OrderItem
+	// Kita langsung query ke tabel order_items
+	err := r.db.WithContext(ctx).Table("order_items").
+		Where("order_id = ? AND id = ?", orderID, itemID).
+		First(&item).Error
+
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+	return &item, nil
+}
+
+func (r *orderRepository) CreateItem(ctx context.Context, item *domain.OrderItem) error {
+
+	var detailsJSON []byte
+	if item.Details != nil {
+		detailsJSON, _ = json.Marshal(item.Details)
+	}
+
+	// Note: Menggunakan map alih-alih OrderItemModel struct untuk menghindari
+	// GORM secara tidak sengaja meng-update tabel relasi (Product/Order)
+	// dan memastikan zero-value (seperti qty/harga 0) tetap ter-update.
+	// Insert langsung ke tabel order_items
+	err := r.db.WithContext(ctx).Table("order_items").Create(map[string]any{
+		"id":         item.ID,
+		"order_id":   item.OrderID,
+		"product_id": item.ProductID,
+		"qty":        item.Qty,
+		"price":      item.Price,
+		"details":    detailsJSON,
+	}).Error
+
+	if err != nil {
+		return TranslateError(err)
+	}
+	return nil
+}
+
+func (r *orderRepository) UpdateItem(ctx context.Context, item *domain.OrderItem) error {
+
+	var detailsJSON []byte
+	if item.Details != nil {
+		detailsJSON, _ = json.Marshal(item.Details)
+	}
+
+	// Note: Menggunakan map alih-alih OrderItemModel struct untuk menghindari
+	// GORM secara tidak sengaja meng-update tabel relasi (Product/Order)
+	// dan memastikan zero-value (seperti qty/harga 0) tetap ter-update.
+	err := r.db.WithContext(ctx).Table("order_items").
+		Where("id = ? AND order_id = ?", item.ID, item.OrderID).
+		Updates(map[string]any{
+			"product_id": item.ProductID,
+			"qty":        item.Qty,
+			"price":      item.Price,
+			"details":    detailsJSON,
+		}).Error
+
+	if err != nil {
+		return TranslateError(err)
+	}
+	return nil
+}
+
+func (r *orderRepository) DeleteItem(ctx context.Context, orderID, itemID string) error {
+	err := r.db.WithContext(ctx).Table("order_items").
+		Where("order_id = ? AND id = ?", orderID, itemID).
+		Delete(nil).Error // Delete record
+
+	if err != nil {
+		return TranslateError(err)
+	}
 	return nil
 }

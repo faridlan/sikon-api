@@ -1052,6 +1052,183 @@ const docTemplate = `{
                 }
             }
         },
+        "/orders/{id}/items": {
+            "post": {
+                "description": "Menambahkan item baru ke dalam pesanan yang sudah ada",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Add Item to Order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data Item Baru",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{id}/items/{itemId}": {
+            "put": {
+                "description": "Memperbarui informasi item dalam pesanan yang sudah ada",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Update Order Item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "itemId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data Update Item",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Menghapus item dari pesanan yang sudah ada",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Delete Order Item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "itemId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/orders/{id}/payment-status": {
             "patch": {
                 "description": "Memperbarui status pembayaran pesanan (unpaid, partial, paid)",
@@ -2177,7 +2354,84 @@ const docTemplate = `{
             }
         },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "customer_id",
+                "items",
+                "sales_id"
+            ],
+            "properties": {
+                "courier_name": {
+                    "type": "string",
+                    "example": "JNE Trucking"
+                },
+                "customer_id": {
+                    "type": "string",
+                    "example": "333e4567-e89b-12d3-a456-426614174000"
+                },
+                "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest"
+                    }
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Tolong packing kayu"
+                },
+                "order_status": {
+                    "type": "string",
+                    "example": "quotation"
+                },
+                "sales_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "shipping_address": {
+                    "type": "string",
+                    "example": "Jl. Sudirman No. 123, Jakarta"
+                },
+                "shipping_cost": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 50000
+                },
+                "terms_conditions": {
+                    "type": "string",
+                    "example": "DP Minimal 50%, Waktu Pengerjaan 14 Hari"
+                },
+                "valid_until": {
+                    "type": "string",
+                    "example": "2026-06-15T00:00:00Z"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest": {
+            "type": "object",
+            "required": [
+                "product_id",
+                "qty"
+            ],
+            "properties": {
+                "details": {
+                    "description": "@Schema type object\n@Schema example {\"ukuran\": \"L\", \"warna\": \"Hitam\"}",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "price": {
+                    "type": "number",
+                    "example": 35000
+                },
+                "product_id": {
+                    "type": "string",
+                    "example": "999e4567-e89b-12d3-a456-426614174000"
+                },
+                "qty": {
+                    "type": "integer",
+                    "example": 100
+                }
+            }
         },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse": {
             "type": "object",

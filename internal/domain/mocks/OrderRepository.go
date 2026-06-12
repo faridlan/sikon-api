@@ -32,6 +32,24 @@ func (_m *OrderRepository) Create(ctx context.Context, order *domain.Order) erro
 	return r0
 }
 
+// CreateItem provides a mock function with given fields: ctx, item
+func (_m *OrderRepository) CreateItem(ctx context.Context, item *domain.OrderItem) error {
+	ret := _m.Called(ctx, item)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateItem")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.OrderItem) error); ok {
+		r0 = rf(ctx, item)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Delete provides a mock function with given fields: ctx, id
 func (_m *OrderRepository) Delete(ctx context.Context, id string) error {
 	ret := _m.Called(ctx, id)
@@ -43,6 +61,24 @@ func (_m *OrderRepository) Delete(ctx context.Context, id string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
 		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteItem provides a mock function with given fields: ctx, orderID, itemID
+func (_m *OrderRepository) DeleteItem(ctx context.Context, orderID string, itemID string) error {
+	ret := _m.Called(ctx, orderID, itemID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteItem")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, orderID, itemID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -117,6 +153,36 @@ func (_m *OrderRepository) GetByID(ctx context.Context, id string) (*domain.Orde
 	return r0, r1
 }
 
+// GetItemByID provides a mock function with given fields: ctx, orderID, itemID
+func (_m *OrderRepository) GetItemByID(ctx context.Context, orderID string, itemID string) (*domain.OrderItem, error) {
+	ret := _m.Called(ctx, orderID, itemID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetItemByID")
+	}
+
+	var r0 *domain.OrderItem
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*domain.OrderItem, error)); ok {
+		return rf(ctx, orderID, itemID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *domain.OrderItem); ok {
+		r0 = rf(ctx, orderID, itemID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.OrderItem)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, orderID, itemID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Update provides a mock function with given fields: ctx, order
 func (_m *OrderRepository) Update(ctx context.Context, order *domain.Order) error {
 	ret := _m.Called(ctx, order)
@@ -128,6 +194,24 @@ func (_m *OrderRepository) Update(ctx context.Context, order *domain.Order) erro
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *domain.Order) error); ok {
 		r0 = rf(ctx, order)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateItem provides a mock function with given fields: ctx, item
+func (_m *OrderRepository) UpdateItem(ctx context.Context, item *domain.OrderItem) error {
+	ret := _m.Called(ctx, item)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateItem")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.OrderItem) error); ok {
+		r0 = rf(ctx, item)
 	} else {
 		r0 = ret.Error(0)
 	}

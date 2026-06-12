@@ -8,10 +8,13 @@ import (
 
 // --- REQUEST ---
 type OrderItemRequest struct {
-	ProductID string         `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
-	Qty       int            `json:"qty" validate:"required,gt=0" example:"100"`
-	Price     float64        `json:"price" validate:"omitempty" example:"35000"`
-	Details   map[string]any `json:"details" example:"ukuran:L,warna:Hitam"`
+	ProductID string  `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
+	Qty       int     `json:"qty" validate:"required,gt=0" example:"100"`
+	Price     float64 `json:"price" validate:"omitempty" example:"35000"`
+
+	// @Schema type object
+	// @Schema example {"ukuran": "L", "warna": "Hitam"}
+	Details map[string]any `json:"details"`
 }
 
 type OrderCreateRequest struct {

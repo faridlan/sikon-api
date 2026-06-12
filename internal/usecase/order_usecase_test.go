@@ -328,3 +328,155 @@ func TestOrderUsecase_UpdatePaymentStatus(t *testing.T) {
 		mockOrderRepo.AssertExpectations(t)
 	})
 }
+
+// --- TAMBAHAN BARU: UNIT TEST ORDER ITEMS ---
+
+func TestAddOrderItem(t *testing.T) {
+	mockOrderRepo := new(mocks.OrderRepository)
+	mockCustomerRepo := new(mocks.CustomerRepository)
+	mockUserRepo := new(mocks.UserRepository)
+	mockProductRepo := new(mocks.ProductRepository)
+
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, time.Second*2)
+
+	orderID := "order-123"
+	productID := "prod-123"
+	input := domain.OrderItemInput{
+		ProductID: productID,
+		Qty:       2,
+		Price:     15000,
+	}
+
+	t.Run("Success", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockProductRepo.ExpectedCalls = nil
+
+		// 1. Validasi awal
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{ID: orderID}, nil).Once()
+		mockProductRepo.On("GetByID", mock.Anything, productID).Return(&domain.Product{ID: productID, BasePrice: 15000}, nil).Once()
+
+		// 2. Buat item
+		mockOrderRepo.On("CreateItem", mock.Anything, mock.AnythingOfType("*domain.OrderItem")).Return(nil).Once()
+
+		// 3. Masuk ke recalculateOrderTotal (GetByID dipanggil lagi, kali ini kita simulasikan return order beserta itemnya)
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
+			ID: orderID,
+			Items: []domain.OrderItem{
+				{Price: 15000, Qty: 2}, // Subtotal = 30000
+			},
+		}, nil).Once()
+
+		// 4. Update order header dengan total yang baru
+		mockOrderRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Order")).Return(nil).Once()
+
+		result, err := u.AddOrderItem(context.Background(), orderID, input)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(30000), result.Subtotal)
+		assert.Equal(t, float64(30000), result.TotalAmount)
+
+		mockOrderRepo.AssertExpectations(t)
+		mockProductRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error_OrderNotFound", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(nil, domain.ErrNotFound).Once()
+
+		result, err := u.AddOrderItem(context.Background(), orderID, input)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockOrderRepo.AssertExpectations(t)
+	})
+}
+
+func TestUpdateOrderItem(t *testing.T) {
+	mockOrderRepo := new(mocks.OrderRepository)
+	mockCustomerRepo := new(mocks.CustomerRepository)
+	mockUserRepo := new(mocks.UserRepository)
+	mockProductRepo := new(mocks.ProductRepository)
+
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, time.Second*2)
+
+	orderID := "order-123"
+	itemID := "item-123"
+	productID := "prod-123"
+	input := domain.OrderItemInput{
+		ProductID: productID,
+		Qty:       5, // Qty diubah jadi 5
+		Price:     0, // Misal harga dikosongkan agar pakai BasePrice product
+	}
+
+	t.Run("Success", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockProductRepo.ExpectedCalls = nil
+
+		existingItem := &domain.OrderItem{ID: itemID, OrderID: orderID, ProductID: productID, Qty: 2, Price: 10000}
+
+		// 1. Ambil data item & produk
+		mockOrderRepo.On("GetItemByID", mock.Anything, orderID, itemID).Return(existingItem, nil).Once()
+		mockProductRepo.On("GetByID", mock.Anything, productID).Return(&domain.Product{ID: productID, BasePrice: 20000}, nil).Once()
+
+		// 2. Update item
+		mockOrderRepo.On("UpdateItem", mock.Anything, mock.AnythingOfType("*domain.OrderItem")).Return(nil).Once()
+
+		// 3. Masuk ke recalculateOrderTotal
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
+			ID: orderID,
+			Items: []domain.OrderItem{
+				{Price: 20000, Qty: 5}, // Karena input.Price 0, pakai base price = 20000. Subtotal = 100000
+			},
+		}, nil).Once()
+		mockOrderRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Order")).Return(nil).Once()
+
+		result, err := u.UpdateOrderItem(context.Background(), orderID, itemID, input)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(100000), result.Subtotal) // 20000 * 5
+
+		mockOrderRepo.AssertExpectations(t)
+		mockProductRepo.AssertExpectations(t)
+	})
+}
+
+func TestDeleteOrderItem(t *testing.T) {
+	mockOrderRepo := new(mocks.OrderRepository)
+	mockCustomerRepo := new(mocks.CustomerRepository)
+	mockUserRepo := new(mocks.UserRepository)
+	mockProductRepo := new(mocks.ProductRepository)
+
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, time.Second*2)
+
+	orderID := "order-123"
+	itemID := "item-123"
+
+	t.Run("Success", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+
+		// 1. Hapus Item
+		mockOrderRepo.On("DeleteItem", mock.Anything, orderID, itemID).Return(nil).Once()
+
+		// 2. Masuk ke recalculateOrderTotal (simulasikan order kembali tanpa item tsb)
+		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
+			ID:           orderID,
+			ShippingCost: 15000,                // Misal ada ongkir
+			Items:        []domain.OrderItem{}, // Kosong karena sudah dihapus
+		}, nil).Once()
+
+		// 3. Update order header
+		mockOrderRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Order")).Return(nil).Once()
+
+		result, err := u.DeleteOrderItem(context.Background(), orderID, itemID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(0), result.Subtotal)        // Subtotal barang 0
+		assert.Equal(t, float64(15000), result.TotalAmount) // Total akhir sisa ongkir saja
+
+		mockOrderRepo.AssertExpectations(t)
+	})
+}

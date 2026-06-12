@@ -152,6 +152,65 @@ definitions:
         type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
+    properties:
+      courier_name:
+        example: JNE Trucking
+        type: string
+      customer_id:
+        example: 333e4567-e89b-12d3-a456-426614174000
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest'
+        minItems: 1
+        type: array
+      notes:
+        example: Tolong packing kayu
+        type: string
+      order_status:
+        example: quotation
+        type: string
+      sales_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      shipping_address:
+        example: Jl. Sudirman No. 123, Jakarta
+        type: string
+      shipping_cost:
+        example: 50000
+        minimum: 0
+        type: number
+      terms_conditions:
+        example: DP Minimal 50%, Waktu Pengerjaan 14 Hari
+        type: string
+      valid_until:
+        example: "2026-06-15T00:00:00Z"
+        type: string
+    required:
+    - customer_id
+    - items
+    - sales_id
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest:
+    properties:
+      details:
+        additionalProperties: {}
+        description: |-
+          @Schema type object
+          @Schema example {"ukuran": "L", "warna": "Hitam"}
+        type: object
+      price:
+        example: 35000
+        type: number
+      product_id:
+        example: 999e4567-e89b-12d3-a456-426614174000
+        type: string
+      qty:
+        example: 100
+        type: integer
+    required:
+    - product_id
+    - qty
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse:
     properties:
@@ -1358,6 +1417,124 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       summary: Update Order Data
+      tags:
+      - Orders
+  /orders/{id}/items:
+    post:
+      consumes:
+      - application/json
+      description: Menambahkan item baru ke dalam pesanan yang sudah ada
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Item Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Add Item to Order
+      tags:
+      - Orders
+  /orders/{id}/items/{itemId}:
+    delete:
+      description: Menghapus item dari pesanan yang sudah ada
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Item ID
+        in: path
+        name: itemId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Delete Order Item
+      tags:
+      - Orders
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui informasi item dalam pesanan yang sudah ada
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Item ID
+        in: path
+        name: itemId
+        required: true
+        type: string
+      - description: Data Update Item
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Update Order Item
       tags:
       - Orders
   /orders/{id}/payment-status:

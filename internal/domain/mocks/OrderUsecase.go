@@ -14,6 +14,36 @@ type OrderUsecase struct {
 	mock.Mock
 }
 
+// AddOrderItem provides a mock function with given fields: ctx, orderID, input
+func (_m *OrderUsecase) AddOrderItem(ctx context.Context, orderID string, input domain.OrderItemInput) (*domain.Order, error) {
+	ret := _m.Called(ctx, orderID, input)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddOrderItem")
+	}
+
+	var r0 *domain.Order
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.OrderItemInput) (*domain.Order, error)); ok {
+		return rf(ctx, orderID, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.OrderItemInput) *domain.Order); ok {
+		r0 = rf(ctx, orderID, input)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, domain.OrderItemInput) error); ok {
+		r1 = rf(ctx, orderID, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CreateOrder provides a mock function with given fields: ctx, input
 func (_m *OrderUsecase) CreateOrder(ctx context.Context, input domain.OrderCreateInput) (*domain.Order, error) {
 	ret := _m.Called(ctx, input)
@@ -60,6 +90,36 @@ func (_m *OrderUsecase) DeleteOrder(ctx context.Context, id string) error {
 	}
 
 	return r0
+}
+
+// DeleteOrderItem provides a mock function with given fields: ctx, orderID, itemID
+func (_m *OrderUsecase) DeleteOrderItem(ctx context.Context, orderID string, itemID string) (*domain.Order, error) {
+	ret := _m.Called(ctx, orderID, itemID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteOrderItem")
+	}
+
+	var r0 *domain.Order
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*domain.Order, error)); ok {
+		return rf(ctx, orderID, itemID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *domain.Order); ok {
+		r0 = rf(ctx, orderID, itemID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, orderID, itemID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetOrder provides a mock function with given fields: ctx, id
@@ -159,6 +219,36 @@ func (_m *OrderUsecase) UpdateOrder(ctx context.Context, id string, input domain
 	return r0, r1
 }
 
+// UpdateOrderItem provides a mock function with given fields: ctx, orderID, itemID, input
+func (_m *OrderUsecase) UpdateOrderItem(ctx context.Context, orderID string, itemID string, input domain.OrderItemInput) (*domain.Order, error) {
+	ret := _m.Called(ctx, orderID, itemID, input)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateOrderItem")
+	}
+
+	var r0 *domain.Order
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, domain.OrderItemInput) (*domain.Order, error)); ok {
+		return rf(ctx, orderID, itemID, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, domain.OrderItemInput) *domain.Order); ok {
+		r0 = rf(ctx, orderID, itemID, input)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, domain.OrderItemInput) error); ok {
+		r1 = rf(ctx, orderID, itemID, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // UpdateOrderStatus provides a mock function with given fields: ctx, id, status
 func (_m *OrderUsecase) UpdateOrderStatus(ctx context.Context, id string, status domain.OrderStatus) error {
 	ret := _m.Called(ctx, id, status)
@@ -169,6 +259,24 @@ func (_m *OrderUsecase) UpdateOrderStatus(ctx context.Context, id string, status
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, domain.OrderStatus) error); ok {
+		r0 = rf(ctx, id, status)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdatePaymentStatus provides a mock function with given fields: ctx, id, status
+func (_m *OrderUsecase) UpdatePaymentStatus(ctx context.Context, id string, status domain.PaymentStatus) error {
+	ret := _m.Called(ctx, id, status)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePaymentStatus")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.PaymentStatus) error); ok {
 		r0 = rf(ctx, id, status)
 	} else {
 		r0 = ret.Error(0)
