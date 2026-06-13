@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -539,5 +540,162 @@ func TestUpdatePaymentStatus_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Ekspektasi Error 400
+	})
+}
+
+func TestOrderItems_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+
+	// --- 1. SKENARIO ADD ITEM ---
+	t.Run("Success_AddOrderItem", func(t *testing.T) {
+		tests.ClearTables(db) // Bersihkan DB sebelum test ini jalan
+
+		sales := tests.SeedUser(db, "S1", "s1@s.com", "sales")
+		cust := tests.SeedCustomer(db, "C1", "081", "Jkt")
+		cat := tests.SeedCategory(db, "Cat1")
+
+		// Buat 2 produk. Produk 1 disisipkan saat SeedOrder, Produk 2 kita tambahkan via API
+		prod1 := tests.SeedProduct(db, cat.ID, "Prod1", 100000)
+		prod2 := tests.SeedProduct(db, cat.ID, "Prod2", 25000)
+
+		// Order dibuat dengan 1 item (Prod1 qty 1 = 100.000)
+		order := tests.SeedOrder(db, cust.ID, sales.ID, prod1.ID)
+
+		// Payload untuk menambah Prod2 (Qty 2 x 25.000 = 50.000)
+		reqBody := dto.OrderItemRequest{
+			ProductID: prod2.ID,
+			Qty:       2,
+			Price:     25000,
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/orders/"+order.ID+"/items", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// ASERSI:
+		// 1. Jumlah item di order sekarang harus ada 2
+		assert.Len(t, response.Data.Items, 2)
+		// 2. Subtotal dan TotalAmount baru harus otomatis terhitung: 100.000 + 50.000 = 150.000
+
+		ongkir := order.ShippingCost
+
+		expectedSubtotal := 150000.0 // 100rb (awal) + 50rb (baru)
+		expectedTotal := expectedSubtotal + ongkir
+
+		assert.Equal(t, expectedSubtotal, response.Data.Subtotal)
+		assert.Equal(t, expectedTotal, response.Data.TotalAmount)
+	})
+
+	// --- 2. SKENARIO UPDATE ITEM ---
+	t.Run("Success_UpdateOrderItem", func(t *testing.T) {
+		tests.ClearTables(db)
+		sales := tests.SeedUser(db, "S2", "s2@s.com", "sales")
+		cust := tests.SeedCustomer(db, "C2", "082", "Bdg")
+		cat := tests.SeedCategory(db, "Cat2")
+		prod := tests.SeedProduct(db, cat.ID, "Prod3", 100000)
+
+		// Order dibuat dengan 1 item (Prod3 qty 1 = 100.000)
+		order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
+
+		// Kita perlu mengambil ID dari Item yang baru saja dibuat oleh SeedOrder
+		var existingItem postgres.OrderItemModel
+		db.Where("order_id = ?", order.ID).First(&existingItem)
+
+		// Payload: Kita ubah qty-nya jadi 5, dan harganya kita diskon jadi 90.000 per item
+		reqBody := dto.OrderItemRequest{
+			ProductID: prod.ID,
+			Qty:       5,
+			Price:     90000,
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PUT", "/api/orders/"+order.ID+"/items/"+existingItem.ID, bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// ASERSI:
+		// 1. Jumlah item tetap 1 (karena update, bukan tambah baru)
+		assert.Len(t, response.Data.Items, 1)
+		assert.Equal(t, 5, response.Data.Items[0].Qty)
+		assert.Equal(t, 90000.0, response.Data.Items[0].Price)
+		// 2. Subtotal baru harus 5 x 90.000 = 450.000
+		assert.Equal(t, 450000.0, response.Data.Subtotal)
+	})
+
+	// --- 3. SKENARIO DELETE ITEM ---
+	t.Run("Success_DeleteOrderItem", func(t *testing.T) {
+		tests.ClearTables(db)
+		sales := tests.SeedUser(db, "S3", "s3@s.com", "sales")
+		cust := tests.SeedCustomer(db, "C3", "083", "Sby")
+		cat := tests.SeedCategory(db, "Cat3")
+		prod := tests.SeedProduct(db, cat.ID, "Prod4", 100000)
+
+		// Order dibuat dengan 1 item (Prod4 qty 1 = 100.000)
+		order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
+
+		// Cari ID Itemnya
+		var existingItem postgres.OrderItemModel
+		db.Where("order_id = ?", order.ID).First(&existingItem)
+
+		// Hit endpoint DELETE
+		req := httptest.NewRequest("DELETE", "/api/orders/"+order.ID+"/items/"+existingItem.ID, nil)
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// ASERSI API:
+		// Item di keranjang jadi kosong (0), dan Total ter-reset menjadi 0
+		assert.Len(t, response.Data.Items, 0)
+		assert.Equal(t, 0.0, response.Data.Subtotal)
+
+		// ASERSI DATABASE (Pastikan benar-benar terhapus secara fisik di db)
+		var count int64
+		db.Model(&postgres.OrderItemModel{}).Where("id = ?", existingItem.ID).Count(&count)
+		assert.Equal(t, int64(0), count)
+	})
+
+	// --- 4. SKENARIO GAGAL VALIDASI QTY ---
+	t.Run("Failed_AddOrderItem_ZeroQty", func(t *testing.T) {
+		tests.ClearTables(db)
+		sales := tests.SeedUser(db, "S4", "s4@s.com", "sales")
+		cust := tests.SeedCustomer(db, "C4", "084", "Sby")
+		cat := tests.SeedCategory(db, "Cat4")
+		prod := tests.SeedProduct(db, cat.ID, "Prod5", 100000)
+		order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
+
+		// Sengaja kirim Qty: 0 agar gagal di DTO Validator
+		reqBody := dto.OrderItemRequest{
+			ProductID: prod.ID,
+			Qty:       0,
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/orders/"+order.ID+"/items", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+
+		// Harusnya bad request karena validator menolak Qty 0
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
 }

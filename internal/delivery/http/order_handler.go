@@ -16,6 +16,10 @@ type OrderHandler interface {
 	UpdateOrderStatus(c *fiber.Ctx) error
 	DeleteOrder(c *fiber.Ctx) error
 	UpdatePaymentStatus(c *fiber.Ctx) error
+
+	AddOrderItem(c *fiber.Ctx) error
+	UpdateOrderItem(c *fiber.Ctx) error
+	DeleteOrderItem(c *fiber.Ctx) error
 }
 
 type orderHandler struct {
@@ -278,4 +282,108 @@ func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui status pembayaran", nil)
+}
+
+// @Summary Add Item to Order
+// @Description Menambahkan item baru ke dalam pesanan yang sudah ada
+// @Tags Orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID"
+// @Param request body dto.OrderItemRequest true "Data Item Baru"
+// @Success 201 {object} utils.SuccessResponse[dto.OrderResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /orders/{id}/items [post]
+func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
+	orderID := c.Params("id")
+	if err := utils.ValidateUUID(orderID, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	var req dto.OrderItemRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	input := domain.OrderItemInput{
+		ProductID: req.ProductID,
+		Qty:       req.Qty,
+		Price:     req.Price,
+		Details:   req.Details,
+	}
+
+	order, err := h.orderUsecase.AddOrderItem(c.Context(), orderID, input)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil menambah item pesanan", dto.ToOrderResponse(order))
+}
+
+// @Summary Update Order Item
+// @Description Memperbarui informasi item dalam pesanan yang sudah ada
+// @Tags Orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID"
+// @Param itemId path string true "Item ID"
+// @Param request body dto.OrderItemRequest true "Data Update Item"
+// @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /orders/{id}/items/{itemId} [put]
+func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
+	orderID := c.Params("id")
+	itemID := c.Params("itemId")
+
+	var req dto.OrderItemRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	input := domain.OrderItemInput{
+		ProductID: req.ProductID,
+		Qty:       req.Qty,
+		Price:     req.Price,
+		Details:   req.Details,
+	}
+
+	order, err := h.orderUsecase.UpdateOrderItem(c.Context(), orderID, itemID, input)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengubah item pesanan", dto.ToOrderResponse(order))
+}
+
+// @Summary Delete Order Item
+// @Description Menghapus item dari pesanan yang sudah ada
+// @Tags Orders
+// @Produce json
+// @Param id path string true "Order ID"
+// @Param itemId path string true "Item ID"
+// @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /orders/{id}/items/{itemId} [delete]
+func (h *orderHandler) DeleteOrderItem(c *fiber.Ctx) error {
+	orderID := c.Params("id")
+	itemID := c.Params("itemId")
+
+	order, err := h.orderUsecase.DeleteOrderItem(c.Context(), orderID, itemID)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menghapus item pesanan", dto.ToOrderResponse(order))
 }

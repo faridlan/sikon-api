@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"github.com/google/uuid"
 )
 
 type orderUsecase struct {
@@ -16,15 +17,17 @@ type orderUsecase struct {
 	customerRepo   domain.CustomerRepository
 	userRepo       domain.UserRepository // Untuk memvalidasi Sales
 	productRepo    domain.ProductRepository
+	paymentRepo    domain.PaymentRepository
 	contextTimeout time.Duration
 }
 
-func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, timeout time.Duration) domain.OrderUsecase {
+func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, payRepo domain.PaymentRepository, timeout time.Duration) domain.OrderUsecase {
 	return &orderUsecase{
 		orderRepo:      or,
 		customerRepo:   cr,
 		userRepo:       ur,
 		productRepo:    pr,
+		paymentRepo:    payRepo,
 		contextTimeout: timeout,
 	}
 }
@@ -234,4 +237,145 @@ func (u *orderUsecase) UpdatePaymentStatus(c context.Context, id string, status 
 	// Perhatikan: orderStatus dikosongkan (""), hanya paymentStatus yang diisi
 	// karena fungsi repo Anda akan mendeteksinya otomatis
 	return u.orderRepo.UpdateStatus(ctx, id, "", status)
+}
+
+// --- TAMBAHAN BARU: Private Helper untuk Hitung Ulang Total ---
+func (u *orderUsecase) recalculateOrderTotal(ctx context.Context, orderID string) (*domain.Order, error) {
+	// 1. Ambil data order terbaru beserta seluruh items-nya
+	order, err := u.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Hitung ulang subtotal murni dari list order.Items
+	var subtotal float64
+	for _, item := range order.Items {
+		subtotal += item.Price * float64(item.Qty)
+	}
+
+	// 3. Masukkan ke order & hitung ulang Grand Total
+	order.Subtotal = subtotal
+	order.TotalAmount = (order.Subtotal - order.DiscountAmount) + order.TaxPpn - order.TaxPph + order.ShippingCost
+
+	// =========================================================
+	// 🚨 TAMBAHAN BARU: RE-EVALUASI STATUS PEMBAYARAN 🚨
+	// =========================================================
+
+	// Ambil semua histori pembayaran untuk order ini
+	existingPayments, err := u.paymentRepo.GetByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Jumlahkan total yang sudah dibayar (kas nyata yang masuk)
+	var totalPaid float64
+	for _, p := range existingPayments {
+		totalPaid += p.Amount
+	}
+
+	// Tentukan status pembayaran baru berdasarkan selisih
+	if totalPaid <= 0 {
+		order.PaymentStatus = domain.PaymentStatusUnpaid
+	} else if totalPaid < order.TotalAmount {
+		order.PaymentStatus = domain.PaymentStatusPartial
+	} else {
+		order.PaymentStatus = domain.PaymentStatusPaid
+	}
+	// =========================================================
+
+	// 4. Update Header Order-nya saja ke Database (Subtotal, TotalAmount, & PaymentStatus ikut terupdate)
+	err = u.orderRepo.Update(ctx, order)
+	if err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
+// --- TAMBAHAN BARU: Usecase Manipulasi Item ---
+
+func (u *orderUsecase) AddOrderItem(c context.Context, orderID string, input domain.OrderItemInput) (*domain.Order, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// 1. Validasi keberadaan Order & Product
+	if _, err := u.orderRepo.GetByID(ctx, orderID); err != nil {
+		return nil, domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
+	}
+	product, err := u.productRepo.GetByID(ctx, input.ProductID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Produk tidak valid")
+	}
+
+	// 2. Tentukan harga
+	price := input.Price
+	if price <= 0 {
+		price = product.BasePrice
+	}
+
+	// 3. Buat Item Baru di Database
+	newItem := &domain.OrderItem{
+		ID:        uuid.New().String(),
+		OrderID:   orderID,
+		ProductID: input.ProductID,
+		Qty:       input.Qty,
+		Price:     price,
+		Details:   input.Details,
+	}
+
+	if err := u.orderRepo.CreateItem(ctx, newItem); err != nil {
+		return nil, err
+	}
+
+	// 4. Hitung ulang total dan kembalikan order terbaru
+	return u.recalculateOrderTotal(ctx, orderID)
+}
+
+func (u *orderUsecase) UpdateOrderItem(c context.Context, orderID, itemID string, input domain.OrderItemInput) (*domain.Order, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// 1. Ambil dan validasi data Item lama
+	existingItem, err := u.orderRepo.GetItemByID(ctx, orderID, itemID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrNotFound, "Item order tidak ditemukan")
+	}
+
+	// 2. Validasi Produk baru (jika ganti produk)
+	product, err := u.productRepo.GetByID(ctx, input.ProductID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Produk tidak valid")
+	}
+
+	// 3. Tentukan harga (update data)
+	price := input.Price
+	if price <= 0 {
+		price = product.BasePrice
+	}
+
+	existingItem.ProductID = input.ProductID
+	existingItem.Qty = input.Qty
+	existingItem.Price = price
+	existingItem.Details = input.Details
+
+	// 4. Simpan perubahan Item
+	if err := u.orderRepo.UpdateItem(ctx, existingItem); err != nil {
+		return nil, err
+	}
+
+	// 5. Hitung ulang total dan kembalikan order terbaru
+	return u.recalculateOrderTotal(ctx, orderID)
+}
+
+func (u *orderUsecase) DeleteOrderItem(c context.Context, orderID, itemID string) (*domain.Order, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// Hapus item
+	if err := u.orderRepo.DeleteItem(ctx, orderID, itemID); err != nil {
+		return nil, err
+	}
+
+	// Hitung ulang total setelah terhapus dan kembalikan order terbaru
+	return u.recalculateOrderTotal(ctx, orderID)
 }

@@ -88,7 +88,7 @@ func main() {
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
 
 	// Order butuh banyak dependensi untuk validasi bisnis
-	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, contextTimeout)
+	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, contextTimeout)
 
 	// Payment butuh Order & BankAccount untuk kalkulasi status lunas
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, contextTimeout)
