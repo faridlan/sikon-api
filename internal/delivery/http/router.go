@@ -10,13 +10,14 @@ import (
 
 // Handlers struct menampung semua instance handler untuk mempermudah Dependency Injection
 type Handlers struct {
-	UserHandler        UserHandler
-	CategoryHandler    CategoryHandler
-	CustomerHandler    CustomerHandler
-	ProductHandler     ProductHandler
-	BankAccountHandler BankAccountHandler
-	OrderHandler       OrderHandler
-	PaymentHandler     PaymentHandler
+	UserHandler         UserHandler
+	CategoryHandler     CategoryHandler
+	CustomerHandler     CustomerHandler
+	ProductHandler      ProductHandler
+	BankAccountHandler  BankAccountHandler
+	OrderHandler        OrderHandler
+	PaymentHandler      PaymentHandler
+	SpecTemplateHandler SpecTemplateHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers
@@ -106,4 +107,11 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	orders.Post("/:id/items", handlers.OrderHandler.AddOrderItem)
 	orders.Put("/:id/items/:itemId", handlers.OrderHandler.UpdateOrderItem)
 	orders.Delete("/:id/items/:itemId", handlers.OrderHandler.DeleteOrderItem)
+
+	specTemplates := api.Group("/spec-templates")
+	specTemplates.Post("/", handlers.SpecTemplateHandler.CreateSpecTemplate)
+	specTemplates.Get("/", handlers.SpecTemplateHandler.ListSpecTemplates)
+	specTemplates.Get("/:id", handlers.SpecTemplateHandler.GetSpecTemplate)
+	specTemplates.Put("/:id", handlers.SpecTemplateHandler.UpdateSpecTemplate)
+	specTemplates.Delete("/:id", handlers.SpecTemplateHandler.DeleteSpecTemplate)
 }

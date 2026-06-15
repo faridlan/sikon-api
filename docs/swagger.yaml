@@ -485,6 +485,36 @@ definitions:
         example: Kaos Polos Lengan Panjang
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateRequest:
+    properties:
+      name:
+        example: Bahan Rompi Standar
+        type: string
+      spec:
+        example: Drill Halus, Furing Peles, Resleting YKK
+        type: string
+    required:
+    - name
+    - spec
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateResponse:
+    properties:
+      created_at:
+        example: "2023-10-01T15:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      name:
+        example: Bahan Rompi Standar
+        type: string
+      spec:
+        example: Drill Halus, Furing Peles, Resleting YKK
+        type: string
+      updated_at:
+        example: "2023-10-01T15:00:00Z"
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.UserRegisterRequest:
     properties:
       email:
@@ -629,6 +659,17 @@ definitions:
       meta:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_SpecTemplateResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateResponse'
+        type: array
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_UserResponse
   : properties:
       data:
@@ -703,6 +744,13 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductResponse'
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_SpecTemplateResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateResponse'
       message:
         type: string
     type: object
@@ -1976,6 +2024,158 @@ paths:
       summary: Update Product
       tags:
       - Products
+  /spec-templates:
+    get:
+      description: Mengambil daftar seluruh template spesifikasi dengan pagination
+      parameters:
+      - default: 1
+        description: Nomor Halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Batas Data per Halaman
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_SpecTemplateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: List Spec Templates
+      tags:
+      - SpecTemplates
+    post:
+      consumes:
+      - application/json
+      description: 'Membuat template spesifikasi (misal: bahan baku) baru'
+      parameters:
+      - description: Data Template Spesifikasi Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_SpecTemplateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Create Spec Template
+      tags:
+      - SpecTemplates
+  /spec-templates/{id}:
+    delete:
+      description: Menghapus template spesifikasi secara permanen
+      parameters:
+      - description: SpecTemplate ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Delete Spec Template
+      tags:
+      - SpecTemplates
+    get:
+      description: Mengambil detail template spesifikasi berdasarkan ID
+      parameters:
+      - description: SpecTemplate ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_SpecTemplateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Spec Template
+      tags:
+      - SpecTemplates
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui nama dan detail spesifikasi
+      parameters:
+      - description: SpecTemplate ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Update Spec Template
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Update Spec Template
+      tags:
+      - SpecTemplates
   /users:
     get:
       description: Mengambil daftar seluruh user dengan pagination

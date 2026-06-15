@@ -77,6 +77,7 @@ func main() {
 	bankAccountRepo := postgres.NewBankAccountRepository(db)
 	orderRepo := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
+	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
 
 	// ==========================================
 	// 2. INISIASI USECASE (Layer Logika Bisnis)
@@ -93,6 +94,7 @@ func main() {
 	// Payment butuh Order & BankAccount untuk kalkulasi status lunas
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, contextTimeout)
 
+	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
 	// ==========================================
 	// 3. INISIASI HANDLER (Layer Delivery)
 	// ==========================================
@@ -103,18 +105,20 @@ func main() {
 	bankAccountHandler := myHttp.NewBankAccountHandler(bankAccountUsecase)
 	orderHandler := myHttp.NewOrderHandler(orderUsecase)
 	paymentHandler := myHttp.NewPaymentHandler(paymentUsecase)
+	specTemplateHandler := myHttp.NewSpecTemplateHandler(specTemplateUsecase)
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
 	// ==========================================
 	handlers := myHttp.Handlers{
-		UserHandler:        userHandler,
-		CategoryHandler:    categoryHandler,
-		CustomerHandler:    customerHandler,
-		ProductHandler:     productHandler,
-		BankAccountHandler: bankAccountHandler,
-		OrderHandler:       orderHandler,
-		PaymentHandler:     paymentHandler,
+		UserHandler:         userHandler,
+		CategoryHandler:     categoryHandler,
+		CustomerHandler:     customerHandler,
+		ProductHandler:      productHandler,
+		BankAccountHandler:  bankAccountHandler,
+		OrderHandler:        orderHandler,
+		PaymentHandler:      paymentHandler,
+		SpecTemplateHandler: specTemplateHandler,
 	}
 
 	// ==========================================
