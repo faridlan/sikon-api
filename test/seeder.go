@@ -140,3 +140,13 @@ func SeedPayment(db *gorm.DB, orderID, bankAccountID string, amount float64, pay
 	db.Create(&payment)
 	return payment
 }
+
+func SeedSpecTemplate(db *gorm.DB, name, spec string) postgres.SpecTemplateModel {
+	specTemplate := postgres.SpecTemplateModel{
+		ID:   uuid.New().String(),
+		Name: name,
+		Spec: spec,
+	}
+	db.Create(&specTemplate)
+	return specTemplate
+}

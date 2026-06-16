@@ -45,6 +45,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.OrderModel{},
 		&postgres.OrderItemModel{},
 		&postgres.PaymentModel{},
+		&postgres.SpecTemplateModel{}, // <-- Tambahkan ini
 	)
 
 	timeout := 5 * time.Second
@@ -57,6 +58,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	bankAccountRepo := postgres.NewBankAccountRepository(db)
 	orderRepo := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
+	specTemplateRepo := postgres.NewSpecTemplateRepository(db) // <-- Tambahkan ini
 
 	// 2. Usecase (Perhatikan bahwa productUsecase juga butuh categoryRepo)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
@@ -66,16 +68,18 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, timeout)
+	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout) // <-- Tambahkan ini
 
 	// 3. Masukkan ke struct Handlers
 	handlers := myHttp.Handlers{
-		CategoryHandler:    myHttp.NewCategoryHandler(categoryUsecase),
-		ProductHandler:     myHttp.NewProductHandler(productUsecase), // <-- Tambahkan ini
-		UserHandler:        myHttp.NewUserHandler(userUsecase),
-		CustomerHandler:    myHttp.NewCustomerHandler(customerUsecase),
-		BankAccountHandler: myHttp.NewBankAccountHandler(bankAccountUsecase),
-		OrderHandler:       myHttp.NewOrderHandler(orderUsecase),
-		PaymentHandler:     myHttp.NewPaymentHandler(paymentUsecase),
+		CategoryHandler:     myHttp.NewCategoryHandler(categoryUsecase),
+		ProductHandler:      myHttp.NewProductHandler(productUsecase),           // <-- Tambahkan ini
+		SpecTemplateHandler: myHttp.NewSpecTemplateHandler(specTemplateUsecase), // <-- Tambahkan ini
+		UserHandler:         myHttp.NewUserHandler(userUsecase),
+		CustomerHandler:     myHttp.NewCustomerHandler(customerUsecase),
+		BankAccountHandler:  myHttp.NewBankAccountHandler(bankAccountUsecase),
+		OrderHandler:        myHttp.NewOrderHandler(orderUsecase),
+		PaymentHandler:      myHttp.NewPaymentHandler(paymentUsecase),
 	}
 
 	app := fiber.New()
@@ -95,4 +99,5 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE orders RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE order_items RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;") // <-- Tambahkan ini
 }
