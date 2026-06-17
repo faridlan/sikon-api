@@ -2,6 +2,9 @@ package domain
 
 import (
 	"context"
+	"crypto/rand"
+	"fmt"
+	"math/big"
 	"time"
 )
 
@@ -128,4 +131,37 @@ type OrderUsecase interface {
 	AddOrderItem(ctx context.Context, orderID string, input OrderItemInput) (*Order, error)
 	UpdateOrderItem(ctx context.Context, orderID, itemID string, input OrderItemInput) (*Order, error)
 	DeleteOrderItem(ctx context.Context, orderID, itemID string) (*Order, error)
+}
+
+// CalculateTotals menghitung ulang Subtotal dan TotalAmount pesanan.
+// Sesuai prinsip DRY, logika matematika finansial terpusat di sini.
+func (o *Order) CalculateTotals() {
+	// 1. Hitung ulang subtotal HANYA JIKA array Items tersedia di memory
+	// (Mencegah subtotal jadi 0 jika kita hanya me-load header order dari DB)
+	if len(o.Items) > 0 {
+		var subtotal float64
+		for _, item := range o.Items {
+			subtotal += item.Price * float64(item.Qty)
+		}
+		o.Subtotal = subtotal
+	}
+
+	// 2. Hitung Grand Total
+	o.TotalAmount = (o.Subtotal - o.DiscountAmount) + o.TaxPpn - o.TaxPph + o.ShippingCost
+}
+
+// GenerateOrderNumber membuat nomor pesanan unik dengan format ORD-YYYYMMDD-XXXXX.
+// Menggunakan crypto/rand untuk mencegah tabrakan data (collision) saat sistem berjalan paralel.
+func (o *Order) GenerateOrderNumber() error {
+	dateStr := time.Now().Format("20060102")
+
+	// Menghasilkan angka acak dari 0 hingga 99999 dengan aman
+	max := big.NewInt(100000)
+	randNum, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return err
+	}
+
+	o.OrderNumber = fmt.Sprintf("ORD-%s-%05d", dateStr, randNum.Int64())
+	return nil
 }

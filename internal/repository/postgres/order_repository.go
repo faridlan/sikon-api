@@ -133,9 +133,10 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
 	model := FromOrderDomain(order)
 
-	// Omit("Items") digunakan agar GORM tidak mencoba melakukan update/insert ulang pada order_items
-	// Jika ingin mengupdate items, biasanya dibuatkan endpoint khusus atau logika tersendiri
-	err := r.db.WithContext(ctx).Model(&OrderModel{ID: model.ID}).Omit("Items").Updates(model).Error
+	// 🚨 PERUBAHAN DI SINI 🚨
+	db := GetTx(ctx, r.db)
+
+	err := db.WithContext(ctx).Model(&OrderModel{ID: model.ID}).Omit("Items").Updates(model).Error
 	if err != nil {
 		return TranslateError(err)
 	}
@@ -191,17 +192,17 @@ func (r *orderRepository) GetItemByID(ctx context.Context, orderID, itemID strin
 }
 
 func (r *orderRepository) CreateItem(ctx context.Context, item *domain.OrderItem) error {
-
 	var detailsJSON []byte
 	if item.Details != nil {
 		detailsJSON, _ = json.Marshal(item.Details)
 	}
 
-	// Note: Menggunakan map alih-alih OrderItemModel struct untuk menghindari
-	// GORM secara tidak sengaja meng-update tabel relasi (Product/Order)
-	// dan memastikan zero-value (seperti qty/harga 0) tetap ter-update.
-	// Insert langsung ke tabel order_items
-	err := r.db.WithContext(ctx).Table("order_items").Create(map[string]any{
+	// 🚨 PERUBAHAN DI SINI 🚨
+	// Staf mengecek: Ada Kertas Buram nggak di Context?
+	// Kalau ada, pakai itu. Kalau tidak ada, pakai r.db biasa.
+	db := GetTx(ctx, r.db)
+
+	err := db.WithContext(ctx).Table("order_items").Create(map[string]any{
 		"id":         item.ID,
 		"order_id":   item.OrderID,
 		"product_id": item.ProductID,
