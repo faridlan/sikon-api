@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
@@ -102,10 +101,13 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 	order.Subtotal = subtotal
 
 	// Rumus Grand Total Masa Depan (Saat ini discount, ppn, pph masih bernilai 0)
-	order.TotalAmount = (order.Subtotal - order.DiscountAmount) + order.TaxPpn - order.TaxPph + order.ShippingCost
+	// order.TotalAmount = (order.Subtotal - order.DiscountAmount) + order.TaxPpn - order.TaxPph + order.ShippingCost
 
-	randomStr := rand.Intn(9999)
-	order.OrderNumber = fmt.Sprintf("ORD-%s-%04d", time.Now().Format("20060102"), randomStr)
+	order.CalculateTotals()
+
+	if err := order.GenerateOrderNumber(); err != nil {
+		return nil, domain.NewError(domain.ErrInternalServerError, "Gagal membuat nomor pesanan")
+	}
 
 	err := u.orderRepo.Create(ctx, order)
 	if err != nil {
@@ -175,8 +177,7 @@ func (u *orderUsecase) UpdateOrder(c context.Context, id string, input domain.Or
 	existingOrder.ValidUntil = input.ValidUntil
 	existingOrder.TermsConditions = input.TermsConditions
 
-	// Hitung ulang Grand Total berdasarkan kondisi data terbaru
-	existingOrder.TotalAmount = (existingOrder.Subtotal - existingOrder.DiscountAmount) + existingOrder.TaxPpn - existingOrder.TaxPph + existingOrder.ShippingCost
+	existingOrder.CalculateTotals() // Hitung ulang total setelah update biaya pengiriman
 
 	err = u.orderRepo.Update(ctx, existingOrder)
 	if err != nil {
@@ -255,7 +256,7 @@ func (u *orderUsecase) recalculateOrderTotal(ctx context.Context, orderID string
 
 	// 3. Masukkan ke order & hitung ulang Grand Total
 	order.Subtotal = subtotal
-	order.TotalAmount = (order.Subtotal - order.DiscountAmount) + order.TaxPpn - order.TaxPph + order.ShippingCost
+	order.CalculateTotals()
 
 	// =========================================================
 	// 🚨 TAMBAHAN BARU: RE-EVALUASI STATUS PEMBAYARAN 🚨
