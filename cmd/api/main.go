@@ -78,6 +78,7 @@ func main() {
 	orderRepo := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
 	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
+	txManager := postgres.NewTransactionManager(db)
 
 	// ==========================================
 	// 2. INISIASI USECASE (Layer Logika Bisnis)
@@ -89,7 +90,7 @@ func main() {
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
 
 	// Order butuh banyak dependensi untuk validasi bisnis
-	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, contextTimeout)
+	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, txManager, contextTimeout)
 
 	// Payment butuh Order & BankAccount untuk kalkulasi status lunas
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, contextTimeout)

@@ -56,7 +56,7 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Order
 	var model OrderModel
 
 	// Kita Preload seluruh relasi penting agar struk invoice/nota nanti lengkap
-	err := r.db.WithContext(ctx).
+	err := GetTx(ctx, r.db).
 		Preload("Items").
 		Preload("Customer").
 		Preload("Sales").

@@ -17,16 +17,18 @@ type orderUsecase struct {
 	userRepo       domain.UserRepository // Untuk memvalidasi Sales
 	productRepo    domain.ProductRepository
 	paymentRepo    domain.PaymentRepository
+	txManager      domain.TransactionManager
 	contextTimeout time.Duration
 }
 
-func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, payRepo domain.PaymentRepository, timeout time.Duration) domain.OrderUsecase {
+func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, payRepo domain.PaymentRepository, txManager domain.TransactionManager, timeout time.Duration) domain.OrderUsecase {
 	return &orderUsecase{
 		orderRepo:      or,
 		customerRepo:   cr,
 		userRepo:       ur,
 		productRepo:    pr,
 		paymentRepo:    payRepo,
+		txManager:      txManager,
 		contextTimeout: timeout,
 	}
 }
@@ -299,7 +301,7 @@ func (u *orderUsecase) AddOrderItem(c context.Context, orderID string, input dom
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// 1. Validasi keberadaan Order & Product
+	// 1. Validasi keberadaan Order & Product (Bisa pakai ctx biasa karena hanya membaca)
 	if _, err := u.orderRepo.GetByID(ctx, orderID); err != nil {
 		return nil, domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
 	}
@@ -308,28 +310,49 @@ func (u *orderUsecase) AddOrderItem(c context.Context, orderID string, input dom
 		return nil, domain.NewError(domain.ErrBadParamInput, "Produk tidak valid")
 	}
 
-	// 2. Tentukan harga
 	price := input.Price
 	if price <= 0 {
 		price = product.BasePrice
 	}
 
-	// 3. Buat Item Baru di Database
-	newItem := &domain.OrderItem{
-		ID:        uuid.New().String(),
-		OrderID:   orderID,
-		ProductID: input.ProductID,
-		Qty:       input.Qty,
-		Price:     price,
-		Details:   input.Details,
-	}
+	var updatedOrder *domain.Order // Variabel penampung hasil akhir
 
-	if err := u.orderRepo.CreateItem(ctx, newItem); err != nil {
+	// =========================================================
+	// 🚨 MEMULAI TRANSAKSI (MENGGUNAKAN KERTAS BURAM) 🚨
+	// =========================================================
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// PERHATIAN: Di dalam blok ini, WAJIB menggunakan txCtx, BUKAN ctx!
+
+		newItem := &domain.OrderItem{
+			ID:        uuid.New().String(),
+			OrderID:   orderID,
+			ProductID: input.ProductID,
+			Qty:       input.Qty,
+			Price:     price,
+			Details:   input.Details,
+		}
+
+		// Query 1: Simpan item (Staf otomatis membaca txCtx dan memakai Kertas Buram)
+		if err := u.orderRepo.CreateItem(txCtx, newItem); err != nil {
+			return err // Jika error, otomatis ROLLBACK semua!
+		}
+
+		// Query 2: Hitung ulang total dan simpan order (Juga pakai txCtx)
+		order, err := u.recalculateOrderTotal(txCtx, orderID)
+		if err != nil {
+			return err // Jika gagal hitung, item yang tadi tersimpan juga ikut di-ROLLBACK!
+		}
+
+		updatedOrder = order
+		return nil // Semuanya sukses! Otomatis COMMIT ke Buku Besar!
+	})
+
+	// Cek apakah proses transaksi secara keseluruhan gagal
+	if err != nil {
 		return nil, err
 	}
 
-	// 4. Hitung ulang total dan kembalikan order terbaru
-	return u.recalculateOrderTotal(ctx, orderID)
+	return updatedOrder, nil
 }
 
 func (u *orderUsecase) UpdateOrderItem(c context.Context, orderID, itemID string, input domain.OrderItemInput) (*domain.Order, error) {

@@ -20,8 +20,9 @@ func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks
 	mockUserRepo := new(mocks.UserRepository)
 	mockProductRepo := new(mocks.ProductRepository)
 	mockPaymentRepo := new(mocks.PaymentRepository)
+	mockTxManager := new(mocks.TransactionManager)
 
-	uc := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, time.Second*2)
+	uc := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, mockTxManager, time.Second*2)
 
 	return mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, uc
 }
@@ -338,8 +339,9 @@ func TestAddOrderItem(t *testing.T) {
 	mockUserRepo := new(mocks.UserRepository)
 	mockProductRepo := new(mocks.ProductRepository)
 	mockPaymentRepo := new(mocks.PaymentRepository)
+	mockTxManager := new(mocks.TransactionManager)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, mockTxManager, time.Second*2)
 
 	orderID := "order-123"
 	productID := "prod-123"
@@ -352,16 +354,33 @@ func TestAddOrderItem(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockProductRepo.ExpectedCalls = nil
-		mockPaymentRepo.ExpectedCalls = nil // Reset mock payment
+		mockPaymentRepo.ExpectedCalls = nil
+		mockTxManager.ExpectedCalls = nil // Pastikan reset mock transaksi
 
-		// 1. Validasi awal
+		// 1. Validasi awal (Dijalankan di luar transaksi)
 		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{ID: orderID}, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, productID).Return(&domain.Product{ID: productID, BasePrice: 15000}, nil).Once()
 
-		// 2. Buat item
+		// =========================================================
+		// 🚨 PERBAIKAN: MOCK TRANSACTION MANAGER
+		// =========================================================
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Run(func(args mock.Arguments) {
+				// Ambil parameter yang dikirim ke RunInTransaction
+				ctx := args.Get(0).(context.Context)
+				fn := args.Get(1).(func(context.Context) error)
+
+				// Eksekusi fungsi closure-nya agar mock repo di dalamnya ikut berjalan!
+				err := fn(ctx)
+				assert.NoError(t, err)
+			}).
+			Return(nil).Once()
+		// =========================================================
+
+		// 2. Buat item (Akan tereksekusi berkat Run() di atas)
 		mockOrderRepo.On("CreateItem", mock.Anything, mock.AnythingOfType("*domain.OrderItem")).Return(nil).Once()
 
-		// 3. Masuk ke recalculateOrderTotal (GetByID dipanggil lagi)
+		// 3. Masuk ke recalculateOrderTotal
 		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
 			ID: orderID,
 			Items: []domain.OrderItem{
@@ -369,8 +388,6 @@ func TestAddOrderItem(t *testing.T) {
 			},
 		}, nil).Once()
 
-		// 🚨 TAMBAHAN: Mock pengecekan histori pembayaran (Skenario Unpaid)
-		// Kita simulasikan belum ada pembayaran sama sekali (return array kosong)
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return([]domain.Payment{}, nil).Once()
 
 		// 4. Update order header dengan total dan status yang baru
@@ -382,15 +399,18 @@ func TestAddOrderItem(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Equal(t, float64(30000), result.Subtotal)
 		assert.Equal(t, float64(30000), result.TotalAmount)
-		assert.Equal(t, domain.PaymentStatusUnpaid, result.PaymentStatus) // Pastikan otomatis Unpaid
+		assert.Equal(t, domain.PaymentStatusUnpaid, result.PaymentStatus)
 
+		// Verifikasi semua mock terpanggil
 		mockOrderRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
 		mockPaymentRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
 	})
 
 	t.Run("Error_OrderNotFound", func(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
+		mockTxManager.ExpectedCalls = nil
 
 		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(nil, domain.ErrNotFound).Once()
 
@@ -398,7 +418,11 @@ func TestAddOrderItem(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
+
 		mockOrderRepo.AssertExpectations(t)
+
+		// TxManager tidak boleh terpanggil karena validasi awal gagal
+		mockTxManager.AssertNotCalled(t, "RunInTransaction")
 	})
 }
 
@@ -408,8 +432,9 @@ func TestUpdateOrderItem(t *testing.T) {
 	mockUserRepo := new(mocks.UserRepository)
 	mockProductRepo := new(mocks.ProductRepository)
 	mockPaymentRepo := new(mocks.PaymentRepository)
+	mockTxManager := new(mocks.TransactionManager)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, mockTxManager, time.Second*2)
 
 	orderID := "order-123"
 	itemID := "item-123"
@@ -469,8 +494,9 @@ func TestDeleteOrderItem(t *testing.T) {
 	mockUserRepo := new(mocks.UserRepository)
 	mockProductRepo := new(mocks.ProductRepository)
 	mockPaymentRepo := new(mocks.PaymentRepository)
+	mockTxManager := new(mocks.TransactionManager)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, mockTxManager, time.Second*2)
 
 	orderID := "order-123"
 	itemID := "item-123"
