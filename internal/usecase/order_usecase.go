@@ -216,15 +216,7 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	validStatuses := map[domain.OrderStatus]bool{
-		domain.OrderStatusPending:    true,
-		domain.OrderStatusProduction: true,
-		domain.OrderStatusCompleted:  true,
-		domain.OrderStatusCanceled:   true,
-		domain.OrderStatusQuotation:  true,
-	}
-
-	if !validStatuses[status] {
+	if !status.IsValid() {
 		return domain.NewError(domain.ErrBadParamInput, "Status order tidak valid")
 	}
 
@@ -235,19 +227,10 @@ func (u *orderUsecase) UpdatePaymentStatus(c context.Context, id string, status 
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi input status pembayaran
-	validStatuses := map[domain.PaymentStatus]bool{
-		domain.PaymentStatusUnpaid:  true,
-		domain.PaymentStatusPartial: true,
-		domain.PaymentStatusPaid:    true,
-	}
-
-	if !validStatuses[status] {
+	if !status.IsValid() {
 		return domain.NewError(domain.ErrBadParamInput, "Status pembayaran tidak valid")
 	}
 
-	// Perhatikan: orderStatus dikosongkan (""), hanya paymentStatus yang diisi
-	// karena fungsi repo Anda akan mendeteksinya otomatis
 	return u.orderRepo.UpdateStatus(ctx, id, "", status)
 }
 
