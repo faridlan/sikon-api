@@ -14,7 +14,7 @@ import (
 	"github.com/faridlan/sikon-api/internal/usecase"
 )
 
-func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks.UserRepository, *mocks.ProductRepository, *mocks.PaymentRepository, domain.OrderUsecase) {
+func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks.UserRepository, *mocks.ProductRepository, *mocks.PaymentRepository, *mocks.TransactionManager, domain.OrderUsecase) {
 	mockOrderRepo := new(mocks.OrderRepository)
 	mockCustomerRepo := new(mocks.CustomerRepository)
 	mockUserRepo := new(mocks.UserRepository)
@@ -24,7 +24,7 @@ func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks
 
 	uc := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, mockTxManager, time.Second*2)
 
-	return mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, uc
+	return mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockPaymentRepo, mockTxManager, uc
 }
 
 func TestOrderUsecase_CreateOrder(t *testing.T) {
@@ -45,7 +45,9 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 	}
 
 	t.Run("Success - Create as Quotation (Surat Penawaran)", func(t *testing.T) {
-		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, _, uc := setupOrderTest()
+		// Pastikan setupOrderTest kamu me-return mockTxManager juga.
+		// Asumsi urutan return: OrderRepo, CustomerRepo, UserRepo, ProductRepo, PaymentRepo, TxManager, Usecase
+		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, _, mockTxManager, uc := setupOrderTest()
 
 		input := baseInput
 		input.OrderStatus = domain.OrderStatusQuotation // Set eksplisit sebagai Quotation
@@ -57,6 +59,21 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		// 2. Mock Product 1 & 2
 		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
+
+		// =========================================================
+		// 🚨 PERBAIKAN: MOCK TRANSACTION MANAGER
+		// =========================================================
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Run(func(args mock.Arguments) {
+				ctx := args.Get(0).(context.Context)
+				fn := args.Get(1).(func(context.Context) error)
+
+				// Eksekusi fungsi closure-nya agar mock Create di bawah ikut berjalan!
+				err := fn(ctx)
+				assert.NoError(t, err)
+			}).
+			Return(nil).Once()
+		// =========================================================
 
 		// 3. Kalkulasi ekspektasi: Subtotal & Grand Total
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
@@ -78,17 +95,19 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, order)
 		assert.Equal(t, domain.OrderStatusQuotation, order.OrderStatus)
+
 		mockCustomerRepo.AssertExpectations(t)
 		mockUserRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
 		mockOrderRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t) // Pastikan transaksi dipanggil
 	})
 
 	t.Run("Success - Create as Pending (Order Langsung)", func(t *testing.T) {
-		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, _, uc := setupOrderTest()
+		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, _, mockTxManager, uc := setupOrderTest()
 
 		input := baseInput
-		input.OrderStatus = "" // Kosong (Simulasi jika Modal 1 frontend tidak ngirim status)
+		input.OrderStatus = "" // Kosong (Simulasi jika dari frontend tidak ngirim status)
 
 		// 1. Mock Customer & User exist
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(&domain.Customer{ID: input.CustomerID}, nil).Once()
@@ -97,6 +116,16 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		// 2. Mock Product 1 & 2
 		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
+
+		// 🚨 PERBAIKAN: MOCK TRANSACTION MANAGER
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Run(func(args mock.Arguments) {
+				ctx := args.Get(0).(context.Context)
+				fn := args.Get(1).(func(context.Context) error)
+				err := fn(ctx)
+				assert.NoError(t, err)
+			}).
+			Return(nil).Once()
 
 		// 3. Kalkulasi ekspektasi: Status harus Pending
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
@@ -110,11 +139,13 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, order)
 		assert.Equal(t, domain.OrderStatusPending, order.OrderStatus) // Pastikan return-nya juga Pending
+
 		mockOrderRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
 	})
 
 	t.Run("Error - Customer Not Found", func(t *testing.T) {
-		_, mockCustomerRepo, _, _, _, uc := setupOrderTest()
+		_, mockCustomerRepo, _, _, _, mockTxManager, uc := setupOrderTest()
 
 		input := baseInput
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(nil, domain.ErrNotFound).Once()
@@ -126,11 +157,14 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		var appErr *domain.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, "Customer tidak ditemukan", appErr.Message)
+
+		// TxManager tidak boleh dipanggil jika validasi awal (customer) sudah gagal
+		mockTxManager.AssertNotCalled(t, "RunInTransaction")
 	})
 }
 
 func TestOrderUsecase_GetOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 
 	t.Run("Success", func(t *testing.T) {
@@ -154,7 +188,7 @@ func TestOrderUsecase_GetOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_ListOrders(t *testing.T) {
-	mockOrderRepo, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, uc := setupOrderTest()
 
 	// 1. Siapkan mock input
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
@@ -199,7 +233,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 }
 
 func TestOrderUsecase_UpdateOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 	validUntilUpdate := time.Now().AddDate(0, 0, 14)
 
@@ -241,7 +275,7 @@ func TestOrderUsecase_UpdateOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_DeleteOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 	existingOrder := &domain.Order{ID: mockID, ShippingCost: 0}
 
@@ -254,7 +288,7 @@ func TestOrderUsecase_DeleteOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
-	mockOrderRepo, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 
 	t.Run("Success - Valid Status", func(t *testing.T) {
@@ -289,7 +323,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 func TestOrderUsecase_UpdatePaymentStatus(t *testing.T) {
 	// Asumsi Anda memiliki fungsi setupOrderTest() untuk inisialisasi mock repo & usecase
 	// mockOrderRepo, _, _, uc := setupOrderTest()
-	mockOrderRepo, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "order-123"
 
 	t.Run("Success", func(t *testing.T) {
@@ -449,17 +483,33 @@ func TestUpdateOrderItem(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockProductRepo.ExpectedCalls = nil
 		mockPaymentRepo.ExpectedCalls = nil // Reset mock payment
+		mockTxManager.ExpectedCalls = nil   // Reset mock transaction
 
 		existingItem := &domain.OrderItem{ID: itemID, OrderID: orderID, ProductID: productID, Qty: 2, Price: 10000}
 
-		// 1. Ambil data item & produk
+		// 1. Ambil data item & produk (Dijalankan di LUAR transaksi)
 		mockOrderRepo.On("GetItemByID", mock.Anything, orderID, itemID).Return(existingItem, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, productID).Return(&domain.Product{ID: productID, BasePrice: 20000}, nil).Once()
 
-		// 2. Update item
+		// =========================================================
+		// 🚨 PERBAIKAN: MOCK TRANSACTION MANAGER
+		// =========================================================
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Run(func(args mock.Arguments) {
+				ctx := args.Get(0).(context.Context)
+				fn := args.Get(1).(func(context.Context) error)
+
+				// Eksekusi closure agar UpdateItem dan recalculateOrderTotal ikut berjalan
+				err := fn(ctx)
+				assert.NoError(t, err)
+			}).
+			Return(nil).Once()
+		// =========================================================
+
+		// 2. Update item (Dijalankan di DALAM transaksi)
 		mockOrderRepo.On("UpdateItem", mock.Anything, mock.AnythingOfType("*domain.OrderItem")).Return(nil).Once()
 
-		// 3. Masuk ke recalculateOrderTotal
+		// 3. Masuk ke recalculateOrderTotal (Dijalankan di DALAM transaksi)
 		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
 			ID: orderID,
 			Items: []domain.OrderItem{
@@ -467,8 +517,7 @@ func TestUpdateOrderItem(t *testing.T) {
 			},
 		}, nil).Once()
 
-		// 🚨 TAMBAHAN: Mock pengecekan histori pembayaran (Skenario Partial)
-		// Simulasikan customer sudah DP 40.000 (Tagihan 100.000)
+		// Skenario Partial: Customer sudah DP 40.000 (Tagihan 100.000)
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return([]domain.Payment{
 			{Amount: 40000},
 		}, nil).Once()
@@ -482,9 +531,11 @@ func TestUpdateOrderItem(t *testing.T) {
 		assert.Equal(t, float64(100000), result.Subtotal)                  // 20000 * 5
 		assert.Equal(t, domain.PaymentStatusPartial, result.PaymentStatus) // Pastikan otomatis jadi Partial
 
+		// Verifikasi semua mock terpanggil sesuai urutan
 		mockOrderRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
 		mockPaymentRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
 	})
 }
 
@@ -504,25 +555,40 @@ func TestDeleteOrderItem(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockPaymentRepo.ExpectedCalls = nil // Reset mock payment
+		mockTxManager.ExpectedCalls = nil   // Reset mock transaction
 
-		// 1. Hapus Item
+		// =========================================================
+		// 🚨 PERBAIKAN: MOCK TRANSACTION MANAGER (Di urutan paling atas)
+		// Karena fungsi DeleteOrderItem langsung memulai transaksi.
+		// =========================================================
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Run(func(args mock.Arguments) {
+				ctx := args.Get(0).(context.Context)
+				fn := args.Get(1).(func(context.Context) error)
+
+				// Eksekusi closure agar DeleteItem dan recalculateOrderTotal berjalan
+				err := fn(ctx)
+				assert.NoError(t, err)
+			}).
+			Return(nil).Once()
+		// =========================================================
+
+		// 1. Hapus Item (Dijalankan di DALAM transaksi)
 		mockOrderRepo.On("DeleteItem", mock.Anything, orderID, itemID).Return(nil).Once()
 
-		// 2. Masuk ke recalculateOrderTotal (simulasikan order kembali tanpa item tsb)
+		// 2. Masuk ke recalculateOrderTotal (Dijalankan di DALAM transaksi)
 		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
 			ID:           orderID,
 			ShippingCost: 15000,                // Misal ada ongkir 15rb
 			Items:        []domain.OrderItem{}, // Kosong karena sudah dihapus
 		}, nil).Once()
 
-		// 🚨 TAMBAHAN: Mock pengecekan histori pembayaran (Skenario Paid)
-		// TotalAmount jadi 15000 (karena item habis sisa ongkir).
-		// Simulasikan customer sebelumnya udah bayar 15000. Maka status harus lunas otomatis.
+		// Skenario Paid: Customer sebelumnya udah bayar 15000. Maka status harus lunas otomatis.
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return([]domain.Payment{
 			{Amount: 15000},
 		}, nil).Once()
 
-		// 3. Update order header
+		// 3. Update order header (Dijalankan di DALAM transaksi)
 		mockOrderRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Order")).Return(nil).Once()
 
 		result, err := u.DeleteOrderItem(context.Background(), orderID, itemID)
@@ -533,7 +599,9 @@ func TestDeleteOrderItem(t *testing.T) {
 		assert.Equal(t, float64(15000), result.TotalAmount)             // Total akhir sisa ongkir saja
 		assert.Equal(t, domain.PaymentStatusPaid, result.PaymentStatus) // Pastikan otomatis berubah Paid
 
+		// Verifikasi semua mock terpanggil
 		mockOrderRepo.AssertExpectations(t)
 		mockPaymentRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
 	})
 }
