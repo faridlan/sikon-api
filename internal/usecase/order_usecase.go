@@ -17,16 +17,18 @@ type orderUsecase struct {
 	userRepo       domain.UserRepository // Untuk memvalidasi Sales
 	productRepo    domain.ProductRepository
 	paymentRepo    domain.PaymentRepository
+	txManager      domain.TransactionManager
 	contextTimeout time.Duration
 }
 
-func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, payRepo domain.PaymentRepository, timeout time.Duration) domain.OrderUsecase {
+func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, payRepo domain.PaymentRepository, txManager domain.TransactionManager, timeout time.Duration) domain.OrderUsecase {
 	return &orderUsecase{
 		orderRepo:      or,
 		customerRepo:   cr,
 		userRepo:       ur,
 		productRepo:    pr,
 		paymentRepo:    payRepo,
+		txManager:      txManager,
 		contextTimeout: timeout,
 	}
 }
@@ -35,7 +37,11 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi Bisnis (Customer & Sales exist)
+	// ========================================================================
+	// FASE 1: MEMBACA DATA & PERSIAPAN MEMORY (Di luar transaksi)
+	// ========================================================================
+
+	// Validasi Customer & Sales
 	if _, err := u.customerRepo.GetByID(ctx, input.CustomerID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.NewError(domain.ErrBadParamInput, "Customer tidak ditemukan")
@@ -50,7 +56,6 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 	}
 
 	statusOrder := domain.OrderStatusPending
-
 	if input.OrderStatus == domain.OrderStatusQuotation {
 		statusOrder = domain.OrderStatusQuotation
 	}
@@ -66,12 +71,9 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		TermsConditions: input.TermsConditions,
 		OrderStatus:     statusOrder,
 		PaymentStatus:   domain.PaymentStatusUnpaid,
-		DiscountAmount:  0,
-		TaxPpn:          0,
-		TaxPph:          0,
 	}
 
-	var subtotal float64 // Variabel penampung total harga barang murni
+	// Validasi Produk dan Penyusunan Items
 	for _, itemInput := range input.Items {
 		product, err := u.productRepo.GetByID(ctx, itemInput.ProductID)
 		if err != nil {
@@ -86,9 +88,6 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 			price = product.BasePrice
 		}
 
-		// Hitung subtotal akumulatif barang
-		subtotal += price * float64(itemInput.Qty)
-
 		order.Items = append(order.Items, domain.OrderItem{
 			ProductID: itemInput.ProductID,
 			Qty:       itemInput.Qty,
@@ -97,19 +96,31 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		})
 	}
 
-	// Masukkan nilai subtotal murni ke entity order
-	order.Subtotal = subtotal
-
-	// Rumus Grand Total Masa Depan (Saat ini discount, ppn, pph masih bernilai 0)
-	// order.TotalAmount = (order.Subtotal - order.DiscountAmount) + order.TaxPpn - order.TaxPph + order.ShippingCost
-
+	// Delegasi perhitungan ke Domain
 	order.CalculateTotals()
 
+	// Delegasi pembuatan nomor unik ke Domain
 	if err := order.GenerateOrderNumber(); err != nil {
 		return nil, domain.NewError(domain.ErrInternalServerError, "Gagal membuat nomor pesanan")
 	}
 
-	err := u.orderRepo.Create(ctx, order)
+	// ========================================================================
+	// FASE 2: MENGUBAH DATABASE (Di dalam transaksi)
+	// ========================================================================
+
+	err := u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// PERHATIAN: Gunakan txCtx HANYA untuk operasi tulis ke database
+
+		if err := u.orderRepo.Create(txCtx, order); err != nil {
+			return err // Otomatis Rollback
+		}
+
+		// (Ruang aman untuk penambahan fitur potong stok di masa depan)
+		// contoh: u.productRepo.DecreaseStock(txCtx, item.ProductID, item.Qty)
+
+		return nil // Otomatis Commit
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -205,15 +216,7 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	validStatuses := map[domain.OrderStatus]bool{
-		domain.OrderStatusPending:    true,
-		domain.OrderStatusProduction: true,
-		domain.OrderStatusCompleted:  true,
-		domain.OrderStatusCanceled:   true,
-		domain.OrderStatusQuotation:  true,
-	}
-
-	if !validStatuses[status] {
+	if !status.IsValid() {
 		return domain.NewError(domain.ErrBadParamInput, "Status order tidak valid")
 	}
 
@@ -224,23 +227,14 @@ func (u *orderUsecase) UpdatePaymentStatus(c context.Context, id string, status 
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi input status pembayaran
-	validStatuses := map[domain.PaymentStatus]bool{
-		domain.PaymentStatusUnpaid:  true,
-		domain.PaymentStatusPartial: true,
-		domain.PaymentStatusPaid:    true,
-	}
-
-	if !validStatuses[status] {
+	if !status.IsValid() {
 		return domain.NewError(domain.ErrBadParamInput, "Status pembayaran tidak valid")
 	}
 
-	// Perhatikan: orderStatus dikosongkan (""), hanya paymentStatus yang diisi
-	// karena fungsi repo Anda akan mendeteksinya otomatis
 	return u.orderRepo.UpdateStatus(ctx, id, "", status)
 }
 
-// --- TAMBAHAN BARU: Private Helper untuk Hitung Ulang Total ---
+// --- Private Helper untuk Hitung Ulang Total ---
 func (u *orderUsecase) recalculateOrderTotal(ctx context.Context, orderID string) (*domain.Order, error) {
 	// 1. Ambil data order terbaru beserta seluruh items-nya
 	order, err := u.orderRepo.GetByID(ctx, orderID)
@@ -293,13 +287,13 @@ func (u *orderUsecase) recalculateOrderTotal(ctx context.Context, orderID string
 	return order, nil
 }
 
-// --- TAMBAHAN BARU: Usecase Manipulasi Item ---
+// --- Usecase Manipulasi Item ---
 
 func (u *orderUsecase) AddOrderItem(c context.Context, orderID string, input domain.OrderItemInput) (*domain.Order, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// 1. Validasi keberadaan Order & Product
+	// 1. Validasi keberadaan Order & Product (Bisa pakai ctx biasa karena hanya membaca)
 	if _, err := u.orderRepo.GetByID(ctx, orderID); err != nil {
 		return nil, domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
 	}
@@ -308,28 +302,49 @@ func (u *orderUsecase) AddOrderItem(c context.Context, orderID string, input dom
 		return nil, domain.NewError(domain.ErrBadParamInput, "Produk tidak valid")
 	}
 
-	// 2. Tentukan harga
 	price := input.Price
 	if price <= 0 {
 		price = product.BasePrice
 	}
 
-	// 3. Buat Item Baru di Database
-	newItem := &domain.OrderItem{
-		ID:        uuid.New().String(),
-		OrderID:   orderID,
-		ProductID: input.ProductID,
-		Qty:       input.Qty,
-		Price:     price,
-		Details:   input.Details,
-	}
+	var updatedOrder *domain.Order // Variabel penampung hasil akhir
 
-	if err := u.orderRepo.CreateItem(ctx, newItem); err != nil {
+	// =========================================================
+	// 🚨 MEMULAI TRANSAKSI (MENGGUNAKAN KERTAS BURAM) 🚨
+	// =========================================================
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// PERHATIAN: Di dalam blok ini, WAJIB menggunakan txCtx, BUKAN ctx!
+
+		newItem := &domain.OrderItem{
+			ID:        uuid.New().String(),
+			OrderID:   orderID,
+			ProductID: input.ProductID,
+			Qty:       input.Qty,
+			Price:     price,
+			Details:   input.Details,
+		}
+
+		// Query 1: Simpan item (Staf otomatis membaca txCtx dan memakai Kertas Buram)
+		if err := u.orderRepo.CreateItem(txCtx, newItem); err != nil {
+			return err // Jika error, otomatis ROLLBACK semua!
+		}
+
+		// Query 2: Hitung ulang total dan simpan order (Juga pakai txCtx)
+		order, err := u.recalculateOrderTotal(txCtx, orderID)
+		if err != nil {
+			return err // Jika gagal hitung, item yang tadi tersimpan juga ikut di-ROLLBACK!
+		}
+
+		updatedOrder = order
+		return nil // Semuanya sukses! Otomatis COMMIT ke Buku Besar!
+	})
+
+	// Cek apakah proses transaksi secara keseluruhan gagal
+	if err != nil {
 		return nil, err
 	}
 
-	// 4. Hitung ulang total dan kembalikan order terbaru
-	return u.recalculateOrderTotal(ctx, orderID)
+	return updatedOrder, nil
 }
 
 func (u *orderUsecase) UpdateOrderItem(c context.Context, orderID, itemID string, input domain.OrderItemInput) (*domain.Order, error) {
@@ -359,24 +374,56 @@ func (u *orderUsecase) UpdateOrderItem(c context.Context, orderID, itemID string
 	existingItem.Price = price
 	existingItem.Details = input.Details
 
-	// 4. Simpan perubahan Item
-	if err := u.orderRepo.UpdateItem(ctx, existingItem); err != nil {
+	var updatedOrder *domain.Order // Variabel penampung hasil akhir
+
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// 4. Simpan perubahan Item
+		if err := u.orderRepo.UpdateItem(ctx, existingItem); err != nil {
+			return err
+		}
+
+		// 5. Hitung ulang total dan kembalikan order terbaru
+		order, err := u.recalculateOrderTotal(ctx, orderID)
+		if err != nil {
+			return err
+		}
+		updatedOrder = order
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	// 5. Hitung ulang total dan kembalikan order terbaru
-	return u.recalculateOrderTotal(ctx, orderID)
+	return updatedOrder, nil
 }
 
 func (u *orderUsecase) DeleteOrderItem(c context.Context, orderID, itemID string) (*domain.Order, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Hapus item
-	if err := u.orderRepo.DeleteItem(ctx, orderID, itemID); err != nil {
+	var updatedOrder *domain.Order // Variabel penampung hasil akhir
+
+	err := u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// Hapus item
+		if err := u.orderRepo.DeleteItem(ctx, orderID, itemID); err != nil {
+			return err
+		}
+
+		// Hitung ulang total setelah terhapus dan kembalikan order terbaru
+		order, err := u.recalculateOrderTotal(ctx, orderID)
+		if err != nil {
+			return err
+		}
+
+		updatedOrder = order
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	// Hitung ulang total setelah terhapus dan kembalikan order terbaru
-	return u.recalculateOrderTotal(ctx, orderID)
+	return updatedOrder, nil
+
 }

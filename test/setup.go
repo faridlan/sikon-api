@@ -59,6 +59,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	orderRepo := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
 	specTemplateRepo := postgres.NewSpecTemplateRepository(db) // <-- Tambahkan ini
+	txManager := postgres.NewTransactionManager(db)
 
 	// 2. Usecase (Perhatikan bahwa productUsecase juga butuh categoryRepo)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
@@ -66,7 +67,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	userUsecase := usecase.NewUserUsecase(userRepo, timeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
-	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, timeout)
+	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, txManager, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, timeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout) // <-- Tambahkan ini
 

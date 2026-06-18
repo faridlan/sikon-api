@@ -165,3 +165,21 @@ func (o *Order) GenerateOrderNumber() error {
 	o.OrderNumber = fmt.Sprintf("ORD-%s-%05d", dateStr, randNum.Int64())
 	return nil
 }
+
+// Validasi untuk OrderStatus
+func (s OrderStatus) IsValid() bool {
+	switch s {
+	case OrderStatusQuotation, OrderStatusPending, OrderStatusProduction, OrderStatusCompleted, OrderStatusCanceled:
+		return true
+	}
+	return false
+}
+
+// Validasi untuk PaymentStatus
+func (s PaymentStatus) IsValid() bool {
+	switch s {
+	case PaymentStatusUnpaid, PaymentStatusPartial, PaymentStatusPaid:
+		return true
+	}
+	return false
+}
