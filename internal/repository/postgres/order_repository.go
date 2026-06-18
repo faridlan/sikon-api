@@ -6,6 +6,7 @@ import (
 
 	"github.com/faridlan/sikon-api/internal/domain"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // --- IMPLEMENTASI REPOSITORY ---
@@ -157,7 +158,9 @@ func (r *orderRepository) UpdateStatus(ctx context.Context, id string, orderStat
 		return nil // Tidak ada yang diupdate
 	}
 
-	err := r.db.WithContext(ctx).Model(&OrderModel{}).Where("id = ?", id).Updates(updates).Error
+	db := GetTx(ctx, r.db)
+
+	err := db.WithContext(ctx).Model(&OrderModel{}).Where("id = ?", id).Updates(updates).Error
 	if err != nil {
 		return TranslateError(err)
 	}
@@ -238,4 +241,28 @@ func (r *orderRepository) DeleteItem(ctx context.Context, orderID, itemID string
 		return TranslateError(err)
 	}
 	return nil
+}
+
+// Tambahkan fungsi ini di order_repository.go
+func (r *orderRepository) GetByIDForUpdate(ctx context.Context, id string) (*domain.Order, error) {
+	var model OrderModel
+
+	// Wajib mengambil txCtx, karena penguncian hanya berlaku di dalam sebuah Transaksi
+	db := GetTx(ctx, r.db)
+
+	// CLAUSE "FOR UPDATE" DITAMBAHKAN DI SINI (Gunakan fitur gorm: clause.Locking)
+	err := db.WithContext(ctx).
+		Preload("Items").
+		Preload("Customer").
+		Preload("Sales").
+		// Preload("Items.Product"). // Boleh dihilangkan di sini agar lock lebih ringan, kita hanya butuh TotalAmount
+		Clauses(clause.Locking{Strength: "UPDATE"}). // <--- INI GEMBOKNYA!
+		Where("id = ?", id).
+		First(&model).Error
+
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+
+	return model.ToDomain(), nil
 }

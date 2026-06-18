@@ -153,6 +153,36 @@ func (_m *OrderRepository) GetByID(ctx context.Context, id string) (*domain.Orde
 	return r0, r1
 }
 
+// GetByIDForUpdate provides a mock function with given fields: ctx, id
+func (_m *OrderRepository) GetByIDForUpdate(ctx context.Context, id string) (*domain.Order, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByIDForUpdate")
+	}
+
+	var r0 *domain.Order
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Order, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Order); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Order)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetItemByID provides a mock function with given fields: ctx, orderID, itemID
 func (_m *OrderRepository) GetItemByID(ctx context.Context, orderID string, itemID string) (*domain.OrderItem, error) {
 	ret := _m.Called(ctx, orderID, itemID)

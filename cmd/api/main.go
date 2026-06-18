@@ -93,7 +93,7 @@ func main() {
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, txManager, contextTimeout)
 
 	// Payment butuh Order & BankAccount untuk kalkulasi status lunas
-	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, contextTimeout)
+	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, contextTimeout)
 
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
 	// ==========================================

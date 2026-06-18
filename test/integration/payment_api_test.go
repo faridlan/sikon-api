@@ -3,8 +3,10 @@ package integration_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -480,4 +482,97 @@ func TestGetPaymentsByOrderID_Integration(t *testing.T) {
 
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya ditangkap 400
 	})
+}
+
+// ==========================================
+// 7. TEST RACE CONDITION (CONCURRENCY)
+// ==========================================
+func TestRaceCondition_ProcessPayment_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	// Setup prasyarat: Order dengan 1 barang seharga Rp 1.000.000
+	sales := tests.SeedUser(db, "Sales Race", "race@sikon.com", "sales")
+	cust := tests.SeedCustomer(db, "Cust Race", "081999", "Bdg")
+	cat := tests.SeedCategory(db, "Kategori Race")
+	prod := tests.SeedProduct(db, cat.ID, "Kemeja Mahal", 1000000)
+
+	order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
+
+	// 🚨 TAMBAHKAN BARIS INI: Force update total tagihan menjadi 1 Juta
+	db.Table("orders").Where("id = ?", order.ID).Update("total_amount", 1000000)
+
+	bank := tests.SeedBankAccount(db, nil, "BCA", "123", "PT SIKOn")
+
+	// Alat bantu untuk menjalankan proses paralel dengan aman
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	successCount := 0
+	errorCount := 0
+
+	totalRequests := 3
+
+	// Skenario: 3 kasir mencoba submit pembayaran DP Rp 500.000 ke order yang sama,
+	// secara bersamaan di detik yang sama persis.
+	for i := 0; i < totalRequests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			reqBody := dto.PaymentCreateRequest{
+				OrderID:         order.ID,
+				BankAccountID:   bank.ID,
+				Amount:          500000,
+				ReferenceNumber: "TRX-RACE-CONCURRENT",
+				PaymentType:     "dp",
+			}
+			bodyJson, _ := json.Marshal(reqBody)
+
+			req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Eksekusi HTTP Request
+			resp, err := app.Test(req, -1)
+			assert.NoError(t, err)
+
+			respBody, _ := io.ReadAll(resp.Body)
+			fmt.Printf("STATUS: %d | RESPONSE: %s\n", resp.StatusCode, string(respBody))
+
+			// Gunakan Mutex agar penghitungan skor tidak ikut terkena race condition
+			mu.Lock()
+			if resp.StatusCode == fiber.StatusCreated {
+				successCount++
+			} else {
+				errorCount++
+			}
+			mu.Unlock()
+		}()
+	}
+
+	// Tunggu semua request bertabrakan dan selesai diproses oleh API
+	wg.Wait()
+
+	// ---------------------------------------------------------
+	// ASERSI BUKTI KEBAL RACE CONDITION
+	// ---------------------------------------------------------
+	// Karena tagihan 1 Juta dan masing-masing kasir mensubmit 500rb,
+	// hanya 2 request yang boleh sukses (500rb + 500rb = 1 Juta).
+	// Request ke-3 harus gagal dan ditolak oleh sistem (Overpayment).
+	assert.Equal(t, 2, successCount, "Hanya boleh ada 2 pembayaran yang berhasil masuk")
+	assert.Equal(t, 1, errorCount, "Harus ada 1 pembayaran yang ditolak karena overpayment")
+
+	// Verifikasi kebenaran fisik data di Database Utama
+	type OrderModel struct {
+		PaymentStatus string
+	}
+	var testOrder OrderModel
+	db.Table("orders").Where("id = ?", order.ID).First(&testOrder)
+
+	// Status order wajib berubah otomatis menjadi PAID
+	assert.Equal(t, "paid", testOrder.PaymentStatus, "Status order harus otomatis lunas")
+
+	// Total uang yang tercatat masuk di database tidak boleh bocor melebihi 1 Juta
+	var totalPaid float64
+	db.Table("payments").Where("order_id = ?", order.ID).Select("COALESCE(SUM(amount), 0)").Scan(&totalPaid)
+	assert.Equal(t, float64(1000000), totalPaid, "Total uang masuk di database tidak boleh lebih dari 1.000.000")
 }

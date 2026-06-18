@@ -17,13 +17,17 @@ func NewPaymentRepository(db *gorm.DB) domain.PaymentRepository {
 
 func (r *paymentRepository) Create(ctx context.Context, payment *domain.Payment) error {
 	model := FromPaymentDomain(payment)
-	if err := r.db.WithContext(ctx).Create(model).Error; err != nil {
+
+	db := GetTx(ctx, r.db)
+
+	if err := db.WithContext(ctx).Create(model).Error; err != nil {
 		return TranslateError(err)
 	}
 
 	payment.ID = model.ID
 	payment.CreatedAt = model.CreatedAt
 	payment.UpdatedAt = model.UpdatedAt
+
 	return nil
 }
 

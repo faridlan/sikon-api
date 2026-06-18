@@ -109,14 +109,12 @@ type OrderRepository interface {
 	Fetch(ctx context.Context, filter OrderFilter, limit, offset int) ([]Order, int64, error)
 	Update(ctx context.Context, order *Order) error
 	Delete(ctx context.Context, id string) error
-
-	// Custom Query
 	UpdateStatus(ctx context.Context, id string, orderStatus OrderStatus, paymentStatus PaymentStatus) error
-
 	CreateItem(ctx context.Context, item *OrderItem) error
 	UpdateItem(ctx context.Context, item *OrderItem) error
 	DeleteItem(ctx context.Context, orderID, itemID string) error
 	GetItemByID(ctx context.Context, orderID, itemID string) (*OrderItem, error)
+	GetByIDForUpdate(ctx context.Context, id string) (*Order, error)
 }
 
 type OrderUsecase interface {
@@ -127,7 +125,6 @@ type OrderUsecase interface {
 	DeleteOrder(ctx context.Context, id string) error
 	UpdateOrderStatus(ctx context.Context, id string, status OrderStatus) error
 	UpdatePaymentStatus(ctx context.Context, id string, status PaymentStatus) error
-
 	AddOrderItem(ctx context.Context, orderID string, input OrderItemInput) (*Order, error)
 	UpdateOrderItem(ctx context.Context, orderID, itemID string, input OrderItemInput) (*Order, error)
 	DeleteOrderItem(ctx context.Context, orderID, itemID string) (*Order, error)
