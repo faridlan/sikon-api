@@ -20,21 +20,9 @@ func NewOrderRepository(db *gorm.DB) domain.OrderRepository {
 func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error {
 	model := FromOrderDomain(order)
 
-	// Memulai Database Transaction
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// tx.Create pada GORM secara otomatis akan menyimpan data induk (Order)
-		// beserta relasinya (Items) jika struct-nya sudah terisi.
-		if err := tx.Create(model).Error; err != nil {
-			return err // Return error ini akan otomatis men-trigger ROLLBACK
-		}
+	db := GetTx(ctx, r.db) // Ambil DB dari Context (bisa jadi transaction)
 
-		// Jika ada logika lain (misal potong stok), bisa ditambahkan di dalam blok Transaction ini
-		// ...
-
-		return nil // Return nil berarti COMMIT (simpan permanen)
-	})
-
-	if err != nil {
+	if err := db.WithContext(ctx).Create(&model).Error; err != nil {
 		return TranslateError(err)
 	}
 
@@ -155,7 +143,6 @@ func (r *orderRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// Custom Query: Update Status secara spesifik
 func (r *orderRepository) UpdateStatus(ctx context.Context, id string, orderStatus domain.OrderStatus, paymentStatus domain.PaymentStatus) error {
 	updates := map[string]any{}
 
