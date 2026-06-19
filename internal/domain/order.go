@@ -163,6 +163,63 @@ func (o *Order) GenerateOrderNumber() error {
 	return nil
 }
 
+// TransitionStatus memvalidasi dan mengubah status order berdasarkan alur pabrik.
+func (o *Order) TransitionStatus(newStatus OrderStatus) error {
+	// 1. Jika status yang diminta sama dengan status saat ini, abaikan saja
+	if o.OrderStatus == newStatus {
+		return nil
+	}
+
+	// 2. Jika order sudah berstatus Final (Selesai/Batal), tidak boleh diutak-atik lagi
+	if o.OrderStatus == OrderStatusCompleted || o.OrderStatus == OrderStatusCanceled {
+		return NewError(ErrConflict, "Pesanan yang sudah selesai atau dibatalkan tidak dapat diubah statusnya")
+	}
+
+	// 3. Evaluasi Aturan Transisi
+	switch newStatus {
+
+	case OrderStatusPending:
+		// Hanya Quotation yang boleh di-fix-kan jadi Pending
+		if o.OrderStatus != OrderStatusQuotation {
+			return NewError(ErrConflict, "Hanya pesanan berstatus quotation yang bisa diubah menjadi pending")
+		}
+
+	case OrderStatusProduction:
+		// Syarat Mutlak 1: Harus dari meja Pending
+		if o.OrderStatus != OrderStatusPending {
+			return NewError(ErrConflict, "Pesanan harus berstatus pending sebelum masuk meja produksi")
+		}
+		// Syarat Mutlak 2: Minimal sudah ada uang masuk (DP/Lunas)
+		if o.PaymentStatus == PaymentStatusUnpaid {
+			return NewError(ErrConflict, "Pesanan tidak dapat masuk produksi karena belum ada pembayaran (minimal DP)")
+		}
+
+	case OrderStatusCompleted:
+		// Syarat: Baju harus sudah selesai dijahit (Production -> Completed)
+		// Karena kamu tidak punya status "Shipped/Ready", asusmsinya barang langsung diserahkan
+		if o.OrderStatus != OrderStatusProduction {
+			return NewError(ErrConflict, "Pesanan belum diproduksi, tidak bisa diselesaikan")
+		}
+		// Kebijakan Pabrik: Wajib Lunas sebelum diserahkan/diambil customer
+		if o.PaymentStatus != PaymentStatusPaid {
+			return NewError(ErrConflict, "Pesanan tidak dapat diselesaikan karena belum lunas sepenuhnya")
+		}
+
+	case OrderStatusCanceled:
+		// Syarat: Jika sudah di meja produksi, tidak boleh dibatalkan sembarangan!
+		if o.OrderStatus == OrderStatusProduction {
+			return NewError(ErrConflict, "Pesanan yang sedang diproduksi (kain sudah dipotong) tidak dapat dibatalkan")
+		}
+
+	default:
+		return NewError(ErrBadParamInput, "Status transisi tidak dikenali")
+	}
+
+	// 4. Jika lolos semua pemeriksaan satpam, setujui status barunya
+	o.OrderStatus = newStatus
+	return nil
+}
+
 // Validasi untuk OrderStatus
 func (s OrderStatus) IsValid() bool {
 	switch s {
