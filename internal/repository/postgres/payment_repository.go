@@ -33,7 +33,10 @@ func (r *paymentRepository) Create(ctx context.Context, payment *domain.Payment)
 
 func (r *paymentRepository) GetByID(ctx context.Context, id string) (*domain.Payment, error) {
 	var model PaymentModel
-	if err := r.db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("id = ?", id).First(&model).Error; err != nil {
+
+	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+
+	if err := db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 	return model.ToDomain(), nil
@@ -43,8 +46,10 @@ func (r *paymentRepository) Fetch(ctx context.Context, limit, offset int, filter
 	var models []PaymentModel
 	var total int64
 
+	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+
 	// Mulai query base
-	query := r.db.WithContext(ctx).Model(&PaymentModel{})
+	query := db.WithContext(ctx).Model(&PaymentModel{})
 
 	// 1. Filter Search (mencari substring di No Ref atau exact match di OrderID)
 	if filter.Search != "" {
@@ -89,7 +94,10 @@ func (r *paymentRepository) Fetch(ctx context.Context, limit, offset int, filter
 
 func (r *paymentRepository) Update(ctx context.Context, payment *domain.Payment) error {
 	model := FromPaymentDomain(payment)
-	if err := r.db.WithContext(ctx).Model(&PaymentModel{ID: model.ID}).Updates(model).Error; err != nil {
+
+	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+
+	if err := db.WithContext(ctx).Model(&PaymentModel{ID: model.ID}).Updates(model).Error; err != nil {
 		return TranslateError(err)
 	}
 	return nil
