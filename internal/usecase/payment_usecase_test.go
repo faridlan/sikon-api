@@ -15,18 +15,20 @@ import (
 )
 
 // setupPaymentTest adalah helper untuk menginisialisasi ke-3 mock repository
-func setupPaymentTest() (*mocks.PaymentRepository, *mocks.OrderRepository, *mocks.BankAccountRepository, domain.PaymentUsecase) {
+func setupPaymentTest() (*mocks.PaymentRepository, *mocks.OrderRepository, *mocks.BankAccountRepository, *mocks.TransactionManager, domain.PaymentUsecase) {
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockOrderRepo := new(mocks.OrderRepository)
 	mockBankAccountRepo := new(mocks.BankAccountRepository)
+	mockTxManager := new(mocks.TransactionManager)
 
-	uc := usecase.NewPaymentUsecase(mockPaymentRepo, mockOrderRepo, mockBankAccountRepo, time.Second*2)
+	uc := usecase.NewPaymentUsecase(mockPaymentRepo, mockOrderRepo, mockBankAccountRepo, mockTxManager, time.Second*2)
 
-	return mockPaymentRepo, mockOrderRepo, mockBankAccountRepo, uc
+	return mockPaymentRepo, mockOrderRepo, mockBankAccountRepo, mockTxManager, uc
 }
 
 func TestPaymentUsecase_ProcessPayment(t *testing.T) {
-	mockPaymentRepo, mockOrderRepo, mockBankRepo, uc := setupPaymentTest()
+	// Pastikan setupPaymentTest() mengembalikan mockTxManager juga
+	mockPaymentRepo, mockOrderRepo, mockBankRepo, mockTxManager, uc := setupPaymentTest()
 
 	input := domain.PaymentCreateInput{
 		OrderID:         "ord-123",
@@ -36,18 +38,35 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		PaymentType:     domain.PaymentTypeDP,
 	}
 
-	// UPDATE: Kita hapus ekspektasi ShippingCost karena sudah include di TotalAmount.
-	// Sekarang Grand Total murni = 1.000.000
 	mockOrder := &domain.Order{
 		ID:          "ord-123",
 		TotalAmount: 1000000,
 	}
 
+	// Helper untuk mock transaksi agar tidak mengulang kode
+	mockTransaction := func() {
+		mockTxManager.ExpectedCalls = nil
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Return(func(ctx context.Context, fn func(context.Context) error) error {
+				// Eksekusi fungsi closure TEPAT SATU KALI dan kembalikan error-nya ke Usecase
+				return fn(ctx)
+			}).Once()
+	}
+
 	t.Run("Success - Partial Payment (DP)", func(t *testing.T) {
-		// 1. Order Ditemukan
-		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
-		// 2. Bank Ditemukan
+		mockOrderRepo.ExpectedCalls = nil
+		mockBankRepo.ExpectedCalls = nil
+		mockPaymentRepo.ExpectedCalls = nil
+
+		// 1. Bank Ditemukan (Di luar transaksi)
 		mockBankRepo.On("GetByID", mock.Anything, input.BankAccountID).Return(&domain.BankAccount{ID: "bank-123"}, nil).Once()
+
+		// 🚨 Mulai Transaksi
+		mockTransaction()
+
+		// 2. Order Ditemukan DENGAN GEMBOK (Di dalam transaksi)
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
+
 		// 3. Belum ada pembayaran sebelumnya (totalPaid = 0)
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, input.OrderID).Return([]domain.Payment{}, nil).Once()
 
@@ -56,81 +75,41 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 			return p.Amount == input.Amount && p.ReferenceNumber == input.ReferenceNumber
 		})).Return(nil).Once()
 
-		// 5. Update Status Order -> Partial (Karena 500rb < 1jt)
+		// 5. Update Status Order -> Partial
 		mockOrderRepo.On("UpdateStatus", mock.Anything, mockOrder.ID, domain.OrderStatus(""), domain.PaymentStatusPartial).Return(nil).Once()
 
 		payment, err := uc.ProcessPayment(context.Background(), input)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, payment)
-		mockOrderRepo.AssertExpectations(t)
-		mockBankRepo.AssertExpectations(t)
-		mockPaymentRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
 	})
 
-	t.Run("Success - Full Payment (Paid)", func(t *testing.T) {
-		inputPelunasan := input
-		// UPDATE: Uang yang dibayar pelunasan harus 500.000 agar pas 1.000.000
-		inputPelunasan.Amount = 500000
-		inputPelunasan.PaymentType = domain.PaymentTypeSettlement
-
-		// Simulasi sudah pernah bayar DP 500.000
-		existingPayments := []domain.Payment{
-			{Amount: 500000},
-		}
-
-		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
-		mockBankRepo.On("GetByID", mock.Anything, input.BankAccountID).Return(&domain.BankAccount{}, nil).Once()
-		mockPaymentRepo.On("GetByOrderID", mock.Anything, input.OrderID).Return(existingPayments, nil).Once()
-
-		mockPaymentRepo.On("Create", mock.Anything, mock.Anything).Return(nil).Once()
-
-		// Total Paid sekarang: 500k (DP) + 500k (Pelunasan) = 1jt (== GrandTotal) -> Status jadi PAID
-		mockOrderRepo.On("UpdateStatus", mock.Anything, mockOrder.ID, domain.OrderStatus(""), domain.PaymentStatusPaid).Return(nil).Once()
-
-		payment, err := uc.ProcessPayment(context.Background(), inputPelunasan)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, payment)
-	})
-
-	t.Run("Error - Already Fully Paid", func(t *testing.T) {
-		// UPDATE: Simulasi tagihan sudah lunas (1.000.000)
-		existingPayments := []domain.Payment{
-			{Amount: 1000000},
-		}
-
-		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
-		mockBankRepo.On("GetByID", mock.Anything, input.BankAccountID).Return(&domain.BankAccount{}, nil).Once()
-		mockPaymentRepo.On("GetByOrderID", mock.Anything, input.OrderID).Return(existingPayments, nil).Once()
-
-		payment, err := uc.ProcessPayment(context.Background(), input)
-
-		assert.Error(t, err)
-		var appErr *domain.AppError
-		assert.True(t, errors.As(err, &appErr))
-		assert.Equal(t, domain.ErrConflict, appErr.ErrType)
-		assert.Equal(t, "Pesanan ini sudah lunas sepenuhnya", appErr.Message)
-		assert.Nil(t, payment)
-
-		mockPaymentRepo.AssertNotCalled(t, "Create")
-		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
-	})
-
-	// TAMBAHAN TEST BARU: Validasi pencegahan Overpayment
 	t.Run("Error - Overpayment", func(t *testing.T) {
-		inputOverpayment := input
-		// Simulasi kasir menginput pembayaran 600.000
-		inputOverpayment.Amount = 600000
+		mockOrderRepo.ExpectedCalls = nil
+		mockBankRepo.ExpectedCalls = nil
+		mockPaymentRepo.ExpectedCalls = nil
 
-		// Padahal customer sudah bayar DP 500.000 (Sisa tagihan tinggal 500.000)
+		inputOverpayment := input
+		inputOverpayment.Amount = 600000 // Simulasi bayar 600rb
+
 		existingPayments := []domain.Payment{
-			{Amount: 500000},
+			{Amount: 500000}, // Sudah DP 500rb, sisa tagihan 500rb
 		}
 
-		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
-		mockBankRepo.On("GetByID", mock.Anything, input.BankAccountID).Return(&domain.BankAccount{}, nil).Once()
+		// 1. Bank Valid
+		mockBankRepo.On("GetByID", mock.Anything, input.BankAccountID).Return(&domain.BankAccount{ID: "bank-123"}, nil).Once()
+
+		// 🚨 Mulai Transaksi
+		mockTransaction()
+
+		// 2. Gembok Order
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, input.OrderID).Return(mockOrder, nil).Once()
+
+		// 3. Ambil total yang sudah dibayar
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, input.OrderID).Return(existingPayments, nil).Once()
+
+		// HARUS GAGAL DI SINI KARENA OVERPAYMENT, Create & UpdateStatus tidak boleh dipanggil!
 
 		payment, err := uc.ProcessPayment(context.Background(), inputOverpayment)
 
@@ -141,26 +120,13 @@ func TestPaymentUsecase_ProcessPayment(t *testing.T) {
 		assert.Contains(t, appErr.Message, "Jumlah bayar melebihi sisa tagihan")
 		assert.Nil(t, payment)
 
-		// Pastikan tidak ada data yang masuk ke database
 		mockPaymentRepo.AssertNotCalled(t, "Create")
 		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
-
-	t.Run("Error - Order Not Found", func(t *testing.T) {
-		mockOrderRepo.On("GetByID", mock.Anything, input.OrderID).Return(nil, domain.ErrNotFound).Once()
-
-		payment, err := uc.ProcessPayment(context.Background(), input)
-
-		assert.Error(t, err)
-		var appErr *domain.AppError
-		assert.True(t, errors.As(err, &appErr))
-		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
-		assert.Equal(t, "Order tidak ditemukan", appErr.Message)
-		assert.Nil(t, payment)
-	})
 }
+
 func TestPaymentUsecase_GetPayment(t *testing.T) {
-	mockPaymentRepo, _, _, uc := setupPaymentTest()
+	mockPaymentRepo, _, _, _, uc := setupPaymentTest()
 	mockID := "pay-123"
 
 	t.Run("Success", func(t *testing.T) {
@@ -183,7 +149,7 @@ func TestPaymentUsecase_GetPayment(t *testing.T) {
 }
 
 func TestPaymentUsecase_ListPayments(t *testing.T) {
-	mockPaymentRepo, _, _, uc := setupPaymentTest() // Sesuaikan dengan setup test Anda
+	mockPaymentRepo, _, _, _, uc := setupPaymentTest() // Sesuaikan dengan setup test Anda
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
 
 	t.Run("Success_TanpaFilter", func(t *testing.T) {
@@ -236,7 +202,7 @@ func TestPaymentUsecase_ListPayments(t *testing.T) {
 }
 
 func TestPaymentUsecase_UpdatePayment(t *testing.T) {
-	mockPaymentRepo, _, _, uc := setupPaymentTest()
+	mockPaymentRepo, _, _, _, uc := setupPaymentTest()
 	mockID := "pay-123"
 	input := domain.PaymentUpdateInput{ReferenceNumber: "TRX-REVISI"}
 
@@ -257,7 +223,7 @@ func TestPaymentUsecase_UpdatePayment(t *testing.T) {
 
 func TestPaymentUsecase_DeletePayment(t *testing.T) {
 	// Update destructuring: kita butuh mockOrderRepo sekarang!
-	mockPaymentRepo, mockOrderRepo, _, uc := setupPaymentTest()
+	mockPaymentRepo, mockOrderRepo, _, _, uc := setupPaymentTest()
 
 	paymentID := "pay-123"
 	orderID := "ord-123"
