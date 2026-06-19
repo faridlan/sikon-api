@@ -190,7 +190,8 @@ func (u *paymentUsecase) DeletePayment(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// 1. Ambil data payment untuk mendapatkan detail OrderID dan Amount
+	// 1. FASE MEMBACA AWAL (Di luar transaksi)
+	// Ambil data payment untuk mendapatkan detail OrderID
 	payment, err := u.paymentRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
@@ -199,46 +200,55 @@ func (u *paymentUsecase) DeletePayment(c context.Context, id string) error {
 		return err
 	}
 
-	// 2. Dapatkan data Order terkait untuk melihat total tagihan (TotalAmount)
-	order, err := u.orderRepo.GetByID(ctx, payment.OrderID)
-	if err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NewError(domain.ErrBadParamInput, "Order terkait tidak ditemukan")
+	// 🚨 MEMULAI TRANSAKSI & PENGUNCIAN 🚨
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+
+		// 2. Dapatkan data Order SAMBIL DIGEMBOK (GetByIDForUpdate)
+		order, err := u.orderRepo.GetByIDForUpdate(txCtx, payment.OrderID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NewError(domain.ErrBadParamInput, "Order terkait tidak ditemukan")
+			}
+			return err
 		}
-		return err
-	}
 
-	// 3. Ambil semua pembayaran yang terdaftar untuk order ini saat ini
-	existingPayments, err := u.paymentRepo.GetByOrderID(ctx, payment.OrderID)
-	if err != nil {
-		return err
-	}
+		// 3. Eksekusi penghapusan data payment (Otomatis tercatat di Kertas Buram)
+		if err := u.paymentRepo.Delete(txCtx, id); err != nil {
+			return err
+		}
 
-	// 4. Hitung total bayar saat ini, lalu kurangi dengan nominal payment yang akan dihapus
-	var totalPaidBeforeDelete float64
-	for _, p := range existingPayments {
-		totalPaidBeforeDelete += p.Amount
-	}
-	totalPaidAfterDelete := totalPaidBeforeDelete - payment.Amount
+		// 4. Hitung ulang total bayar dari sisa pembayaran yang masih ada di database
+		// Karena menggunakan txCtx, query ini otomatis tidak akan menyertakan payment yang baru saja dihapus di baris atas!
+		remainingPayments, err := u.paymentRepo.GetByOrderID(txCtx, order.ID)
+		if err != nil {
+			return err
+		}
 
-	// 5. Tentukan status pembayaran yang baru secara otomatis
-	var newPaymentStatus domain.PaymentStatus
-	if totalPaidAfterDelete <= 0 {
-		newPaymentStatus = domain.PaymentStatusUnpaid
-	} else if totalPaidAfterDelete < order.TotalAmount {
-		newPaymentStatus = domain.PaymentStatusPartial
-	} else {
-		newPaymentStatus = domain.PaymentStatusPaid
-	}
+		var totalPaidAfterDelete float64
+		for _, p := range remainingPayments {
+			totalPaidAfterDelete += p.Amount
+		}
 
-	// 6. Update status pembayaran di tabel order terlebih dahulu
-	err = u.orderRepo.UpdateStatus(ctx, order.ID, domain.OrderStatus(""), newPaymentStatus)
-	if err != nil {
-		return err
-	}
+		// 5. Tentukan status pembayaran yang baru secara otomatis
+		var newPaymentStatus domain.PaymentStatus
+		if totalPaidAfterDelete <= 0 {
+			newPaymentStatus = domain.PaymentStatusUnpaid
+		} else if totalPaidAfterDelete >= order.TotalAmount {
+			// Jaga-jaga jika ternyata totalnya masih menutupi tagihan
+			newPaymentStatus = domain.PaymentStatusPaid
+		} else {
+			newPaymentStatus = domain.PaymentStatusPartial
+		}
 
-	// 7. Setelah status order aman disinkronkan, lakukan penghapusan data payment
-	return u.paymentRepo.Delete(ctx, id)
+		// 6. Update status pembayaran di tabel order
+		if err := u.orderRepo.UpdateStatus(txCtx, order.ID, domain.OrderStatus(""), newPaymentStatus); err != nil {
+			return err
+		}
+
+		return nil // Semuanya beres, COMMIT!
+	})
+
+	return err
 }
 
 func (u *paymentUsecase) GetPaymentsByOrderID(c context.Context, orderID string) ([]domain.Payment, error) {

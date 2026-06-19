@@ -4,17 +4,18 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"gorm.io/datatypes"
 )
 
 type OrderItemModel struct {
-	ID        string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderID   string         `gorm:"type:uuid;not null"`
-	ProductID string         `gorm:"type:uuid;not null"`
-	Qty       int            `gorm:"not null"`
-	Price     float64        `gorm:"type:decimal(12,2);not null"`
-	Details   map[string]any `gorm:"type:jsonb;serializer:json"` // Magic dari GORM
-	CreatedAt time.Time      `gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
+	ID        string            `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderID   string            `gorm:"type:uuid;not null"`
+	ProductID string            `gorm:"type:uuid;not null"`
+	Qty       int               `gorm:"not null"`
+	Price     float64           `gorm:"type:decimal(12,2);not null"`
+	Details   datatypes.JSONMap `gorm:"type:jsonb"` // Magic dari GORM
+	CreatedAt time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
 
 	// Relasi
 	Product *ProductModel `gorm:"foreignKey:ProductID"`
@@ -63,7 +64,7 @@ func (m *OrderItemModel) ToDomain() domain.OrderItem {
 		ProductID: m.ProductID,
 		Qty:       m.Qty,
 		Price:     m.Price,
-		Details:   m.Details,
+		Details:   map[string]any(m.Details), // Konversi JSONB ke map biasa
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
 	}
@@ -150,7 +151,7 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 				ProductID: item.ProductID,
 				Qty:       item.Qty,
 				Price:     item.Price,
-				Details:   item.Details,
+				Details:   datatypes.JSONMap(item.Details), // Konversi map biasa ke JSONB
 				CreatedAt: item.CreatedAt,
 				UpdatedAt: item.UpdatedAt,
 			})
