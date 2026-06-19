@@ -96,7 +96,9 @@ func (r *paymentRepository) Update(ctx context.Context, payment *domain.Payment)
 }
 
 func (r *paymentRepository) Delete(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&PaymentModel{}).Error; err != nil {
+	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+
+	if err := db.WithContext(ctx).Where("id = ?", id).Delete(&PaymentModel{}).Error; err != nil {
 		return TranslateError(err)
 	}
 	return nil
@@ -105,7 +107,9 @@ func (r *paymentRepository) Delete(ctx context.Context, id string) error {
 func (r *paymentRepository) GetByOrderID(ctx context.Context, orderID string) ([]domain.Payment, error) {
 	var models []PaymentModel
 
-	if err := r.db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("order_id = ?", orderID).Order("payment_date ASC").Find(&models).Error; err != nil {
+	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+
+	if err := db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("order_id = ?", orderID).Order("payment_date ASC").Find(&models).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 

@@ -222,8 +222,9 @@ func TestPaymentUsecase_UpdatePayment(t *testing.T) {
 }
 
 func TestPaymentUsecase_DeletePayment(t *testing.T) {
-	// Update destructuring: kita butuh mockOrderRepo sekarang!
-	mockPaymentRepo, mockOrderRepo, _, _, uc := setupPaymentTest()
+	// 🚨 Pastikan setupPaymentTest() mengembalikan mockTxManager juga!
+	// Urutan return biasanya: PaymentRepo, OrderRepo, BankRepo, TxManager, Usecase
+	mockPaymentRepo, mockOrderRepo, _, mockTxManager, uc := setupPaymentTest()
 
 	paymentID := "pay-123"
 	orderID := "ord-123"
@@ -240,53 +241,85 @@ func TestPaymentUsecase_DeletePayment(t *testing.T) {
 		TotalAmount: 1000000, // Total tagihan 1 juta
 	}
 
+	// Helper untuk mock transaksi agar closure tereksekusi
+	mockTransaction := func() {
+		mockTxManager.ExpectedCalls = nil
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Return(func(ctx context.Context, fn func(context.Context) error) error {
+				return fn(ctx)
+			}).Once()
+	}
+
 	t.Run("Success - Status Reverts to Partial", func(t *testing.T) {
-		// Skenario: Customer bayar DP 2x @500rb (Lunas).
-		// Kasir menghapus pembayaran pertama, sehingga order kembali jadi "Partial".
-		existingPayments := []domain.Payment{
-			{ID: "pay-123", Amount: 500000},
+		mockPaymentRepo.ExpectedCalls = nil
+		mockOrderRepo.ExpectedCalls = nil
+
+		// 1. Ambil data payment di awal (Luar Transaksi)
+		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(mockPayment, nil).Once()
+
+		// 🚨 Buka Transaksi
+		mockTransaction()
+
+		// 2. Gembok Order (Dalam Transaksi)
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, orderID).Return(mockOrder, nil).Once()
+
+		// 3. Hapus Payment (Dalam Transaksi)
+		mockPaymentRepo.On("Delete", mock.Anything, paymentID).Return(nil).Once()
+
+		// 4. Ambil SISA payment (Kondisi SETELAH payment pertama dihapus)
+		// Skenario: Awalnya customer bayar DP 2x @500rb. Karena 1 dihapus, mock ini mereturn sisa 1.
+		remainingPayments := []domain.Payment{
 			{ID: "pay-456", Amount: 500000},
 		}
+		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(remainingPayments, nil).Once()
 
-		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(mockPayment, nil).Once()
-		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(mockOrder, nil).Once()
-		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(existingPayments, nil).Once()
-
-		// Ekspektasi: 1jt - 500rb = 500rb. Karena 500rb < TotalAmount(1jt), status = Partial
+		// 5. Ekspektasi: Karena sisa 500rb < TotalAmount(1jt), status otomatis Partial
 		mockOrderRepo.On("UpdateStatus", mock.Anything, orderID, domain.OrderStatus(""), domain.PaymentStatusPartial).Return(nil).Once()
-		mockPaymentRepo.On("Delete", mock.Anything, paymentID).Return(nil).Once()
 
 		err := uc.DeletePayment(context.Background(), paymentID)
 
 		assert.NoError(t, err)
 		mockPaymentRepo.AssertExpectations(t)
 		mockOrderRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
 	})
 
 	t.Run("Success - Status Reverts to Unpaid", func(t *testing.T) {
-		// Skenario: Hanya ada 1x pembayaran DP.
-		// Jika dihapus, maka total uang masuk jadi 0, status order harus "Unpaid".
-		existingPayments := []domain.Payment{
-			{ID: "pay-123", Amount: 500000},
-		}
+		mockPaymentRepo.ExpectedCalls = nil
+		mockOrderRepo.ExpectedCalls = nil
 
+		// 1. Ambil data payment
 		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(mockPayment, nil).Once()
-		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(mockOrder, nil).Once()
-		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(existingPayments, nil).Once()
 
-		// Ekspektasi: 500rb - 500rb = 0. Karena 0, status = Unpaid
-		mockOrderRepo.On("UpdateStatus", mock.Anything, orderID, domain.OrderStatus(""), domain.PaymentStatusUnpaid).Return(nil).Once()
+		// 🚨 Buka Transaksi
+		mockTransaction()
+
+		// 2. Gembok Order
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, orderID).Return(mockOrder, nil).Once()
+
+		// 3. Hapus Payment
 		mockPaymentRepo.On("Delete", mock.Anything, paymentID).Return(nil).Once()
+
+		// 4. Ambil SISA payment (Skenario: Hanya ada 1x DP, jika dihapus sisanya KOSONG)
+		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return([]domain.Payment{}, nil).Once()
+
+		// 5. Ekspektasi: Karena 0, status otomatis jadi Unpaid
+		mockOrderRepo.On("UpdateStatus", mock.Anything, orderID, domain.OrderStatus(""), domain.PaymentStatusUnpaid).Return(nil).Once()
 
 		err := uc.DeletePayment(context.Background(), paymentID)
 
 		assert.NoError(t, err)
 		mockPaymentRepo.AssertExpectations(t)
 		mockOrderRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
 	})
 
 	t.Run("Error - Payment Not Found", func(t *testing.T) {
-		// Skenario: Data yang mau dihapus tidak ada di DB
+		mockPaymentRepo.ExpectedCalls = nil
+		mockOrderRepo.ExpectedCalls = nil
+		mockTxManager.ExpectedCalls = nil
+
+		// Skenario: Data yang mau dihapus tidak ada di DB (Gagal di Fase 1 luar transaksi)
 		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(nil, domain.ErrNotFound).Once()
 
 		err := uc.DeletePayment(context.Background(), paymentID)
@@ -296,15 +329,25 @@ func TestPaymentUsecase_DeletePayment(t *testing.T) {
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrNotFound, appErr.ErrType)
 
-		// Pastikan method lain tidak dipanggil
-		mockOrderRepo.AssertNotCalled(t, "GetByID")
+		// Pastikan method di dalam transaksi tidak ada yang tereksekusi!
+		mockTxManager.AssertNotCalled(t, "RunInTransaction")
+		mockOrderRepo.AssertNotCalled(t, "GetByIDForUpdate")
 		mockPaymentRepo.AssertNotCalled(t, "Delete")
 	})
 
 	t.Run("Error - Order Not Found", func(t *testing.T) {
-		// Skenario: Payment ada, tapi Order terkait hilang secara aneh di DB
+		mockPaymentRepo.ExpectedCalls = nil
+		mockOrderRepo.ExpectedCalls = nil
+		mockTxManager.ExpectedCalls = nil
+
+		// Fase 1 Lolos
 		mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(mockPayment, nil).Once()
-		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(nil, domain.ErrNotFound).Once()
+
+		// Buka Transaksi
+		mockTransaction()
+
+		// Skenario: Payment ada, tapi saat mencoba digembok, Ordernya mendadak hilang
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, orderID).Return(nil, domain.ErrNotFound).Once()
 
 		err := uc.DeletePayment(context.Background(), paymentID)
 
@@ -313,5 +356,8 @@ func TestPaymentUsecase_DeletePayment(t *testing.T) {
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
 		assert.Contains(t, appErr.Message, "Order terkait tidak ditemukan")
+
+		// Pastikan tidak ada penghapusan data
+		mockPaymentRepo.AssertNotCalled(t, "Delete")
 	})
 }
