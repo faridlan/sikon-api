@@ -777,7 +777,12 @@ const docTemplate = `{
         },
         "/orders": {
             "get": {
-                "description": "Mengambil daftar seluruh pesanan dengan pagination dan filter",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar seluruh pesanan dengan fitur pagination dan multiple filter.",
                 "produces": [
                     "application/json"
                 ],
@@ -802,43 +807,43 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Cari berdasarkan Nomor Order",
+                        "description": "Cari berdasarkan Nomor Order (ORD-XXX)",
                         "name": "search",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter berdasarkan ID Customer",
+                        "description": "Filter berdasarkan ID Customer (UUID)",
                         "name": "customer_id",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter berdasarkan ID Sales",
+                        "description": "Filter berdasarkan ID Sales (UUID)",
                         "name": "sales_id",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter Status Order (quotation, pending, production, completed, canceled)",
+                        "description": "Filter Status Order (Enum: quotation, pending, production, completed, canceled)",
                         "name": "order_status",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter Status Pembayaran (unpaid, partial, paid)",
+                        "description": "Filter Status Pembayaran (Enum: unpaid, partial, paid)",
                         "name": "payment_status",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Tanggal Mulai (YYYY-MM-DD)",
+                        "description": "Tanggal Mulai Pembuatan (Format: YYYY-MM-DD)",
                         "name": "start_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Tanggal Selesai (YYYY-MM-DD)",
+                        "description": "Tanggal Selesai Pembuatan (Format: YYYY-MM-DD)",
                         "name": "end_date",
                         "in": "query"
                     }
@@ -859,7 +864,12 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Membuat pesanan (order) baru beserta detail produknya",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Membuat pesanan (order) baru beserta detail produknya. Sistem akan otomatis menghitung Subtotal dan TotalAmount.",
                 "consumes": [
                     "application/json"
                 ],
@@ -889,13 +899,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Data input tidak valid (misal: format UUID salah)",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Customer, Sales, atau Produk tidak ditemukan",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
@@ -911,7 +921,12 @@ const docTemplate = `{
         },
         "/orders/{id}": {
             "get": {
-                "description": "Mengambil detail pesanan (invoice lengkap) berdasarkan ID",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil detail pesanan (invoice lengkap) berdasarkan ID. Meliputi Header Order dan Order Items di dalamnya.",
                 "produces": [
                     "application/json"
                 ],
@@ -936,13 +951,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Format UUID tidak valid",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Data pesanan tidak ditemukan",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
@@ -956,7 +971,12 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Memperbarui data ongkir, kurir, alamat, dan catatan (Bukan item pesanan)",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Memperbarui data meta pesanan seperti ongkir, kurir, alamat pengiriman, dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan. (Tidak mengubah detail item produk).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1013,7 +1033,12 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Menghapus pesanan secara permanen",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menghapus pesanan secara permanen beserta seluruh item di dalamnya (Cascading Delete).",
                 "produces": [
                     "application/json"
                 ],
@@ -1043,6 +1068,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -1054,7 +1085,12 @@ const docTemplate = `{
         },
         "/orders/{id}/items": {
             "post": {
-                "description": "Menambahkan item baru ke dalam pesanan yang sudah ada",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menambahkan item/produk baru ke dalam pesanan yang sudah ada. Otomatis akan menghitung ulang Subtotal dan Grand Total dari Order.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1068,13 +1104,13 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Order ID",
+                        "description": "Order ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Data Item Baru",
+                        "description": "Data Item Baru (Gunakan JSONB pada Details)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1113,7 +1149,12 @@ const docTemplate = `{
         },
         "/orders/{id}/items/{itemId}": {
             "put": {
-                "description": "Memperbarui informasi item dalam pesanan yang sudah ada",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Memperbarui qty, harga, atau detail dari produk dalam pesanan. Otomatis akan menghitung ulang Subtotal dan Grand Total dari Order.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1127,14 +1168,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Order ID",
+                        "description": "Order ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Item ID",
+                        "description": "Item ID (UUID)",
                         "name": "itemId",
                         "in": "path",
                         "required": true
@@ -1177,7 +1218,12 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Menghapus item dari pesanan yang sudah ada",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menghapus item dari pesanan yang sudah ada. Otomatis akan memotong Subtotal dan Grand Total dari Order.",
                 "produces": [
                     "application/json"
                 ],
@@ -1188,14 +1234,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Order ID",
+                        "description": "Order ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Item ID",
+                        "description": "Item ID (UUID)",
                         "name": "itemId",
                         "in": "path",
                         "required": true
@@ -1231,7 +1277,12 @@ const docTemplate = `{
         },
         "/orders/{id}/payment-status": {
             "patch": {
-                "description": "Memperbarui status pembayaran pesanan (unpaid, partial, paid)",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "**PERINGATAN:** Status pembayaran (unpaid, partial, paid) idealnya berubah secara OTOMATIS saat kasir melakukan transaksi di endpoint ` + "`" + `/api/payments` + "`" + `. Endpoint ini hanya digunakan untuk *Manual Override* oleh Super Admin jika terjadi anomali sistem.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1241,7 +1292,7 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Update Payment Status",
+                "summary": "Update Payment Status (MANUAL OVERRIDE)",
                 "parameters": [
                     {
                         "type": "string",
@@ -1251,7 +1302,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Data Update Status Pembayaran",
+                        "description": "Pilihan Status: unpaid, partial, paid",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1290,7 +1341,12 @@ const docTemplate = `{
         },
         "/orders/{id}/status": {
             "patch": {
-                "description": "Memperbarui status pengerjaan pesanan (pending, production, completed, canceled)",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengubah status operasional pabrik. Tunduk pada aturan validasi State Machine: \u003cbr\u003e\u003cbr\u003e 1. **quotation** -\u003e **pending** \u003cbr\u003e 2. **pending** -\u003e **production** *(Syarat: Minimal sudah bayar DP / status partial)* \u003cbr\u003e 3. **production** -\u003e **completed** *(Syarat: Status pembayaran harus lunas/paid)* \u003cbr\u003e 4. **canceled** *(Syarat: Baju belum masuk tahap production)*. \u003cbr\u003e\u003cbr\u003e Mengabaikan aturan ini akan mengembalikan error 409 Conflict.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1300,7 +1356,7 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Update Order Status",
+                "summary": "Update Order Status (STATE MACHINE)",
                 "parameters": [
                     {
                         "type": "string",
@@ -1310,7 +1366,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Data Update Status",
+                        "description": "Pilihan Status: quotation, pending, production, completed, canceled",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1323,17 +1379,23 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Input tidak valid",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Order tidak ditemukan",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Transisi status ditolak oleh State Machine",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
@@ -1349,7 +1411,7 @@ const docTemplate = `{
         },
         "/payments": {
             "get": {
-                "description": "Mengambil daftar seluruh pembayaran (History transaksi) dengan filter",
+                "description": "Mengambil daftar seluruh histori pembayaran dari semua pesanan dengan fitur pagination dan filter.",
                 "produces": [
                     "application/json"
                 ],
@@ -1374,7 +1436,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Cari No Ref atau Order ID",
+                        "description": "Cari No Referensi atau Order ID",
                         "name": "search",
                         "in": "query"
                     },
@@ -1386,13 +1448,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Tanggal Mulai (YYYY-MM-DD)",
+                        "description": "Tanggal Mulai Pembayaran (YYYY-MM-DD)",
                         "name": "start_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Tanggal Akhir (YYYY-MM-DD)",
+                        "description": "Tanggal Akhir Pembayaran (YYYY-MM-DD)",
                         "name": "end_date",
                         "in": "query"
                     }
@@ -1413,7 +1475,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Memproses pembayaran (DP/Lunas) untuk sebuah pesanan",
+                "description": "Memproses pembayaran (DP/Lunas) untuk sebuah pesanan. \u003cbr\u003e\u003cbr\u003e **PENTING UNTUK FE:** \u003cbr\u003e 1. Otomatis mengubah ` + "`" + `payment_status` + "`" + ` pada Order menjadi ` + "`" + `partial` + "`" + ` atau ` + "`" + `paid` + "`" + `. (Tidak perlu hit API update status lagi). \u003cbr\u003e 2. Sistem akan menolak (HTTP 400) jika nominal bayar melebihi sisa tagihan (Anti-Overpayment). \u003cbr\u003e 3. Endpoint ini sudah dilindungi kunci database (Pessimistic Locking) sehingga aman dari *double submit* (Race Condition).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1439,23 +1501,23 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Nominal bayar lebih besar dari sisa tagihan",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Order atau Bank tidak ditemukan",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Pesanan sudah lunas sepenuhnya",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
@@ -1471,7 +1533,7 @@ const docTemplate = `{
         },
         "/payments/order/{order_id}": {
             "get": {
-                "description": "Mengambil daftar pembayaran berdasarkan ID pesanan",
+                "description": "Mengambil rincian histori/cicilan pembayaran khusus untuk satu pesanan tertentu.",
                 "produces": [
                     "application/json"
                 ],
@@ -1518,7 +1580,7 @@ const docTemplate = `{
         },
         "/payments/{id}": {
             "get": {
-                "description": "Mengambil detail data pembayaran berdasarkan ID",
+                "description": "Mengambil detail data pembayaran berdasarkan ID pembayaran",
                 "produces": [
                     "application/json"
                 ],
@@ -1563,7 +1625,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Memperbarui nomor referensi atau tipe pembayaran",
+                "description": "Memperbarui data meta pembayaran seperti nomor referensi atau tipe pembayaran. **Catatan:** Endpoint ini tidak dapat mengubah Nominal (Amount) untuk menjaga integritas data keuangan.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1596,7 +1658,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse"
                         }
                     },
                     "400": {
@@ -1620,7 +1682,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Menghapus data pembayaran secara permanen",
+                "description": "Menghapus data/histori pembayaran secara permanen (Misal: jika kasir salah input). \u003cbr\u003e\u003cbr\u003e **EFEK SAMPING OTOMATIS:** \u003cbr\u003e Sistem akan menghitung ulang sisa tagihan pesanan dan otomatis mengubah mundur ` + "`" + `payment_status` + "`" + ` pada Order kembali ke ` + "`" + `partial` + "`" + ` atau ` + "`" + `unpaid` + "`" + `.",
                 "produces": [
                     "application/json"
                 ],
@@ -1646,6 +1708,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
