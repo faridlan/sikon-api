@@ -1283,7 +1283,8 @@ paths:
       - Customers
   /orders:
     get:
-      description: Mengambil daftar seluruh pesanan dengan pagination dan filter
+      description: Mengambil daftar seluruh pesanan dengan fitur pagination dan multiple
+        filter.
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -1295,32 +1296,32 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Cari berdasarkan Nomor Order
+      - description: Cari berdasarkan Nomor Order (ORD-XXX)
         in: query
         name: search
         type: string
-      - description: Filter berdasarkan ID Customer
+      - description: Filter berdasarkan ID Customer (UUID)
         in: query
         name: customer_id
         type: string
-      - description: Filter berdasarkan ID Sales
+      - description: Filter berdasarkan ID Sales (UUID)
         in: query
         name: sales_id
         type: string
-      - description: Filter Status Order (quotation, pending, production, completed,
-          canceled)
+      - description: 'Filter Status Order (Enum: quotation, pending, production, completed,
+          canceled)'
         in: query
         name: order_status
         type: string
-      - description: Filter Status Pembayaran (unpaid, partial, paid)
+      - description: 'Filter Status Pembayaran (Enum: unpaid, partial, paid)'
         in: query
         name: payment_status
         type: string
-      - description: Tanggal Mulai (YYYY-MM-DD)
+      - description: 'Tanggal Mulai Pembuatan (Format: YYYY-MM-DD)'
         in: query
         name: start_date
         type: string
-      - description: Tanggal Selesai (YYYY-MM-DD)
+      - description: 'Tanggal Selesai Pembuatan (Format: YYYY-MM-DD)'
         in: query
         name: end_date
         type: string
@@ -1335,13 +1336,16 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Orders
       tags:
       - Orders
     post:
       consumes:
       - application/json
-      description: Membuat pesanan (order) baru beserta detail produknya
+      description: Membuat pesanan (order) baru beserta detail produknya. Sistem akan
+        otomatis menghitung Subtotal dan TotalAmount.
       parameters:
       - description: Data Pesanan Baru
         in: body
@@ -1357,23 +1361,26 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
-          description: Bad Request
+          description: 'Data input tidak valid (misal: format UUID salah)'
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
-          description: Not Found
+          description: Customer, Sales, atau Produk tidak ditemukan
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Order
       tags:
       - Orders
   /orders/{id}:
     delete:
-      description: Menghapus pesanan secara permanen
+      description: Menghapus pesanan secara permanen beserta seluruh item di dalamnya
+        (Cascading Delete).
       parameters:
       - description: Order ID (UUID)
         in: path
@@ -1391,15 +1398,22 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Order
       tags:
       - Orders
     get:
-      description: Mengambil detail pesanan (invoice lengkap) berdasarkan ID
+      description: Mengambil detail pesanan (invoice lengkap) berdasarkan ID. Meliputi
+        Header Order dan Order Items di dalamnya.
       parameters:
       - description: Order ID (UUID)
         in: path
@@ -1414,25 +1428,28 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
-          description: Bad Request
+          description: Format UUID tidak valid
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
-          description: Not Found
+          description: Data pesanan tidak ditemukan
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Order
       tags:
       - Orders
     put:
       consumes:
       - application/json
-      description: Memperbarui data ongkir, kurir, alamat, dan catatan (Bukan item
-        pesanan)
+      description: Memperbarui data meta pesanan seperti ongkir, kurir, alamat pengiriman,
+        dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan.
+        (Tidak mengubah detail item produk).
       parameters:
       - description: Order ID (UUID)
         in: path
@@ -1464,6 +1481,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Order Data
       tags:
       - Orders
@@ -1471,14 +1490,15 @@ paths:
     post:
       consumes:
       - application/json
-      description: Menambahkan item baru ke dalam pesanan yang sudah ada
+      description: Menambahkan item/produk baru ke dalam pesanan yang sudah ada. Otomatis
+        akan menghitung ulang Subtotal dan Grand Total dari Order.
       parameters:
-      - description: Order ID
+      - description: Order ID (UUID)
         in: path
         name: id
         required: true
         type: string
-      - description: Data Item Baru
+      - description: Data Item Baru (Gunakan JSONB pada Details)
         in: body
         name: request
         required: true
@@ -1503,19 +1523,22 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Add Item to Order
       tags:
       - Orders
   /orders/{id}/items/{itemId}:
     delete:
-      description: Menghapus item dari pesanan yang sudah ada
+      description: Menghapus item dari pesanan yang sudah ada. Otomatis akan memotong
+        Subtotal dan Grand Total dari Order.
       parameters:
-      - description: Order ID
+      - description: Order ID (UUID)
         in: path
         name: id
         required: true
         type: string
-      - description: Item ID
+      - description: Item ID (UUID)
         in: path
         name: itemId
         required: true
@@ -1539,20 +1562,23 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Order Item
       tags:
       - Orders
     put:
       consumes:
       - application/json
-      description: Memperbarui informasi item dalam pesanan yang sudah ada
+      description: Memperbarui qty, harga, atau detail dari produk dalam pesanan.
+        Otomatis akan menghitung ulang Subtotal dan Grand Total dari Order.
       parameters:
-      - description: Order ID
+      - description: Order ID (UUID)
         in: path
         name: id
         required: true
         type: string
-      - description: Item ID
+      - description: Item ID (UUID)
         in: path
         name: itemId
         required: true
@@ -1582,6 +1608,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Order Item
       tags:
       - Orders
@@ -1589,14 +1617,17 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Memperbarui status pembayaran pesanan (unpaid, partial, paid)
+      description: '**PERINGATAN:** Status pembayaran (unpaid, partial, paid) idealnya
+        berubah secara OTOMATIS saat kasir melakukan transaksi di endpoint `/api/payments`.
+        Endpoint ini hanya digunakan untuk *Manual Override* oleh Super Admin jika
+        terjadi anomali sistem.'
       parameters:
       - description: Order ID (UUID)
         in: path
         name: id
         required: true
         type: string
-      - description: Data Update Status Pembayaran
+      - description: 'Pilihan Status: unpaid, partial, paid'
         in: body
         name: request
         required: true
@@ -1621,22 +1652,28 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-      summary: Update Payment Status
+      security:
+      - BearerAuth: []
+      summary: Update Payment Status (MANUAL OVERRIDE)
       tags:
       - Orders
   /orders/{id}/status:
     patch:
       consumes:
       - application/json
-      description: Memperbarui status pengerjaan pesanan (pending, production, completed,
-        canceled)
+      description: 'Mengubah status operasional pabrik. Tunduk pada aturan validasi
+        State Machine: <br><br> 1. **quotation** -> **pending** <br> 2. **pending**
+        -> **production** *(Syarat: Minimal sudah bayar DP / status partial)* <br>
+        3. **production** -> **completed** *(Syarat: Status pembayaran harus lunas/paid)*
+        <br> 4. **canceled** *(Syarat: Baju belum masuk tahap production)*. <br><br>
+        Mengabaikan aturan ini akan mengembalikan error 409 Conflict.'
       parameters:
       - description: Order ID (UUID)
         in: path
         name: id
         required: true
         type: string
-      - description: Data Update Status
+      - description: 'Pilihan Status: quotation, pending, production, completed, canceled'
         in: body
         name: request
         required: true
@@ -1648,26 +1685,32 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any'
         "400":
-          description: Bad Request
+          description: Input tidak valid
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
-          description: Not Found
+          description: Order tidak ditemukan
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "409":
+          description: Transisi status ditolak oleh State Machine
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-      summary: Update Order Status
+      security:
+      - BearerAuth: []
+      summary: Update Order Status (STATE MACHINE)
       tags:
       - Orders
   /payments:
     get:
-      description: Mengambil daftar seluruh pembayaran (History transaksi) dengan
-        filter
+      description: Mengambil daftar seluruh histori pembayaran dari semua pesanan
+        dengan fitur pagination dan filter.
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -1679,7 +1722,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Cari No Ref atau Order ID
+      - description: Cari No Referensi atau Order ID
         in: query
         name: search
         type: string
@@ -1687,11 +1730,11 @@ paths:
         in: query
         name: payment_type
         type: string
-      - description: Tanggal Mulai (YYYY-MM-DD)
+      - description: Tanggal Mulai Pembayaran (YYYY-MM-DD)
         in: query
         name: start_date
         type: string
-      - description: Tanggal Akhir (YYYY-MM-DD)
+      - description: Tanggal Akhir Pembayaran (YYYY-MM-DD)
         in: query
         name: end_date
         type: string
@@ -1712,7 +1755,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Memproses pembayaran (DP/Lunas) untuk sebuah pesanan
+      description: Memproses pembayaran (DP/Lunas) untuk sebuah pesanan. <br><br>
+        **PENTING UNTUK FE:** <br> 1. Otomatis mengubah `payment_status` pada Order
+        menjadi `partial` atau `paid`. (Tidak perlu hit API update status lagi). <br>
+        2. Sistem akan menolak (HTTP 400) jika nominal bayar melebihi sisa tagihan
+        (Anti-Overpayment). <br> 3. Endpoint ini sudah dilindungi kunci database (Pessimistic
+        Locking) sehingga aman dari *double submit* (Race Condition).
       parameters:
       - description: Data Pembayaran
         in: body
@@ -1726,17 +1774,17 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse'
         "400":
-          description: Bad Request
+          description: Nominal bayar lebih besar dari sisa tagihan
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
-          description: Not Found
+          description: Order atau Bank tidak ditemukan
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "409":
-          description: Conflict
+          description: Pesanan sudah lunas sepenuhnya
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
@@ -1748,7 +1796,10 @@ paths:
       - Payments
   /payments/{id}:
     delete:
-      description: Menghapus data pembayaran secara permanen
+      description: 'Menghapus data/histori pembayaran secara permanen (Misal: jika
+        kasir salah input). <br><br> **EFEK SAMPING OTOMATIS:** <br> Sistem akan menghitung
+        ulang sisa tagihan pesanan dan otomatis mengubah mundur `payment_status` pada
+        Order kembali ke `partial` atau `unpaid`.'
       parameters:
       - description: Payment ID (UUID)
         in: path
@@ -1766,6 +1817,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -1774,7 +1829,7 @@ paths:
       tags:
       - Payments
     get:
-      description: Mengambil detail data pembayaran berdasarkan ID
+      description: Mengambil detail data pembayaran berdasarkan ID pembayaran
       parameters:
       - description: Payment ID (UUID)
         in: path
@@ -1806,7 +1861,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Memperbarui nomor referensi atau tipe pembayaran
+      description: Memperbarui data meta pembayaran seperti nomor referensi atau tipe
+        pembayaran. **Catatan:** Endpoint ini tidak dapat mengubah Nominal (Amount)
+        untuk menjaga integritas data keuangan.
       parameters:
       - description: Payment ID (UUID)
         in: path
@@ -1825,7 +1882,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse'
         "400":
           description: Bad Request
           schema:
@@ -1843,7 +1900,8 @@ paths:
       - Payments
   /payments/order/{order_id}:
     get:
-      description: Mengambil daftar pembayaran berdasarkan ID pesanan
+      description: Mengambil rincian histori/cicilan pembayaran khusus untuk satu
+        pesanan tertentu.
       parameters:
       - description: Order ID (UUID)
         in: path

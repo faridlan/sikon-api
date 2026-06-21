@@ -33,17 +33,19 @@ func NewOrderHandler(ou domain.OrderUsecase) OrderHandler {
 }
 
 // @Summary Create Order
-// @Description Membuat pesanan (order) baru beserta detail produknya
+// @Description Membuat pesanan (order) baru beserta detail produknya. Sistem akan otomatis menghitung Subtotal dan TotalAmount.
 // @Tags Orders
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param request body dto.OrderCreateRequest true "Data Pesanan Baru"
 // @Success 201 {object} utils.SuccessResponse[dto.OrderResponse]
-// @Failure 400 {object} utils.ErrorResponse
-// @Failure 404 {object} utils.ErrorResponse
+// @Failure 400 {object} utils.ErrorResponse "Data input tidak valid (misal: format UUID salah)"
+// @Failure 404 {object} utils.ErrorResponse "Customer, Sales, atau Produk tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders [post]
 func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	var req dto.OrderCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
@@ -82,16 +84,18 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 }
 
 // @Summary Get Order
-// @Description Mengambil detail pesanan (invoice lengkap) berdasarkan ID
+// @Description Mengambil detail pesanan (invoice lengkap) berdasarkan ID. Meliputi Header Order dan Order Items di dalamnya.
 // @Tags Orders
 // @Produce json
+// @Security BearerAuth
 // @Param id path string true "Order ID (UUID)"
 // @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
-// @Failure 400 {object} utils.ErrorResponse
-// @Failure 404 {object} utils.ErrorResponse
+// @Failure 400 {object} utils.ErrorResponse "Format UUID tidak valid"
+// @Failure 404 {object} utils.ErrorResponse "Data pesanan tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id} [get]
 func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -106,26 +110,27 @@ func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 }
 
 // @Summary List Orders
-// @Description Mengambil daftar seluruh pesanan dengan pagination dan filter
+// @Description Mengambil daftar seluruh pesanan dengan fitur pagination dan multiple filter.
 // @Tags Orders
 // @Produce json
+// @Security BearerAuth
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
-// @Param search query string false "Cari berdasarkan Nomor Order"
-// @Param customer_id query string false "Filter berdasarkan ID Customer"
-// @Param sales_id query string false "Filter berdasarkan ID Sales"
-// @Param order_status query string false "Filter Status Order (quotation, pending, production, completed, canceled)"
-// @Param payment_status query string false "Filter Status Pembayaran (unpaid, partial, paid)"
-// @Param start_date query string false "Tanggal Mulai (YYYY-MM-DD)"
-// @Param end_date query string false "Tanggal Selesai (YYYY-MM-DD)"
+// @Param search query string false "Cari berdasarkan Nomor Order (ORD-XXX)"
+// @Param customer_id query string false "Filter berdasarkan ID Customer (UUID)"
+// @Param sales_id query string false "Filter berdasarkan ID Sales (UUID)"
+// @Param order_status query string false "Filter Status Order (Enum: quotation, pending, production, completed, canceled)"
+// @Param payment_status query string false "Filter Status Pembayaran (Enum: unpaid, partial, paid)"
+// @Param start_date query string false "Tanggal Mulai Pembuatan (Format: YYYY-MM-DD)"
+// @Param end_date query string false "Tanggal Selesai Pembuatan (Format: YYYY-MM-DD)"
 // @Success 200 {object} utils.PaginatedResponse[dto.OrderResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders [get]
 func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
-	// Tangkap semua filter dari URL
 	filter := domain.OrderFilter{
 		Search:        c.Query("search"),
 		CustomerID:    c.Query("customer_id"),
@@ -138,7 +143,6 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 
 	query := domain.PaginationQuery{Page: page, Limit: limit}
 
-	// Kirim filter ke usecase
 	orders, meta, err := h.orderUsecase.ListOrders(c.Context(), filter, query)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
@@ -148,10 +152,11 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 }
 
 // @Summary Update Order Data
-// @Description Memperbarui data ongkir, kurir, alamat, dan catatan (Bukan item pesanan)
+// @Description Memperbarui data meta pesanan seperti ongkir, kurir, alamat pengiriman, dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan. (Tidak mengubah detail item produk).
 // @Tags Orders
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param id path string true "Order ID (UUID)"
 // @Param request body dto.OrderUpdateRequest true "Data Update Pesanan"
 // @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
@@ -160,6 +165,7 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id} [put]
 func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -190,19 +196,22 @@ func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui data pesanan", dto.ToOrderResponse(order))
 }
 
-// @Summary Update Order Status
-// @Description Memperbarui status pengerjaan pesanan (pending, production, completed, canceled)
+// @Summary Update Order Status (STATE MACHINE)
+// @Description Mengubah status operasional pabrik. Tunduk pada aturan validasi State Machine: <br><br> 1. **quotation** -> **pending** <br> 2. **pending** -> **production** *(Syarat: Minimal sudah bayar DP / status partial)* <br> 3. **production** -> **completed** *(Syarat: Status pembayaran harus lunas/paid)* <br> 4. **canceled** *(Syarat: Baju belum masuk tahap production)*. <br><br> Mengabaikan aturan ini akan mengembalikan error 409 Conflict.
 // @Tags Orders
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param id path string true "Order ID (UUID)"
-// @Param request body dto.OrderStatusUpdateRequest true "Data Update Status"
-// @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
-// @Failure 400 {object} utils.ErrorResponse
-// @Failure 404 {object} utils.ErrorResponse
+// @Param request body dto.OrderStatusUpdateRequest true "Pilihan Status: quotation, pending, production, completed, canceled"
+// @Success 200 {object} utils.SuccessResponse[any]
+// @Failure 400 {object} utils.ErrorResponse "Input tidak valid"
+// @Failure 404 {object} utils.ErrorResponse "Order tidak ditemukan"
+// @Failure 409 {object} utils.ErrorResponse "Transisi status ditolak oleh State Machine"
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id}/status [patch]
 func (h *orderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -227,15 +236,18 @@ func (h *orderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 }
 
 // @Summary Delete Order
-// @Description Menghapus pesanan secara permanen
+// @Description Menghapus pesanan secara permanen beserta seluruh item di dalamnya (Cascading Delete).
 // @Tags Orders
 // @Produce json
+// @Security BearerAuth
 // @Param id path string true "Order ID (UUID)"
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id} [delete]
 func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -248,19 +260,21 @@ func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menghapus pesanan", nil)
 }
 
-// @Summary Update Payment Status
-// @Description Memperbarui status pembayaran pesanan (unpaid, partial, paid)
+// @Summary Update Payment Status (MANUAL OVERRIDE)
+// @Description **PERINGATAN:** Status pembayaran (unpaid, partial, paid) idealnya berubah secara OTOMATIS saat kasir melakukan transaksi di endpoint `/api/payments`. Endpoint ini hanya digunakan untuk *Manual Override* oleh Super Admin jika terjadi anomali sistem.
 // @Tags Orders
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param id path string true "Order ID (UUID)"
-// @Param request body dto.PaymentStatusUpdateRequest true "Data Update Status Pembayaran"
+// @Param request body dto.PaymentStatusUpdateRequest true "Pilihan Status: unpaid, partial, paid"
 // @Success 200 {object} utils.SuccessResponse[any]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id}/payment-status [patch]
 func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -281,22 +295,24 @@ func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui status pembayaran", nil)
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui status pembayaran secara manual", nil)
 }
 
 // @Summary Add Item to Order
-// @Description Menambahkan item baru ke dalam pesanan yang sudah ada
+// @Description Menambahkan item/produk baru ke dalam pesanan yang sudah ada. Otomatis akan menghitung ulang Subtotal dan Grand Total dari Order.
 // @Tags Orders
 // @Accept json
 // @Produce json
-// @Param id path string true "Order ID"
-// @Param request body dto.OrderItemRequest true "Data Item Baru"
+// @Security BearerAuth
+// @Param id path string true "Order ID (UUID)"
+// @Param request body dto.OrderItemRequest true "Data Item Baru (Gunakan JSONB pada Details)"
 // @Success 201 {object} utils.SuccessResponse[dto.OrderResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id}/items [post]
 func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	orderID := c.Params("id")
 	if err := utils.ValidateUUID(orderID, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -326,12 +342,13 @@ func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
 }
 
 // @Summary Update Order Item
-// @Description Memperbarui informasi item dalam pesanan yang sudah ada
+// @Description Memperbarui qty, harga, atau detail dari produk dalam pesanan. Otomatis akan menghitung ulang Subtotal dan Grand Total dari Order.
 // @Tags Orders
 // @Accept json
 // @Produce json
-// @Param id path string true "Order ID"
-// @Param itemId path string true "Item ID"
+// @Security BearerAuth
+// @Param id path string true "Order ID (UUID)"
+// @Param itemId path string true "Item ID (UUID)"
 // @Param request body dto.OrderItemRequest true "Data Update Item"
 // @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
 // @Failure 400 {object} utils.ErrorResponse
@@ -339,6 +356,7 @@ func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id}/items/{itemId} [put]
 func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	orderID := c.Params("id")
 	itemID := c.Params("itemId")
 
@@ -366,17 +384,19 @@ func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
 }
 
 // @Summary Delete Order Item
-// @Description Menghapus item dari pesanan yang sudah ada
+// @Description Menghapus item dari pesanan yang sudah ada. Otomatis akan memotong Subtotal dan Grand Total dari Order.
 // @Tags Orders
 // @Produce json
-// @Param id path string true "Order ID"
-// @Param itemId path string true "Item ID"
+// @Security BearerAuth
+// @Param id path string true "Order ID (UUID)"
+// @Param itemId path string true "Item ID (UUID)"
 // @Success 200 {object} utils.SuccessResponse[dto.OrderResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /orders/{id}/items/{itemId} [delete]
 func (h *orderHandler) DeleteOrderItem(c *fiber.Ctx) error {
+	// ... (Isi fungsi tetap sama)
 	orderID := c.Params("id")
 	itemID := c.Params("itemId")
 

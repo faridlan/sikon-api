@@ -288,26 +288,107 @@ func TestOrderUsecase_DeleteOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, uc := setupOrderTest()
+	// Pastikan mockTxManager tertangkap dari setupOrderTest()
+	mockOrderRepo, _, _, _, _, mockTxManager, uc := setupOrderTest()
 	mockID := "ord-123"
 
-	t.Run("Success - Valid Status", func(t *testing.T) {
+	// Helper untuk mengeksekusi closure di dalam transaksi
+	mockTransaction := func() {
+		mockTxManager.ExpectedCalls = nil
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
+			Return(func(ctx context.Context, fn func(context.Context) error) error {
+				return fn(ctx)
+			}).Once()
+	}
+
+	t.Run("Success - Quotation to Pending", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTransaction()
+
+		// Kondisi Awal: Order masih Quotation
+		mockOrder := &domain.Order{
+			ID:          mockID,
+			OrderStatus: domain.OrderStatusQuotation,
+		}
+
+		// Ekspektasi: Gembok Order, validasi sukses, lalu update
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
+		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatusPending, domain.PaymentStatus("")).Return(nil).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
+
+		assert.NoError(t, err)
+		mockOrderRepo.AssertExpectations(t)
+		mockTxManager.AssertExpectations(t)
+	})
+
+	t.Run("Success - Pending to Production", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTransaction()
+
+		// Kondisi Awal: Order Pending dan SUDAH DP (Syarat Mutlak State Machine)
+		mockOrder := &domain.Order{
+			ID:            mockID,
+			OrderStatus:   domain.OrderStatusPending,
+			PaymentStatus: domain.PaymentStatusPartial,
+		}
+
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
 		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatusProduction, domain.PaymentStatus("")).Return(nil).Once()
 
 		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusProduction)
 
 		assert.NoError(t, err)
+		mockOrderRepo.AssertExpectations(t)
 	})
 
-	t.Run("Success - Quotation Status", func(t *testing.T) {
-		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatusQuotation, domain.PaymentStatus("")).Return(nil).Once()
+	t.Run("Error - State Machine Rejected (Pending to Production but Unpaid)", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTransaction()
 
-		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusQuotation)
+		// Kondisi Awal: Order Pending, tapi BELUM BAYAR (Akan ditolak Satpam Pabrik)
+		mockOrder := &domain.Order{
+			ID:            mockID,
+			OrderStatus:   domain.OrderStatusPending,
+			PaymentStatus: domain.PaymentStatusUnpaid,
+		}
 
-		assert.NoError(t, err)
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusProduction)
+
+		assert.Error(t, err)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrConflict, appErr.ErrType)
+		assert.Contains(t, appErr.Message, "belum ada pembayaran")
+
+		// Pastikan TIDAK ADA proses penyimpanan ke database
+		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
 
-	t.Run("Error - Invalid Status", func(t *testing.T) {
+	t.Run("Error - Order Not Found", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTransaction()
+
+		// Skenario: Data order tidak ada di DB saat mau digembok
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(nil, domain.ErrNotFound).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
+
+		assert.Error(t, err)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrNotFound, appErr.ErrType)
+
+		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
+	})
+
+	t.Run("Error - Invalid Status Parameter", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTxManager.ExpectedCalls = nil
+
+		// Input mentah langsung ngawur, harusnya gagal sebelum masuk transaksi
 		err := uc.UpdateOrderStatus(context.Background(), mockID, "STATUS_NGAWUR")
 
 		assert.Error(t, err)
@@ -315,7 +396,8 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
 
-		// Pastikan repo tidak dipanggil jika status invalid
+		mockTxManager.AssertNotCalled(t, "RunInTransaction")
+		mockOrderRepo.AssertNotCalled(t, "GetByIDForUpdate")
 		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
 }

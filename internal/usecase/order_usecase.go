@@ -216,11 +216,36 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	// Validasi input mentah
 	if !status.IsValid() {
 		return domain.NewError(domain.ErrBadParamInput, "Status order tidak valid")
 	}
 
-	return u.orderRepo.UpdateStatus(ctx, id, status, "")
+	// 🚨 MULAI PROSES TRANSAKSI (Gunakan Kertas Buram agar aman)
+	return u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+
+		// 1. Ambil data Order SAAT INI (Gunakan GetByIDForUpdate untuk menggembok data)
+		order, err := u.orderRepo.GetByIDForUpdate(txCtx, id)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
+			}
+			return err
+		}
+
+		// 2. Panggil Satpam (State Machine) di Domain Layer
+		// Di sinilah keajaiban Clean Architecture terjadi. Usecase tidak perlu tahu aturan pabriknya.
+		if err := order.TransitionStatus(status); err != nil {
+			return err // Langsung lemparkan error dari satpam (misal: "Belum lunas!")
+		}
+
+		// 3. Jika Satpam mengizinkan (err = nil), simpan status barunya ke Database
+		if err := u.orderRepo.UpdateStatus(txCtx, id, order.OrderStatus, ""); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (u *orderUsecase) UpdatePaymentStatus(c context.Context, id string, status domain.PaymentStatus) error {

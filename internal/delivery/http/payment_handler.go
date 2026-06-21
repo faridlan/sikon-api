@@ -28,15 +28,15 @@ func NewPaymentHandler(pu domain.PaymentUsecase) PaymentHandler {
 }
 
 // @Summary Process Payment
-// @Description Memproses pembayaran (DP/Lunas) untuk sebuah pesanan
+// @Description Memproses pembayaran (DP/Lunas) untuk sebuah pesanan. <br><br> **PENTING UNTUK FE:** <br> 1. Otomatis mengubah `payment_status` pada Order menjadi `partial` atau `paid`. (Tidak perlu hit API update status lagi). <br> 2. Sistem akan menolak (HTTP 400) jika nominal bayar melebihi sisa tagihan (Anti-Overpayment). <br> 3. Endpoint ini sudah dilindungi kunci database (Pessimistic Locking) sehingga aman dari *double submit* (Race Condition).
 // @Tags Payments
 // @Accept json
 // @Produce json
 // @Param request body dto.PaymentCreateRequest true "Data Pembayaran"
-// @Success 201 {object} utils.SuccessResponse[utils.EmptyObj]
-// @Failure 400 {object} utils.ErrorResponse
-// @Failure 404 {object} utils.ErrorResponse
-// @Failure 409 {object} utils.ErrorResponse
+// @Success 201 {object} utils.SuccessResponse[dto.PaymentResponse]
+// @Failure 400 {object} utils.ErrorResponse "Nominal bayar lebih besar dari sisa tagihan"
+// @Failure 404 {object} utils.ErrorResponse "Order atau Bank tidak ditemukan"
+// @Failure 409 {object} utils.ErrorResponse "Pesanan sudah lunas sepenuhnya"
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /payments [post]
 func (h *paymentHandler) ProcessPayment(c *fiber.Ctx) error {
@@ -66,7 +66,7 @@ func (h *paymentHandler) ProcessPayment(c *fiber.Ctx) error {
 }
 
 // @Summary Get Payment
-// @Description Mengambil detail data pembayaran berdasarkan ID
+// @Description Mengambil detail data pembayaran berdasarkan ID pembayaran
 // @Tags Payments
 // @Produce json
 // @Param id path string true "Payment ID (UUID)"
@@ -90,15 +90,15 @@ func (h *paymentHandler) GetPayment(c *fiber.Ctx) error {
 }
 
 // @Summary List Payments
-// @Description Mengambil daftar seluruh pembayaran (History transaksi) dengan filter
+// @Description Mengambil daftar seluruh histori pembayaran dari semua pesanan dengan fitur pagination dan filter.
 // @Tags Payments
 // @Produce json
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
-// @Param search query string false "Cari No Ref atau Order ID"
+// @Param search query string false "Cari No Referensi atau Order ID"
 // @Param payment_type query string false "Filter Tipe Pembayaran (dp, settlement, installment)"
-// @Param start_date query string false "Tanggal Mulai (YYYY-MM-DD)"
-// @Param end_date query string false "Tanggal Akhir (YYYY-MM-DD)"
+// @Param start_date query string false "Tanggal Mulai Pembayaran (YYYY-MM-DD)"
+// @Param end_date query string false "Tanggal Akhir Pembayaran (YYYY-MM-DD)"
 // @Success 200 {object} utils.PaginatedResponse[dto.PaymentResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /payments [get]
@@ -126,13 +126,13 @@ func (h *paymentHandler) ListPayments(c *fiber.Ctx) error {
 }
 
 // @Summary Update Payment
-// @Description Memperbarui nomor referensi atau tipe pembayaran
+// @Description Memperbarui data meta pembayaran seperti nomor referensi atau tipe pembayaran. **Catatan:** Endpoint ini tidak dapat mengubah Nominal (Amount) untuk menjaga integritas data keuangan.
 // @Tags Payments
 // @Accept json
 // @Produce json
 // @Param id path string true "Payment ID (UUID)"
 // @Param request body dto.PaymentUpdateRequest true "Data Update Pembayaran"
-// @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
+// @Success 200 {object} utils.SuccessResponse[dto.PaymentResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
@@ -165,12 +165,13 @@ func (h *paymentHandler) UpdatePayment(c *fiber.Ctx) error {
 }
 
 // @Summary Delete Payment
-// @Description Menghapus data pembayaran secara permanen
+// @Description Menghapus data/histori pembayaran secara permanen (Misal: jika kasir salah input). <br><br> **EFEK SAMPING OTOMATIS:** <br> Sistem akan menghitung ulang sisa tagihan pesanan dan otomatis mengubah mundur `payment_status` pada Order kembali ke `partial` atau `unpaid`.
 // @Tags Payments
 // @Produce json
 // @Param id path string true "Payment ID (UUID)"
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /payments/{id} [delete]
 func (h *paymentHandler) DeletePayment(c *fiber.Ctx) error {
@@ -187,7 +188,7 @@ func (h *paymentHandler) DeletePayment(c *fiber.Ctx) error {
 }
 
 // @Summary Get Payments by Order ID
-// @Description Mengambil daftar pembayaran berdasarkan ID pesanan
+// @Description Mengambil rincian histori/cicilan pembayaran khusus untuk satu pesanan tertentu.
 // @Tags Payments
 // @Produce json
 // @Param order_id path string true "Order ID (UUID)"

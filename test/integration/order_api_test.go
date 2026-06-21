@@ -278,7 +278,45 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 	prod := tests.SeedProduct(db, cat.ID, "Prod", 100)
 	order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
 
-	t.Run("Success_Update_To_Production", func(t *testing.T) {
+	t.Run("Success_Update_Quotation_To_Pending", func(t *testing.T) {
+		// SETUP: Set kondisi awal di DB menjadi Quotation & Unpaid
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "quotation", "unpaid", order.ID)
+
+		reqBody := dto.OrderStatusUpdateRequest{
+			OrderStatus: "pending",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("Failed_Update_Pending_To_Production_No_DP", func(t *testing.T) {
+		// SETUP: Set kondisi awal menjadi Pending tapi BELUM BAYAR (Harusnya ditolak masuk pabrik)
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "pending", "unpaid", order.ID)
+
+		reqBody := dto.OrderStatusUpdateRequest{
+			OrderStatus: "production",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		// ASERSI: Pastikan HTTP Status-nya 409 Conflict (Ditolak State Machine)
+		assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
+	})
+
+	t.Run("Success_Update_Pending_To_Production_With_DP", func(t *testing.T) {
+		// SETUP: Set kondisi awal menjadi Pending dan SUDAH DP/Partial (Harusnya diizinkan masuk pabrik)
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "pending", "partial", order.ID)
+
 		reqBody := dto.OrderStatusUpdateRequest{
 			OrderStatus: "production",
 		}
@@ -292,23 +330,9 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("Success_Update_To_Quotation", func(t *testing.T) {
-		reqBody := dto.OrderStatusUpdateRequest{
-			OrderStatus: "quotation", // Status valid lainnya
-		}
-		bodyJson, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-	})
-
 	t.Run("Failed_Invalid_Status_Enum", func(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{
-			OrderStatus: "status_ngasal", // Harus ditolak oleh validator "oneof"
+			OrderStatus: "status_ngasal", // Ditolak oleh validator DTO / Usecase
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -317,9 +341,9 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
+		// ASERSI: Pastikan HTTP Status-nya 400 Bad Request
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
-
 }
 
 // ==========================================
