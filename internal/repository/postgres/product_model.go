@@ -4,16 +4,18 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"gorm.io/gorm"
 )
 
 type ProductModel struct {
-	ID          string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	CategoryID  string    `gorm:"type:uuid;not null"`
-	Name        string    `gorm:"type:varchar(255);not null"`
-	Description string    `gorm:"type:text"`
-	BasePrice   float64   `gorm:"type:decimal(12,2);not null;default:0"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+	ID          string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	CategoryID  string         `gorm:"type:uuid;not null"`
+	Name        string         `gorm:"type:varchar(255);not null"`
+	Description string         `gorm:"type:text"`
+	BasePrice   float64        `gorm:"type:decimal(12,2);not null;default:0"`
+	CreatedAt   time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
 
 	// Relasi
 	Category *CategoryModel `gorm:"foreignKey:CategoryID"`

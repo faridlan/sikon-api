@@ -4,18 +4,20 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"gorm.io/gorm"
 )
 
 type PaymentModel struct {
-	ID              string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderID         string    `gorm:"type:uuid;not null"`
-	BankAccountID   string    `gorm:"type:uuid;not null"`
-	Amount          float64   `gorm:"type:decimal(15,2);not null;default:0"`
-	PaymentDate     time.Time `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP"`
-	ReferenceNumber string    `gorm:"type:varchar(100)"`
-	PaymentType     string    `gorm:"type:varchar(50);not null"` // "dp", "settlement", "installment"
-	CreatedAt       time.Time `gorm:"autoCreateTime"`
-	UpdatedAt       time.Time `gorm:"autoUpdateTime"`
+	ID              string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderID         string         `gorm:"type:uuid;not null"`
+	BankAccountID   string         `gorm:"type:uuid;not null"`
+	Amount          float64        `gorm:"type:decimal(15,2);not null;default:0"`
+	PaymentDate     time.Time      `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP"`
+	ReferenceNumber string         `gorm:"type:varchar(100)"`
+	PaymentType     string         `gorm:"type:varchar(50);not null"` // "dp", "settlement", "installment"
+	CreatedAt       time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt       gorm.DeletedAt `gorm:"index"`
 
 	Order       *OrderModel       `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	BankAccount *BankAccountModel `gorm:"foreignKey:BankAccountID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

@@ -5,6 +5,7 @@ import (
 
 	"github.com/faridlan/sikon-api/internal/domain"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type OrderItemModel struct {
@@ -16,6 +17,7 @@ type OrderItemModel struct {
 	Details   datatypes.JSONMap `gorm:"type:jsonb"` // Magic dari GORM
 	CreatedAt time.Time         `gorm:"autoCreateTime"`
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt    `gorm:"index"`
 
 	// Relasi
 	Product *ProductModel `gorm:"foreignKey:ProductID"`

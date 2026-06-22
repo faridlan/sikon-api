@@ -4,17 +4,19 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"gorm.io/gorm"
 )
 
 type CustomerModel struct {
-	ID        string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	Name      string    `gorm:"type:varchar(255);not null"`
-	Phone     string    `gorm:"type:varchar(50);not null"`
-	Address   string    `gorm:"type:text"`
-	CreatedBy string    `gorm:"type:uuid"` // Foreign key ke users.id
-	SalesID   *string   `gorm:"type:uuid"` // Foreign key ke sales.id
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
+	ID        string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	Name      string         `gorm:"type:varchar(255);not null"`
+	Phone     string         `gorm:"type:varchar(50);not null"`
+	Address   string         `gorm:"type:text"`
+	CreatedBy string         `gorm:"type:uuid"` // Foreign key ke users.id
+	SalesID   *string        `gorm:"type:uuid"` // Foreign key ke sales.id
+	CreatedAt time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 
 	// Relasi (Preload)
 	Creator *UserModel `gorm:"foreignKey:CreatedBy"`
