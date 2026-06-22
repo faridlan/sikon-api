@@ -4,17 +4,19 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"gorm.io/gorm"
 )
 
 // UserModel merepresentasikan tabel "users" di database
 type UserModel struct {
-	ID        string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	Name      string    `gorm:"type:varchar(255);not null"`
-	Email     string    `gorm:"type:varchar(255);unique;not null"`
-	Password  string    `gorm:"type:varchar(255);not null"`
-	Role      string    `gorm:"type:varchar(50);not null"`
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
+	ID        string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	Name      string         `gorm:"type:varchar(255);not null"`
+	Email     string         `gorm:"type:varchar(255);unique;not null"`
+	Password  string         `gorm:"type:varchar(255);not null"`
+	Role      string         `gorm:"type:varchar(50);not null"`
+	CreatedAt time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 // TableName memberitahu GORM nama tabel pastinya

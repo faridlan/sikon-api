@@ -4,16 +4,18 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"gorm.io/gorm"
 )
 
 type BankAccountModel struct {
-	ID            string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	UserID        *string   `gorm:"type:uuid"` // Pointer karena bisa NULL (rekening global)
-	BankName      string    `gorm:"type:varchar(100);not null"`
-	AccountNumber string    `gorm:"type:varchar(100);not null"`
-	AccountName   string    `gorm:"type:varchar(255);not null"`
-	CreatedAt     time.Time `gorm:"autoCreateTime"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
+	ID            string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	UserID        *string        `gorm:"type:uuid"` // Pointer karena bisa NULL (rekening global)
+	BankName      string         `gorm:"type:varchar(100);not null"`
+	AccountNumber string         `gorm:"type:varchar(100);not null"`
+	AccountName   string         `gorm:"type:varchar(255);not null"`
+	CreatedAt     time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt     time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt     gorm.DeletedAt `gorm:"index"`
 
 	// Relasi
 	User *UserModel `gorm:"foreignKey:UserID"`
