@@ -170,7 +170,7 @@ func (o *Order) TransitionStatus(newStatus OrderStatus) error {
 		return nil
 	}
 
-	// 2. Jika order sudah berstatus Final (Selesai/Batal), tidak boleh diutak-atik lagi
+	// 2. Jika order sudah berstatus Final (Selesai/Batal), tidak boleh diutak-atik lagi (Terminal State)
 	if o.OrderStatus == OrderStatusCompleted || o.OrderStatus == OrderStatusCanceled {
 		return NewError(ErrConflict, "Pesanan yang sudah selesai atau dibatalkan tidak dapat diubah statusnya")
 	}
@@ -179,9 +179,9 @@ func (o *Order) TransitionStatus(newStatus OrderStatus) error {
 	switch newStatus {
 
 	case OrderStatusPending:
-		// Hanya Quotation yang boleh di-fix-kan jadi Pending
-		if o.OrderStatus != OrderStatusQuotation {
-			return NewError(ErrConflict, "Hanya pesanan berstatus quotation yang bisa diubah menjadi pending")
+		// MVP REVISI: Izinkan kembali ke pending dari production jika admin salah klik (koreksi manual)
+		if o.OrderStatus != OrderStatusQuotation && o.OrderStatus != OrderStatusProduction {
+			return NewError(ErrConflict, "Hanya pesanan berstatus quotation atau production (koreksi) yang bisa diubah menjadi pending")
 		}
 
 	case OrderStatusProduction:
@@ -196,7 +196,6 @@ func (o *Order) TransitionStatus(newStatus OrderStatus) error {
 
 	case OrderStatusCompleted:
 		// Syarat: Baju harus sudah selesai dijahit (Production -> Completed)
-		// Karena kamu tidak punya status "Shipped/Ready", asusmsinya barang langsung diserahkan
 		if o.OrderStatus != OrderStatusProduction {
 			return NewError(ErrConflict, "Pesanan belum diproduksi, tidak bisa diselesaikan")
 		}
