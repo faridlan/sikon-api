@@ -36,3 +36,10 @@ func (u *dashboardUsecase) GetSalesReport(c context.Context, filter domain.Dashb
 	// Langsung teruskan ke repository karena ini murni kueri pembacaan data
 	return u.dashboardRepo.GetSalesReport(ctx, filter)
 }
+
+func (u *dashboardUsecase) GetReceivablesReport(c context.Context) ([]domain.ReceivableReportItem, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	return u.dashboardRepo.GetReceivablesReport(ctx)
+}

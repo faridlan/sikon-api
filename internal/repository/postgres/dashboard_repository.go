@@ -131,3 +131,43 @@ func (r *dashboardRepository) GetSalesReport(ctx context.Context, filter domain.
 
 	return report, nil
 }
+
+func (r *dashboardRepository) GetReceivablesReport(ctx context.Context) ([]domain.ReceivableReportItem, error) {
+	var report []domain.ReceivableReportItem
+
+	// Menggunakan Raw SQL Query Builder GORM untuk melakukan JOIN dan Kalkulasi Agregat
+	err := r.db.WithContext(ctx).Table("orders o").
+		Select(`
+			o.id as order_id,
+			o.order_number,
+			TO_CHAR(o.created_at, 'YYYY-MM-DD') as order_date,
+			c.name as customer_name,
+			u.name as sales_name,
+			o.order_status,
+			o.total_amount,
+			COALESCE(SUM(p.amount), 0) as total_paid,
+			(o.total_amount - COALESCE(SUM(p.amount), 0)) as remaining_bill
+		`).
+		Joins("LEFT JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL").
+		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
+		// Join ke payments untuk menghitung total cicilan/DP yang masuk
+		Joins("LEFT JOIN payments p ON p.order_id = o.id AND p.deleted_at IS NULL").
+		Where("o.deleted_at IS NULL").
+		// Aturan Bisnis: Hanya ambil yang di meja produksi atau pending
+		Where("o.order_status IN (?, ?)", domain.OrderStatusPending, domain.OrderStatusProduction).
+		// Aturan Bisnis: Hanya ambil yang status bayarnya unpaid atau partial
+		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial).
+		Group("o.id, o.order_number, o.created_at, c.name, u.name, o.order_status, o.total_amount").
+		Order("o.created_at ASC"). // Urutkan dari pesanan yang paling lama menunggak
+		Scan(&report).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	if report == nil {
+		report = []domain.ReceivableReportItem{}
+	}
+
+	return report, nil
+}

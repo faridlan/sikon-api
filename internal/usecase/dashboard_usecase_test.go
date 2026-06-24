@@ -163,3 +163,71 @@ func TestDashboardUsecase_GetSalesReport(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 }
+
+func TestDashboardUsecase_GetReceivablesReport(t *testing.T) {
+	// Setup data mock balikan dari repo
+	mockReport := []domain.ReceivableReportItem{
+		{
+			OrderID:       "order-1",
+			OrderNumber:   "ORD-001",
+			OrderDate:     "2026-06-24",
+			CustomerName:  "PT Maju Jaya",
+			SalesName:     "Budi Sales",
+			OrderStatus:   "production",
+			TotalAmount:   150000,
+			TotalPaid:     50000,
+			RemainingBill: 100000,
+		},
+	}
+
+	t.Run("Success - Get Receivables Report", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		mockRepo.On("GetReceivablesReport", mock.Anything).Return(mockReport, nil).Once()
+
+		result, err := uc.GetReceivablesReport(context.Background())
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result, 1)
+
+		// Verifikasi kalkulasi matematis DTO yang dikirimkan
+		assert.Equal(t, "PT Maju Jaya", result[0].CustomerName)
+		assert.Equal(t, float64(100000), result[0].RemainingBill)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Empty Report", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		emptyReport := []domain.ReceivableReportItem{}
+		mockRepo.On("GetReceivablesReport", mock.Anything).Return(emptyReport, nil).Once()
+
+		result, err := uc.GetReceivablesReport(context.Background())
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result, 0)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - Repository Failed", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		mockErr := errors.New("database connection timeout")
+		mockRepo.On("GetReceivablesReport", mock.Anything).Return(nil, mockErr).Once()
+
+		result, err := uc.GetReceivablesReport(context.Background())
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, mockErr, err)
+
+		mockRepo.AssertExpectations(t)
+	})
+}

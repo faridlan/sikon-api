@@ -119,4 +119,5 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	dashboard := api.Group("/dashboard")
 	dashboard.Get("/summary", handlers.DashboardHandler.GetSummary)
 	dashboard.Get("/sales-report", handlers.DashboardHandler.GetSalesReport)
+	dashboard.Get("/receivables-report", handlers.DashboardHandler.GetReceivablesReport)
 }

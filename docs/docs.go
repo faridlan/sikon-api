@@ -775,6 +775,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/dashboard/receivables-report": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil daftar pesanan berjalan (Pending/Production) yang belum lunas untuk kebutuhan tabel cetak PDF.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get Receivables Report (Laporan Piutang)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableReportItemResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/dashboard/sales-report": {
             "get": {
                 "security": [
@@ -3218,6 +3249,38 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableReportItemResponse": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "order_status": {
+                    "type": "string"
+                },
+                "remaining_bill": {
+                    "type": "number"
+                },
+                "sales_name": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "total_paid": {
+                    "type": "number"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse": {
             "type": "object",
             "properties": {
@@ -3556,6 +3619,20 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableReportItemResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableReportItemResponse"
                     }
                 },
                 "message": {

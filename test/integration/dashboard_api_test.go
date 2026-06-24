@@ -194,3 +194,73 @@ func TestGetSalesReport_Integration(t *testing.T) {
 		assert.Len(t, response.Data, 0)
 	})
 }
+
+func TestGetReceivablesReport_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	cat := tests.SeedCategory(db, "Kemeja Taktikal")
+	prod := tests.SeedProduct(db, cat.ID, "Kemeja W-Tac", 100000) // Base price 100k, SeedOrder totalnya 110k
+	sales := tests.SeedUser(db, "Sales Budi", "budi@sikon.com", "sales")
+	cust := tests.SeedCustomer(db, "Bapak Polisi", "08123", "Mabes")
+	bank := tests.SeedBankAccount(db, nil, "BCA", "12345", "PT Sikon")
+
+	// =========================================================================
+	// SKENARIO 1: Order Masuk Pabrik, Baru DP (Masuk Laporan)
+	// =========================================================================
+	order1 := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "production")
+	db.Exec("UPDATE orders SET payment_status = 'partial' WHERE id = ?", order1.ID)
+	tests.SeedPayment(db, order1.ID, bank.ID, 40000, "transfer") // Total 110k, Bayar 40k, Sisa 70k
+
+	// =========================================================================
+	// SKENARIO 2: Order Masih Pending, Belum Bayar Sama Sekali (Masuk Laporan)
+	// =========================================================================
+	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "pending")
+	// Status bawaan seeder sudah 'unpaid', tidak ada data di tabel payments
+	// Total 110k, Bayar 0, Sisa 110k
+
+	// =========================================================================
+	// SKENARIO 3: Order Selesai & Lunas (TIDAK BOLEH Masuk Laporan)
+	// =========================================================================
+	order3 := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "completed")
+	db.Exec("UPDATE orders SET payment_status = 'paid' WHERE id = ?", order3.ID)
+	tests.SeedPayment(db, order3.ID, bank.ID, 110000, "transfer") // Sudah Lunas 100%
+
+	// =========================================================================
+	// SKENARIO 4: Order Dibatalkan (TIDAK BOLEH Masuk Laporan)
+	// =========================================================================
+	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "canceled")
+	// Biarpun unpaid, order batal tidak ditagih lagi.
+
+	t.Run("Success_Get_Receivables_Report", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/dashboard/receivables-report", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[[]dto.ReceivableReportItemResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		err = json.Unmarshal(respBody, &response)
+		assert.NoError(t, err)
+
+		// ASERSI 1: Hanya boleh ada 2 data yang kembali (Order 1 dan Order 2)
+		assert.Len(t, response.Data, 2, "Hanya order yang menunggak yang boleh muncul")
+
+		// ASERSI 2: Kita cari Order 1 di dalam array response untuk mengecek kalkulasi DP-nya
+		var reportOrder1 *dto.ReceivableReportItemResponse
+		for _, v := range response.Data {
+			if v.OrderID == order1.ID {
+				reportOrder1 = &v
+				break
+			}
+		}
+
+		assert.NotNil(t, reportOrder1, "Order 1 harusnya ada di laporan")
+		assert.Equal(t, float64(110000), reportOrder1.TotalAmount)
+		assert.Equal(t, float64(40000), reportOrder1.TotalPaid)
+		assert.Equal(t, float64(70000), reportOrder1.RemainingBill, "Kalkulasi sisa tagihan salah!")
+		assert.Equal(t, "Bapak Polisi", reportOrder1.CustomerName)
+		assert.Equal(t, "Sales Budi", reportOrder1.SalesName)
+	})
+}

@@ -11,6 +11,7 @@ import (
 type DashboardHandler interface {
 	GetSummary(c *fiber.Ctx) error
 	GetSalesReport(c *fiber.Ctx) error
+	GetReceivablesReport(c *fiber.Ctx) error
 }
 
 type dashboardHandler struct {
@@ -70,4 +71,23 @@ func (h *dashboardHandler) GetSalesReport(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data laporan penjualan", dto.ToSalesReportItemResponseList(report))
+}
+
+// Pastikan menambahkan GetReceivablesReport(c *fiber.Ctx) error di interface DashboardHandler
+
+// @Summary Get Receivables Report (Laporan Piutang)
+// @Description Mengambil daftar pesanan berjalan (Pending/Production) yang belum lunas untuk kebutuhan tabel cetak PDF.
+// @Tags Dashboard
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.SuccessResponse[[]dto.ReceivableReportItemResponse]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /dashboard/receivables-report [get]
+func (h *dashboardHandler) GetReceivablesReport(c *fiber.Ctx) error {
+	report, err := h.dashboardUsecase.GetReceivablesReport(c.Context())
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil laporan piutang pesanan", dto.ToReceivableReportItemResponseList(report))
 }

@@ -19,6 +19,17 @@ type SalesReportItemResponse struct {
 	CompletedOrders int64   `json:"completed_orders"`
 	CanceledOrders  int64   `json:"canceled_orders"`
 }
+type ReceivableReportItemResponse struct {
+	OrderID       string  `json:"order_id"`
+	OrderNumber   string  `json:"order_number"`
+	OrderDate     string  `json:"order_date"`
+	CustomerName  string  `json:"customer_name"`
+	SalesName     string  `json:"sales_name"`
+	OrderStatus   string  `json:"order_status"`
+	TotalAmount   float64 `json:"total_amount"`
+	TotalPaid     float64 `json:"total_paid"`
+	RemainingBill float64 `json:"remaining_bill"`
+}
 
 func ToDashboardSummaryResponse(d *domain.DashboardSummary) DashboardSummaryResponse {
 	return DashboardSummaryResponse{
@@ -49,5 +60,26 @@ func ToSalesReportItemResponseList(data []domain.SalesReportItem) []SalesReportI
 		result = []SalesReportItemResponse{}
 	}
 
+	return result
+}
+
+func ToReceivableReportItemResponseList(data []domain.ReceivableReportItem) []ReceivableReportItemResponse {
+	var result []ReceivableReportItemResponse
+	for _, item := range data {
+		result = append(result, ReceivableReportItemResponse{
+			OrderID:       item.OrderID,
+			OrderNumber:   item.OrderNumber,
+			OrderDate:     item.OrderDate,
+			CustomerName:  item.CustomerName,
+			SalesName:     item.SalesName,
+			OrderStatus:   item.OrderStatus,
+			TotalAmount:   item.TotalAmount,
+			TotalPaid:     item.TotalPaid,
+			RemainingBill: item.RemainingBill,
+		})
+	}
+	if result == nil {
+		result = []ReceivableReportItemResponse{}
+	}
 	return result
 }

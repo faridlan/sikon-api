@@ -21,6 +21,19 @@ type SalesReportItem struct {
 	CanceledOrders  int64   `json:"canceled_orders"`
 }
 
+// ReceivableReportItem merepresentasikan baris data pesanan yang belum lunas (Piutang)
+type ReceivableReportItem struct {
+	OrderID       string  `json:"order_id"`
+	OrderNumber   string  `json:"order_number"`
+	OrderDate     string  `json:"order_date"`
+	CustomerName  string  `json:"customer_name"`
+	SalesName     string  `json:"sales_name"`
+	OrderStatus   string  `json:"order_status"`
+	TotalAmount   float64 `json:"total_amount"`
+	TotalPaid     float64 `json:"total_paid"`
+	RemainingBill float64 `json:"remaining_bill"`
+}
+
 // DashboardFilter untuk menyaring laporan berdasarkan rentang waktu (harian, bulanan, tahunan)
 type DashboardFilter struct {
 	StartDate string // Format: YYYY-MM-DD
@@ -31,10 +44,12 @@ type DashboardFilter struct {
 type DashboardRepository interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
+	GetReceivablesReport(ctx context.Context) ([]ReceivableReportItem, error)
 }
 
 // DashboardUsecase adalah kontrak untuk layer logika bisnis
 type DashboardUsecase interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
+	GetReceivablesReport(ctx context.Context) ([]ReceivableReportItem, error)
 }
