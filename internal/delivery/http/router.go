@@ -18,6 +18,7 @@ type Handlers struct {
 	OrderHandler        OrderHandler
 	PaymentHandler      PaymentHandler
 	SpecTemplateHandler SpecTemplateHandler
+	DashboardHandler    DashboardHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers
@@ -114,4 +115,9 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	specTemplates.Get("/:id", handlers.SpecTemplateHandler.GetSpecTemplate)
 	specTemplates.Put("/:id", handlers.SpecTemplateHandler.UpdateSpecTemplate)
 	specTemplates.Delete("/:id", handlers.SpecTemplateHandler.DeleteSpecTemplate)
+
+	dashboard := api.Group("/dashboard")
+	dashboard.Get("/summary", handlers.DashboardHandler.GetSummary)
+	dashboard.Get("/sales-report", handlers.DashboardHandler.GetSalesReport)
+	dashboard.Get("/receivables-report", handlers.DashboardHandler.GetReceivablesReport)
 }

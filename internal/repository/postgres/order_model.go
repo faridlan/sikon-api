@@ -28,25 +28,26 @@ func (OrderItemModel) TableName() string {
 }
 
 type OrderModel struct {
-	ID              string     `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderNumber     string     `gorm:"type:varchar(100);unique;not null"`
-	CustomerID      string     `gorm:"type:uuid;not null"`
-	SalesID         string     `gorm:"type:uuid;not null"`
-	Subtotal        float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	DiscountAmount  float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	TaxPpn          float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	TaxPph          float64    `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	TotalAmount     float64    `gorm:"type:decimal(15,2);not null"`
-	ShippingCost    float64    `gorm:"type:decimal(12,2);not null"`
-	CourierName     string     `gorm:"type:varchar(100)"`
-	ShippingAddress string     `gorm:"type:text"`
-	OrderStatus     string     `gorm:"type:varchar(50);not null"`
-	PaymentStatus   string     `gorm:"type:varchar(50);not null"`
-	ValidUntil      *time.Time `gorm:"type:date"`
-	TermsConditions string     `gorm:"type:text"`
-	Notes           string     `gorm:"type:text"`
-	CreatedAt       time.Time  `gorm:"autoCreateTime"`
-	UpdatedAt       time.Time  `gorm:"autoUpdateTime"`
+	ID              string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderNumber     string         `gorm:"type:varchar(100);unique;not null"`
+	CustomerID      string         `gorm:"type:uuid;not null"`
+	SalesID         string         `gorm:"type:uuid;not null"`
+	Subtotal        float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
+	DiscountAmount  float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
+	TaxPpn          float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
+	TaxPph          float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
+	TotalAmount     float64        `gorm:"type:decimal(15,2);not null"`
+	ShippingCost    float64        `gorm:"type:decimal(12,2);not null"`
+	CourierName     string         `gorm:"type:varchar(100)"`
+	ShippingAddress string         `gorm:"type:text"`
+	OrderStatus     string         `gorm:"type:varchar(50);not null"`
+	PaymentStatus   string         `gorm:"type:varchar(50);not null"`
+	ValidUntil      *time.Time     `gorm:"type:date"`
+	TermsConditions string         `gorm:"type:text"`
+	Notes           string         `gorm:"type:text"`
+	CreatedAt       time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt       gorm.DeletedAt `gorm:"index"`
 
 	// Relasi
 	Items    []OrderItemModel `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
