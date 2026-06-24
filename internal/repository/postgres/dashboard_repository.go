@@ -90,3 +90,44 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 
 	return summary, nil
 }
+
+func (r *dashboardRepository) GetSalesReport(ctx context.Context, filter domain.DashboardFilter) ([]domain.SalesReportItem, error) {
+	var report []domain.SalesReportItem
+
+	query := r.db.WithContext(ctx).Model(&OrderModel{})
+
+	// Wajib ada filter tanggal agar data tidak meledak (default 30 hari terakhir jika kosong bisa diatur di usecase)
+	if filter.StartDate != "" && filter.EndDate != "" {
+		start, errStart := time.Parse("2006-01-02", filter.StartDate)
+		end, errEnd := time.Parse("2006-01-02", filter.EndDate)
+
+		if errStart == nil && errEnd == nil {
+			end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			query = query.Where("created_at BETWEEN ? AND ?", start, end)
+		}
+	}
+
+	// Gunakan TO_CHAR untuk mengekstrak tanggal (YYYY-MM-DD) dari created_at,
+	// lalu lakukan agregasi SUM dan COUNT seperti di GetSummary.
+	err := query.Select(`
+		TO_CHAR(created_at, 'YYYY-MM-DD') as date,
+		COALESCE(SUM(CASE WHEN order_status != 'canceled' THEN total_amount ELSE 0 END), 0) as total_revenue,
+		COUNT(id) as total_orders,
+		COALESCE(SUM(CASE WHEN order_status = 'completed' THEN 1 ELSE 0 END), 0) as completed_orders,
+		COALESCE(SUM(CASE WHEN order_status = 'canceled' THEN 1 ELSE 0 END), 0) as canceled_orders
+	`).
+		Group("TO_CHAR(created_at, 'YYYY-MM-DD')").
+		Order("date ASC").
+		Scan(&report).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Jika tidak ada transaksi sama sekali di rentang tanggal tersebut, kembalikan array kosong (bukan null)
+	if report == nil {
+		report = []domain.SalesReportItem{}
+	}
+
+	return report, nil
+}

@@ -86,3 +86,80 @@ func TestDashboardUsecase_GetSummary(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 }
+
+func TestDashboardUsecase_GetSalesReport(t *testing.T) {
+	// Setup data mock balikan dari repo (2 hari data simulasi)
+	mockReport := []domain.SalesReportItem{
+		{
+			Date:            "2026-06-24",
+			TotalRevenue:    220000,
+			TotalOrders:     3,
+			CompletedOrders: 1,
+			CanceledOrders:  1,
+		},
+		{
+			Date:            "2026-06-25",
+			TotalRevenue:    110000,
+			TotalOrders:     1,
+			CompletedOrders: 1,
+			CanceledOrders:  0,
+		},
+	}
+
+	filter := domain.DashboardFilter{
+		StartDate: "2026-06-01",
+		EndDate:   "2026-06-30",
+	}
+
+	t.Run("Success - Get Sales Report", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		mockRepo.On("GetSalesReport", mock.Anything, filter).Return(mockReport, nil).Once()
+
+		result, err := uc.GetSalesReport(context.Background(), filter)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result, 2)
+
+		// Verifikasi data hari pertama
+		assert.Equal(t, "2026-06-24", result[0].Date)
+		assert.Equal(t, float64(220000), result[0].TotalRevenue)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Empty Report", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		// Jika tidak ada transaksi, repo mengembalikan array kosong
+		emptyReport := []domain.SalesReportItem{}
+		mockRepo.On("GetSalesReport", mock.Anything, filter).Return(emptyReport, nil).Once()
+
+		result, err := uc.GetSalesReport(context.Background(), filter)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result, 0)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - Repository Failed", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		mockErr := errors.New("timeout querying database")
+		mockRepo.On("GetSalesReport", mock.Anything, filter).Return(nil, mockErr).Once()
+
+		result, err := uc.GetSalesReport(context.Background(), filter)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, mockErr, err)
+
+		mockRepo.AssertExpectations(t)
+	})
+}

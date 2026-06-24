@@ -500,6 +500,19 @@ definitions:
         example: Kaos Polos Lengan Panjang
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse:
+    properties:
+      canceled_orders:
+        type: integer
+      completed_orders:
+        type: integer
+      date:
+        type: string
+      total_orders:
+        type: integer
+      total_revenue:
+        type: number
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateRequest:
     properties:
       name:
@@ -716,6 +729,15 @@ definitions:
       data:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentResponse'
+        type: array
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_SalesReportItemResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse'
         type: array
       message:
         type: string
@@ -1303,6 +1325,34 @@ paths:
       summary: Update Customer
       tags:
       - Customers
+  /dashboard/sales-report:
+    get:
+      description: Mengambil laporan penjualan harian untuk kebutuhan grafik frontend.
+      parameters:
+      - description: 'Filter Tanggal Mulai (Format: YYYY-MM-DD)'
+        in: query
+        name: start_date
+        type: string
+      - description: 'Filter Tanggal Akhir (Format: YYYY-MM-DD)'
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_SalesReportItemResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Sales Report (Grafik)
+      tags:
+      - Dashboard
   /dashboard/summary:
     get:
       description: Mengambil metrik utama untuk halaman dashboard utama. Menghitung

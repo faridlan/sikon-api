@@ -13,6 +13,14 @@ type DashboardSummary struct {
 	TotalCanceledOrders  int64 // Jumlah pesanan yang dibatalkan
 }
 
+type SalesReportItem struct {
+	Date            string  `json:"date"` // Format: YYYY-MM-DD
+	TotalRevenue    float64 `json:"total_revenue"`
+	TotalOrders     int64   `json:"total_orders"`
+	CompletedOrders int64   `json:"completed_orders"`
+	CanceledOrders  int64   `json:"canceled_orders"`
+}
+
 // DashboardFilter untuk menyaring laporan berdasarkan rentang waktu (harian, bulanan, tahunan)
 type DashboardFilter struct {
 	StartDate string // Format: YYYY-MM-DD
@@ -22,9 +30,11 @@ type DashboardFilter struct {
 // DashboardRepository adalah kontrak untuk layer database (GORM)
 type DashboardRepository interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
+	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
 }
 
 // DashboardUsecase adalah kontrak untuk layer logika bisnis
 type DashboardUsecase interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
+	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
 }

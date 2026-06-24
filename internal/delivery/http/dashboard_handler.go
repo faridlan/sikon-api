@@ -10,6 +10,7 @@ import (
 
 type DashboardHandler interface {
 	GetSummary(c *fiber.Ctx) error
+	GetSalesReport(c *fiber.Ctx) error
 }
 
 type dashboardHandler struct {
@@ -45,4 +46,28 @@ func (h *dashboardHandler) GetSummary(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data metrik dashboard", dto.ToDashboardSummaryResponse(summary))
+}
+
+// @Summary Get Sales Report (Grafik)
+// @Description Mengambil laporan penjualan harian untuk kebutuhan grafik frontend.
+// @Tags Dashboard
+// @Produce json
+// @Security BearerAuth
+// @Param start_date query string false "Filter Tanggal Mulai (Format: YYYY-MM-DD)"
+// @Param end_date query string false "Filter Tanggal Akhir (Format: YYYY-MM-DD)"
+// @Success 200 {object} utils.SuccessResponse[[]dto.SalesReportItemResponse]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /dashboard/sales-report [get]
+func (h *dashboardHandler) GetSalesReport(c *fiber.Ctx) error {
+	filter := domain.DashboardFilter{
+		StartDate: c.Query("start_date"),
+		EndDate:   c.Query("end_date"),
+	}
+
+	report, err := h.dashboardUsecase.GetSalesReport(c.Context(), filter)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data laporan penjualan", dto.ToSalesReportItemResponseList(report))
 }

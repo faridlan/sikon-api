@@ -122,3 +122,75 @@ func TestGetDashboardSummary_Integration(t *testing.T) {
 		assert.Equal(t, float64(170000), response.Data.TotalReceivable)
 	})
 }
+
+func TestGetSalesReport_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	cat := tests.SeedCategory(db, "Kemeja Taktikal")
+	prod := tests.SeedProduct(db, cat.ID, "Kemeja W-Tac", 100000)
+	sales := tests.SeedUser(db, "Sales Budi", "budi@sikon.com", "sales")
+	cust := tests.SeedCustomer(db, "Bapak Polisi", "08123", "Mabes")
+
+	// Karena fungsi SeedOrder menggunakan time.Now(), semua order ini akan tercatat
+	// pada tanggal "hari ini" saat test dijalankan.
+	todayStr := time.Now().Format("2006-01-02")
+
+	// Order 1: Pending (Nilai 110.000)
+	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "pending")
+	// Order 2: Completed (Nilai 110.000)
+	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "completed")
+	// Order 3: Canceled (Nilai 110.000 - Tidak boleh masuk hitungan Revenue)
+	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "canceled")
+
+	/* EKSPEKTASI UNTUK TANGGAL HARI INI:
+	   - Total Baris Array: 1 (Karena semua order dibuat di hari yang sama)
+	   - Date: todayStr
+	   - Total Orders: 3
+	   - Completed Orders: 1
+	   - Canceled Orders: 1
+	   - Total Revenue: Order 1 (110k) + Order 2 (110k) = 220.000
+	*/
+
+	t.Run("Success_Get_Report_No_Filter", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/dashboard/sales-report", nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[[]dto.SalesReportItemResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		err = json.Unmarshal(respBody, &response)
+		assert.NoError(t, err)
+
+		// Verifikasi jumlah baris data tanggal (Hanya 1 hari)
+		assert.Len(t, response.Data, 1)
+
+		reportToday := response.Data[0]
+		assert.Equal(t, todayStr, reportToday.Date)
+		assert.Equal(t, int64(3), reportToday.TotalOrders)
+		assert.Equal(t, int64(1), reportToday.CompletedOrders)
+		assert.Equal(t, int64(1), reportToday.CanceledOrders)
+		assert.Equal(t, float64(220000), reportToday.TotalRevenue)
+	})
+
+	t.Run("Success_Get_Report_Empty_Data_On_Date_Filter", func(t *testing.T) {
+		// Filter menggunakan tanggal tahun 2000 di mana tidak ada data yang di-seed
+		url := "/api/dashboard/sales-report?start_date=2000-01-01&end_date=2000-01-31"
+
+		req := httptest.NewRequest("GET", url, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[[]dto.SalesReportItemResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Pastikan mengembalikan array kosong [], bukan null
+		assert.NotNil(t, response.Data)
+		assert.Len(t, response.Data, 0)
+	})
+}

@@ -27,3 +27,12 @@ func (u *dashboardUsecase) GetSummary(c context.Context, filter domain.Dashboard
 	// usecase cukup memanggilnya secara langsung.
 	return u.dashboardRepo.GetSummary(ctx, filter)
 }
+
+// Tambahkan fungsi ini di bagian bawah file
+func (u *dashboardUsecase) GetSalesReport(c context.Context, filter domain.DashboardFilter) ([]domain.SalesReportItem, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// Langsung teruskan ke repository karena ini murni kueri pembacaan data
+	return u.dashboardRepo.GetSalesReport(ctx, filter)
+}
