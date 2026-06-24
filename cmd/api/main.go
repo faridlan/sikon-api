@@ -79,6 +79,7 @@ func main() {
 	paymentRepo := postgres.NewPaymentRepository(db)
 	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
 	txManager := postgres.NewTransactionManager(db)
+	dashboardRepo := postgres.NewDashboardRepository(db) // Inisialisasi repository dashboard
 
 	// ==========================================
 	// 2. INISIASI USECASE (Layer Logika Bisnis)
@@ -88,7 +89,7 @@ func main() {
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, contextTimeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, contextTimeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
-
+	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, contextTimeout)
 	// Order butuh banyak dependensi untuk validasi bisnis
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, txManager, contextTimeout)
 
@@ -107,6 +108,7 @@ func main() {
 	orderHandler := myHttp.NewOrderHandler(orderUsecase)
 	paymentHandler := myHttp.NewPaymentHandler(paymentUsecase)
 	specTemplateHandler := myHttp.NewSpecTemplateHandler(specTemplateUsecase)
+	dashboardHandler := myHttp.NewDashboardHandler(dashboardUsecase) // Inisialisasi handler dashboard
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
@@ -120,6 +122,7 @@ func main() {
 		OrderHandler:        orderHandler,
 		PaymentHandler:      paymentHandler,
 		SpecTemplateHandler: specTemplateHandler,
+		DashboardHandler:    dashboardHandler, // Tambahkan handler dashboard ke registry
 	}
 
 	// ==========================================

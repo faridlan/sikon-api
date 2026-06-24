@@ -775,6 +775,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/dashboard/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil metrik utama untuk halaman dashboard utama. Menghitung total omzet, uang masuk, sisa tagihan/piutang (akumulatif all-time), dan status pesanan.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get Dashboard Summary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter Tanggal Mulai (Format: YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Tanggal Akhir (Format: YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardSummaryResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/orders": {
             "get": {
                 "security": [
@@ -2650,6 +2695,29 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "total_active_orders": {
+                    "type": "integer"
+                },
+                "total_canceled_orders": {
+                    "type": "integer"
+                },
+                "total_completed_orders": {
+                    "type": "integer"
+                },
+                "total_payment_received": {
+                    "type": "number"
+                },
+                "total_receivable": {
+                    "type": "number"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest": {
             "type": "object",
             "required": [
@@ -3457,6 +3525,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CustomerResponse"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse"
                 },
                 "message": {
                     "type": "string"

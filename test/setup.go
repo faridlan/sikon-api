@@ -45,7 +45,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.OrderModel{},
 		&postgres.OrderItemModel{},
 		&postgres.PaymentModel{},
-		&postgres.SpecTemplateModel{}, // <-- Tambahkan ini
+		&postgres.SpecTemplateModel{},
 	)
 
 	timeout := 5 * time.Second
@@ -60,6 +60,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	paymentRepo := postgres.NewPaymentRepository(db)
 	specTemplateRepo := postgres.NewSpecTemplateRepository(db) // <-- Tambahkan ini
 	txManager := postgres.NewTransactionManager(db)
+	dashboardRepo := postgres.NewDashboardRepository(db)
 
 	// 2. Usecase (Perhatikan bahwa productUsecase juga butuh categoryRepo)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
@@ -70,6 +71,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, txManager, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, timeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout) // <-- Tambahkan ini
+	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, timeout)
 
 	// 3. Masukkan ke struct Handlers
 	handlers := myHttp.Handlers{
@@ -81,6 +83,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		BankAccountHandler:  myHttp.NewBankAccountHandler(bankAccountUsecase),
 		OrderHandler:        myHttp.NewOrderHandler(orderUsecase),
 		PaymentHandler:      myHttp.NewPaymentHandler(paymentUsecase),
+		DashboardHandler:    myHttp.NewDashboardHandler(dashboardUsecase),
 	}
 
 	app := fiber.New()
