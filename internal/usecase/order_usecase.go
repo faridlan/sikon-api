@@ -55,10 +55,10 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		return nil, err
 	}
 
-	statusOrder := domain.OrderStatusPending
-	if input.OrderStatus == domain.OrderStatusQuotation {
-		statusOrder = domain.OrderStatusQuotation
-	}
+	// statusOrder := domain.OrderStatusPending
+	// if input.OrderStatus == domain.OrderStatusQuotation {
+	// 	statusOrder = domain.OrderStatusQuotation
+	// }
 
 	order := &domain.Order{
 		CustomerID:      input.CustomerID,
@@ -69,7 +69,7 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		Notes:           input.Notes,
 		ValidUntil:      input.ValidUntil,
 		TermsConditions: input.TermsConditions,
-		OrderStatus:     statusOrder,
+		OrderStatus:     domain.OrderStatusQuotation, // Default status saat pembuatan order
 		PaymentStatus:   domain.PaymentStatusUnpaid,
 	}
 

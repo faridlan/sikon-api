@@ -15,6 +15,7 @@ const (
 	OrderStatusQuotation  OrderStatus = "quotation"
 	OrderStatusPending    OrderStatus = "pending"
 	OrderStatusProduction OrderStatus = "production"
+	OrderStatusReady      OrderStatus = "ready"
 	OrderStatusCompleted  OrderStatus = "completed"
 	OrderStatusCanceled   OrderStatus = "canceled"
 
@@ -175,7 +176,7 @@ func (o *Order) TransitionStatus(newStatus OrderStatus) error {
 		return NewError(ErrConflict, "Pesanan yang sudah selesai atau dibatalkan tidak dapat diubah statusnya")
 	}
 
-	// 3. Evaluasi Aturan Transisi
+	// 3. Evaluasi Aturan Transisi (State Machine)
 	switch newStatus {
 
 	case OrderStatusPending:
@@ -183,31 +184,38 @@ func (o *Order) TransitionStatus(newStatus OrderStatus) error {
 		if o.OrderStatus != OrderStatusQuotation && o.OrderStatus != OrderStatusProduction {
 			return NewError(ErrConflict, "Hanya pesanan berstatus quotation atau production (koreksi) yang bisa diubah menjadi pending")
 		}
+		// 🚨 GEMBOK UANG 1: Harus ada uang masuk (DP/Lunas) sebelum masuk jadwal pabrik
+		if o.PaymentStatus == PaymentStatusUnpaid {
+			return NewError(ErrConflict, "Pesanan tidak dapat diproses (pending) karena belum ada pembayaran (minimal DP)")
+		}
 
 	case OrderStatusProduction:
-		// Syarat Mutlak 1: Harus dari meja Pending
-		if o.OrderStatus != OrderStatusPending {
+		// Syarat: Harus dari meja Pending (atau koreksi dari Ready jika barang ternyata cacat dan harus dijahit ulang)
+		if o.OrderStatus != OrderStatusPending && o.OrderStatus != OrderStatusReady {
 			return NewError(ErrConflict, "Pesanan harus berstatus pending sebelum masuk meja produksi")
 		}
-		// Syarat Mutlak 2: Minimal sudah ada uang masuk (DP/Lunas)
-		if o.PaymentStatus == PaymentStatusUnpaid {
-			return NewError(ErrConflict, "Pesanan tidak dapat masuk produksi karena belum ada pembayaran (minimal DP)")
+
+	case OrderStatusReady:
+		// Syarat: Baju harus sudah selesai dijahit
+		if o.OrderStatus != OrderStatusProduction {
+			return NewError(ErrConflict, "Pesanan harus berstatus production sebelum bisa dipindahkan ke gudang (ready)")
 		}
+		// Catatan: Di titik ini uang BOLEH masih partial. Ini justru waktu yang tepat untuk menagih customer!
 
 	case OrderStatusCompleted:
-		// Syarat: Baju harus sudah selesai dijahit (Production -> Completed)
-		if o.OrderStatus != OrderStatusProduction {
-			return NewError(ErrConflict, "Pesanan belum diproduksi, tidak bisa diselesaikan")
+		// Syarat mutlak posisi barang: Harus dari gudang barang jadi (Ready)
+		if o.OrderStatus != OrderStatusReady {
+			return NewError(ErrConflict, "Pesanan belum siap (ready), tidak bisa diselesaikan")
 		}
-		// Kebijakan Pabrik: Wajib Lunas sebelum diserahkan/diambil customer
+		// 🚨 GEMBOK UANG 2: Wajib Lunas sebelum diserahkan/diambil customer
 		if o.PaymentStatus != PaymentStatusPaid {
 			return NewError(ErrConflict, "Pesanan tidak dapat diselesaikan karena belum lunas sepenuhnya")
 		}
 
 	case OrderStatusCanceled:
-		// Syarat: Jika sudah di meja produksi, tidak boleh dibatalkan sembarangan!
-		if o.OrderStatus == OrderStatusProduction {
-			return NewError(ErrConflict, "Pesanan yang sedang diproduksi (kain sudah dipotong) tidak dapat dibatalkan")
+		// Syarat: Jika sudah masuk pabrik atau sudah jadi, tidak boleh dibatalkan sembarangan!
+		if o.OrderStatus == OrderStatusProduction || o.OrderStatus == OrderStatusReady {
+			return NewError(ErrConflict, "Pesanan yang sedang/sudah diproduksi tidak dapat dibatalkan begitu saja")
 		}
 
 	default:
@@ -222,7 +230,7 @@ func (o *Order) TransitionStatus(newStatus OrderStatus) error {
 // Validasi untuk OrderStatus
 func (s OrderStatus) IsValid() bool {
 	switch s {
-	case OrderStatusQuotation, OrderStatusPending, OrderStatusProduction, OrderStatusCompleted, OrderStatusCanceled:
+	case OrderStatusQuotation, OrderStatusPending, OrderStatusProduction, OrderStatusReady, OrderStatusCompleted, OrderStatusCanceled:
 		return true
 	}
 	return false

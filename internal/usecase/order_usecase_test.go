@@ -44,13 +44,11 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		},
 	}
 
-	t.Run("Success - Create as Quotation (Surat Penawaran)", func(t *testing.T) {
-		// Pastikan setupOrderTest kamu me-return mockTxManager juga.
-		// Asumsi urutan return: OrderRepo, CustomerRepo, UserRepo, ProductRepo, PaymentRepo, TxManager, Usecase
+	t.Run("Success - Create as Quotation (Normal Flow)", func(t *testing.T) {
 		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, _, mockTxManager, uc := setupOrderTest()
 
 		input := baseInput
-		input.OrderStatus = domain.OrderStatusQuotation // Set eksplisit sebagai Quotation
+		input.OrderStatus = domain.OrderStatusQuotation
 
 		// 1. Mock Customer & User exist
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(&domain.Customer{ID: input.CustomerID}, nil).Once()
@@ -60,32 +58,25 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
 
-		// =========================================================
-		// 🚨 PERBAIKAN: MOCK TRANSACTION MANAGER
-		// =========================================================
+		// 3. Mock Transaction Manager
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
 			Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				fn := args.Get(1).(func(context.Context) error)
 
-				// Eksekusi fungsi closure-nya agar mock Create di bawah ikut berjalan!
 				err := fn(ctx)
 				assert.NoError(t, err)
 			}).
 			Return(nil).Once()
-		// =========================================================
 
-		// 3. Kalkulasi ekspektasi: Subtotal & Grand Total
+		// 4. Kalkulasi ekspektasi: Subtotal, Grand Total, dan Default Status
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			return o.CustomerID == input.CustomerID &&
-				o.Subtotal == 115000 && // Harga barang saja
-				o.TotalAmount == 165000 && // Subtotal + Shipping Cost (115000 + 50000)
-				o.DiscountAmount == 0 &&
-				o.TaxPpn == 0 &&
-				o.TaxPph == 0 &&
+				o.Subtotal == 115000 &&
+				o.TotalAmount == 165000 &&
 				len(o.Items) == 2 &&
-				o.OrderStatus == domain.OrderStatusQuotation && // Validasi Status
-				o.PaymentStatus == domain.PaymentStatusUnpaid &&
+				o.OrderStatus == domain.OrderStatusQuotation && // 🚨 Status dipaksa Quotation
+				o.PaymentStatus == domain.PaymentStatusUnpaid && // 🚨 Status dipaksa Unpaid
 				o.TermsConditions == input.TermsConditions &&
 				o.ValidUntil == input.ValidUntil
 		})).Return(nil).Once()
@@ -95,19 +86,21 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, order)
 		assert.Equal(t, domain.OrderStatusQuotation, order.OrderStatus)
+		assert.Equal(t, domain.PaymentStatusUnpaid, order.PaymentStatus)
 
 		mockCustomerRepo.AssertExpectations(t)
 		mockUserRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
 		mockOrderRepo.AssertExpectations(t)
-		mockTxManager.AssertExpectations(t) // Pastikan transaksi dipanggil
+		mockTxManager.AssertExpectations(t)
 	})
 
-	t.Run("Success - Create as Pending (Order Langsung)", func(t *testing.T) {
+	t.Run("Success - Dipaksa Quotation Meskipun FE Mengirim Status Lain (Bypass Test)", func(t *testing.T) {
 		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, _, mockTxManager, uc := setupOrderTest()
 
 		input := baseInput
-		input.OrderStatus = "" // Kosong (Simulasi jika dari frontend tidak ngirim status)
+		// Simulasi FE mencoba membypass sistem dengan langsung mengirim status "completed"
+		input.OrderStatus = domain.OrderStatusCompleted
 
 		// 1. Mock Customer & User exist
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(&domain.Customer{ID: input.CustomerID}, nil).Once()
@@ -117,7 +110,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
 
-		// 🚨 PERBAIKAN: MOCK TRANSACTION MANAGER
+		// 3. Mock Transaction Manager
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
 			Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
@@ -127,18 +120,20 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 			}).
 			Return(nil).Once()
 
-		// 3. Kalkulasi ekspektasi: Status harus Pending
+		// 4. Kalkulasi ekspektasi: Sistem HARUS menolak input dari FE dan menimpanya dengan aturan Backend
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			return o.Subtotal == 115000 &&
 				o.TotalAmount == 165000 &&
-				o.OrderStatus == domain.OrderStatusPending // Validasi Status harus PENDING
+				o.OrderStatus == domain.OrderStatusQuotation && // 🚨 TERBUKTI AMAN DARI BYPASS
+				o.PaymentStatus == domain.PaymentStatusUnpaid
 		})).Return(nil).Once()
 
 		order, err := uc.CreateOrder(context.Background(), input)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, order)
-		assert.Equal(t, domain.OrderStatusPending, order.OrderStatus) // Pastikan return-nya juga Pending
+		assert.Equal(t, domain.OrderStatusQuotation, order.OrderStatus) // Asersi hasil akhir
+		assert.Equal(t, domain.PaymentStatusUnpaid, order.PaymentStatus)
 
 		mockOrderRepo.AssertExpectations(t)
 		mockTxManager.AssertExpectations(t)
@@ -158,7 +153,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, "Customer tidak ditemukan", appErr.Message)
 
-		// TxManager tidak boleh dipanggil jika validasi awal (customer) sudah gagal
+		// TxManager tidak boleh dipanggil jika validasi awal gagal
 		mockTxManager.AssertNotCalled(t, "RunInTransaction")
 	})
 }
@@ -301,17 +296,17 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 			}).Once()
 	}
 
-	t.Run("Success - Quotation to Pending", func(t *testing.T) {
+	t.Run("Success - Quotation to Pending (Uang DP Sudah Masuk)", func(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockTransaction()
 
-		// Kondisi Awal: Order masih Quotation
+		// Kondisi Awal: Order Quotation dan SUDAH DP (Syarat lolos ke Pending)
 		mockOrder := &domain.Order{
-			ID:          mockID,
-			OrderStatus: domain.OrderStatusQuotation,
+			ID:            mockID,
+			OrderStatus:   domain.OrderStatusQuotation,
+			PaymentStatus: domain.PaymentStatusPartial, // 🚨 Harus ada uang masuk
 		}
 
-		// Ekspektasi: Gembok Order, validasi sukses, lalu update
 		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
 		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatusPending, domain.PaymentStatus("")).Return(nil).Once()
 
@@ -319,18 +314,40 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 
 		assert.NoError(t, err)
 		mockOrderRepo.AssertExpectations(t)
-		mockTxManager.AssertExpectations(t)
+	})
+
+	t.Run("Error - Quotation to Pending but Unpaid (Ditolak Satpam)", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTransaction()
+
+		// Kondisi Awal: Ingin diproses, tapi customer BELUM BAYAR sama sekali
+		mockOrder := &domain.Order{
+			ID:            mockID,
+			OrderStatus:   domain.OrderStatusQuotation,
+			PaymentStatus: domain.PaymentStatusUnpaid, // 🚨 Uang kosong
+		}
+
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
+
+		assert.Error(t, err)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrConflict, appErr.ErrType)
+		assert.Contains(t, appErr.Message, "belum ada pembayaran (minimal DP)")
+
+		// Pastikan TIDAK ADA proses update ke database
+		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
 
 	t.Run("Success - Pending to Production", func(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockTransaction()
 
-		// Kondisi Awal: Order Pending dan SUDAH DP (Syarat Mutlak State Machine)
 		mockOrder := &domain.Order{
-			ID:            mockID,
-			OrderStatus:   domain.OrderStatusPending,
-			PaymentStatus: domain.PaymentStatusPartial,
+			ID:          mockID,
+			OrderStatus: domain.OrderStatusPending,
 		}
 
 		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
@@ -342,28 +359,65 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		mockOrderRepo.AssertExpectations(t)
 	})
 
-	t.Run("Error - State Machine Rejected (Pending to Production but Unpaid)", func(t *testing.T) {
+	t.Run("Success - Production to Ready (Masuk Gudang Barang Jadi)", func(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockTransaction()
 
-		// Kondisi Awal: Order Pending, tapi BELUM BAYAR (Akan ditolak Satpam Pabrik)
+		mockOrder := &domain.Order{
+			ID:          mockID,
+			OrderStatus: domain.OrderStatusProduction,
+		}
+
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
+		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatusReady, domain.PaymentStatus("")).Return(nil).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusReady)
+
+		assert.NoError(t, err)
+		mockOrderRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Ready to Completed (Uang Sudah Lunas)", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTransaction()
+
+		// Kondisi Awal: Barang siap kirim, dan Uang sudah LUNAS
 		mockOrder := &domain.Order{
 			ID:            mockID,
-			OrderStatus:   domain.OrderStatusPending,
-			PaymentStatus: domain.PaymentStatusUnpaid,
+			OrderStatus:   domain.OrderStatusReady,
+			PaymentStatus: domain.PaymentStatusPaid, // 🚨 Syarat mutlak Completed
+		}
+
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
+		mockOrderRepo.On("UpdateStatus", mock.Anything, mockID, domain.OrderStatusCompleted, domain.PaymentStatus("")).Return(nil).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusCompleted)
+
+		assert.NoError(t, err)
+		mockOrderRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - Ready to Completed but Partial (Barang Ditahan)", func(t *testing.T) {
+		mockOrderRepo.ExpectedCalls = nil
+		mockTransaction()
+
+		// Kondisi Awal: Barang siap kirim, tapi Customer baru bayar DP
+		mockOrder := &domain.Order{
+			ID:            mockID,
+			OrderStatus:   domain.OrderStatusReady,
+			PaymentStatus: domain.PaymentStatusPartial, // 🚨 Masih ada tunggakan
 		}
 
 		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
 
-		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusProduction)
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusCompleted)
 
 		assert.Error(t, err)
 		var appErr *domain.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrConflict, appErr.ErrType)
-		assert.Contains(t, appErr.Message, "belum ada pembayaran")
+		assert.Contains(t, appErr.Message, "belum lunas sepenuhnya")
 
-		// Pastikan TIDAK ADA proses penyimpanan ke database
 		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
 
@@ -371,7 +425,6 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockTransaction()
 
-		// Skenario: Data order tidak ada di DB saat mau digembok
 		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(nil, domain.ErrNotFound).Once()
 
 		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
@@ -380,7 +433,6 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		var appErr *domain.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrNotFound, appErr.ErrType)
-
 		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
 
@@ -388,7 +440,6 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		mockOrderRepo.ExpectedCalls = nil
 		mockTxManager.ExpectedCalls = nil
 
-		// Input mentah langsung ngawur, harusnya gagal sebelum masuk transaksi
 		err := uc.UpdateOrderStatus(context.Background(), mockID, "STATUS_NGAWUR")
 
 		assert.Error(t, err)
@@ -398,10 +449,8 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 
 		mockTxManager.AssertNotCalled(t, "RunInTransaction")
 		mockOrderRepo.AssertNotCalled(t, "GetByIDForUpdate")
-		mockOrderRepo.AssertNotCalled(t, "UpdateStatus")
 	})
 }
-
 func TestOrderUsecase_UpdatePaymentStatus(t *testing.T) {
 	// Asumsi Anda memiliki fungsi setupOrderTest() untuk inisialisasi mock repo & usecase
 	// mockOrderRepo, _, _, uc := setupOrderTest()
