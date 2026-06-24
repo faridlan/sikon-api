@@ -2243,7 +2243,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_SpecTemplateResponse"
                         }
                     },
                     "400": {
@@ -2267,7 +2267,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Menghapus template spesifikasi secara permanen",
+                "description": "Menghapus template spesifikasi (Soft Delete / Arsip)",
                 "produces": [
                     "application/json"
                 ],

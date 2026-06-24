@@ -117,7 +117,7 @@ func (h *specTemplateHandler) ListSpecTemplates(c *fiber.Ctx) error {
 // @Produce json
 // @Param id path string true "SpecTemplate ID (UUID)"
 // @Param request body dto.SpecTemplateRequest true "Data Update Spec Template"
-// @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
+// @Success 200 {object} utils.SuccessResponse[dto.SpecTemplateResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
@@ -151,7 +151,7 @@ func (h *specTemplateHandler) UpdateSpecTemplate(c *fiber.Ctx) error {
 }
 
 // @Summary Delete Spec Template
-// @Description Menghapus template spesifikasi secara permanen
+// @Description Menghapus template spesifikasi (Soft Delete / Arsip)
 // @Tags SpecTemplates
 // @Produce json
 // @Param id path string true "SpecTemplate ID (UUID)"
