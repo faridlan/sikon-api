@@ -26,22 +26,23 @@ func TestGetDashboardSummary_Integration(t *testing.T) {
 	sales := tests.SeedUser(db, "Sales Budi", "budi@sikon.com", "sales")
 	cust := tests.SeedCustomer(db, "Bapak Polisi", "08123", "Mabes")
 	bank := tests.SeedBankAccount(db, nil, "BCA", "12345", "PT Sikon")
+	batchPo := tests.SeedBatchPO(db, "Batch PO Test", "active")
 
 	// 3. Siapkan Data Transaksional (Orders & Payments)
 
 	// Order 1: Status Production (Aktif), Total 110.000, Sudah DP 50.000
-	order1 := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "production")
+	order1 := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "production")
 	tests.SeedPayment(db, order1.ID, bank.ID, 50000, "transfer")
 
 	// Order 2: Status Pending (Aktif), Total 110.000, Belum Bayar
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "pending")
+	tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "pending")
 
 	// Order 3: Status Completed (Selesai), Total 110.000, Sudah Lunas (110.000)
-	order3 := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "completed")
+	order3 := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "completed")
 	tests.SeedPayment(db, order3.ID, bank.ID, 110000, "cash")
 
 	// Order 4: Status Canceled (Batal), Total 110.000 (Tapi tidak boleh dihitung ke Revenue)
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "canceled")
+	tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "canceled")
 
 	/* EKSPEKTASI KALKULASI ALL-TIME:
 	   - Total Revenue: Order 1 + Order 2 + Order 3 = 110.000 + 110.000 + 110.000 = 330.000 (Order Batal tidak dihitung)
@@ -131,17 +132,18 @@ func TestGetSalesReport_Integration(t *testing.T) {
 	prod := tests.SeedProduct(db, cat.ID, "Kemeja W-Tac", 100000)
 	sales := tests.SeedUser(db, "Sales Budi", "budi@sikon.com", "sales")
 	cust := tests.SeedCustomer(db, "Bapak Polisi", "08123", "Mabes")
+	batchPo := tests.SeedBatchPO(db, "Batch PO Test", "active")
 
 	// Karena fungsi SeedOrder menggunakan time.Now(), semua order ini akan tercatat
 	// pada tanggal "hari ini" saat test dijalankan.
 	todayStr := time.Now().Format("2006-01-02")
 
 	// Order 1: Pending (Nilai 110.000)
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "pending")
+	tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "pending")
 	// Order 2: Completed (Nilai 110.000)
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "completed")
+	tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "completed")
 	// Order 3: Canceled (Nilai 110.000 - Tidak boleh masuk hitungan Revenue)
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "canceled")
+	tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "canceled")
 
 	/* EKSPEKTASI UNTUK TANGGAL HARI INI:
 	   - Total Baris Array: 1 (Karena semua order dibuat di hari yang sama)
@@ -204,32 +206,32 @@ func TestGetReceivablesReport_Integration(t *testing.T) {
 	sales := tests.SeedUser(db, "Sales Budi", "budi@sikon.com", "sales")
 	cust := tests.SeedCustomer(db, "Bapak Polisi", "08123", "Mabes")
 	bank := tests.SeedBankAccount(db, nil, "BCA", "12345", "PT Sikon")
-
+	batchPo := tests.SeedBatchPO(db, "Batch PO Test", "active")
 	// =========================================================================
 	// SKENARIO 1: Order Masuk Pabrik, Baru DP (Masuk Laporan)
 	// =========================================================================
-	order1 := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "production")
+	order1 := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "production")
 	db.Exec("UPDATE orders SET payment_status = 'partial' WHERE id = ?", order1.ID)
 	tests.SeedPayment(db, order1.ID, bank.ID, 40000, "transfer") // Total 110k, Bayar 40k, Sisa 70k
 
 	// =========================================================================
 	// SKENARIO 2: Order Sudah Ready, Belum Bayar (Masuk Laporan)
 	// =========================================================================
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "ready")
+	tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "ready")
 	// Status bawaan seeder sudah 'unpaid', tidak ada data di tabel payments
 	// Total 110k, Bayar 0, Sisa 110k
 
 	// =========================================================================
 	// SKENARIO 3: Order Selesai & Lunas (TIDAK BOLEH Masuk Laporan)
 	// =========================================================================
-	order3 := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "completed")
+	order3 := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "completed")
 	db.Exec("UPDATE orders SET payment_status = 'paid' WHERE id = ?", order3.ID)
 	tests.SeedPayment(db, order3.ID, bank.ID, 110000, "transfer") // Sudah Lunas 100%
 
 	// =========================================================================
 	// SKENARIO 4: Order Dibatalkan (TIDAK BOLEH Masuk Laporan)
 	// =========================================================================
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "canceled")
+	tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID, "canceled")
 	// Biarpun unpaid, order batal tidak ditagih lagi.
 
 	t.Run("Success_Get_Receivables_Report", func(t *testing.T) {

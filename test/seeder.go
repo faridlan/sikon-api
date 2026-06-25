@@ -10,7 +10,6 @@ import (
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 )
 
-// ... (Fungsi SeedCategory, SeedProduct, SeedUser tetap ada) ...
 func SeedCategory(db *gorm.DB, name string) postgres.CategoryModel {
 	category := postgres.CategoryModel{
 		ID:   uuid.New().String(),
@@ -59,7 +58,6 @@ func SeedCustomer(db *gorm.DB, name, phone, address string) postgres.CustomerMod
 	return customer
 }
 
-// TAMBAHAN: Fungsi seeder baru untuk customer yang memiliki SalesID
 func SeedCustomerWithSales(db *gorm.DB, name, phone, address string, salesID string) postgres.CustomerModel {
 	customer := postgres.CustomerModel{
 		ID:      uuid.New().String(),
@@ -86,12 +84,31 @@ func SeedBankAccount(db *gorm.DB, userID *string, bankName, accNumber, accName s
 	return account
 }
 
+// ========================================================================
+// 🚨 TAMBAHAN: Seeder untuk Batch PO
+// ========================================================================
+func SeedBatchPO(db *gorm.DB, name string, status string) postgres.BatchPOModel {
+	batchPO := postgres.BatchPOModel{
+		ID:        uuid.New().String(),
+		Name:      name,
+		StartDate: time.Now(),
+		EndDate:   time.Now().AddDate(0, 0, 7), // Default tutup 7 hari lagi
+		Status:    status,
+		Quota:     100,
+	}
+	db.Create(&batchPO)
+	return batchPO
+}
+
 // Fungsi Helper untuk membuat pointer string dengan mudah
 func StringPtr(s string) *string {
 	return &s
 }
 
-func SeedOrder(db *gorm.DB, customerID, salesID, productID string, customStatus ...string) postgres.OrderModel {
+// ========================================================================
+// 🚨 UPDATE: Menambahkan parameter batchPoID ke dalam SeedOrder
+// ========================================================================
+func SeedOrder(db *gorm.DB, batchPoID, customerID, salesID, productID string, customStatus ...string) postgres.OrderModel {
 	orderID := uuid.New().String()
 	validUntil := time.Now().AddDate(0, 0, 7)
 
@@ -100,15 +117,21 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string, customStatus 
 		status = customStatus[0]
 	}
 
+	// Tangani pointer agar aman jika tidak ada ID yang dikirim
+	var batchPoIDPtr *string
+	if batchPoID != "" {
+		batchPoIDPtr = &batchPoID
+	}
+
 	order := postgres.OrderModel{
-		ID:           orderID,
-		OrderNumber:  "ORD-" + uuid.New().String()[:8],
-		CustomerID:   customerID,
-		SalesID:      salesID,
-		Subtotal:     100000, // <-- TAMBAHAN: Harga 2 item @ 50.000
-		TotalAmount:  110000, // <-- UPDATE: Subtotal (100.000) + ShippingCost (10.000)
-		ShippingCost: 10000,
-		// Tax & Discount biarkan kosong (default 0)
+		ID:              orderID,
+		OrderNumber:     "ORD-" + uuid.New().String()[:8],
+		BatchPoID:       batchPoIDPtr, // <-- Disematkan di sini
+		CustomerID:      customerID,
+		SalesID:         salesID,
+		Subtotal:        100000,
+		TotalAmount:     110000,
+		ShippingCost:    10000,
 		OrderStatus:     status,
 		PaymentStatus:   "unpaid",
 		ValidUntil:      &validUntil,
@@ -128,6 +151,7 @@ func SeedOrder(db *gorm.DB, customerID, salesID, productID string, customStatus 
 
 	return order
 }
+
 func SeedPayment(db *gorm.DB, orderID, bankAccountID string, amount float64, paymentType string) postgres.PaymentModel {
 	payment := postgres.PaymentModel{
 		ID:              uuid.New().String(),

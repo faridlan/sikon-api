@@ -108,4 +108,5 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE order_items RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;") // <-- Tambahkan ini
+	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")      // <-- Tambahkan ini
 }

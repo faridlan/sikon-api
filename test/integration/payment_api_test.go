@@ -31,8 +31,9 @@ func setupPaymentDependencies(db *gorm.DB) (orderID string, bankAccountID string
 	cust := tests.SeedCustomer(db, "Cust Payment", "0812", "Jkt")
 	cat := tests.SeedCategory(db, "Kategori Pay")
 	prod := tests.SeedProduct(db, cat.ID, "Produk Pay", 50000)
+	batchPo := tests.SeedBatchPO(db, "Batch PO Test", "active")
 
-	order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
+	order := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID)
 	bank := tests.SeedBankAccount(db, nil, "BCA", "123", "PT SIKOn")
 
 	return order.ID, bank.ID
@@ -414,7 +415,8 @@ func TestGetPaymentsByOrderID_Integration(t *testing.T) {
 	cust2 := tests.SeedCustomer(db, "Cust Kedua", "0812345", "Bandung")
 	cat2 := tests.SeedCategory(db, "Kategori Lain")
 	prod2 := tests.SeedProduct(db, cat2.ID, "Produk Lain", 100000)
-	order2 := tests.SeedOrder(db, cust2.ID, sales2.ID, prod2.ID)
+	batchPo2 := tests.SeedBatchPO(db, "Batch PO Test 2", "active")
+	order2 := tests.SeedOrder(db, batchPo2.ID, cust2.ID, sales2.ID, prod2.ID)
 
 	// --- SEED PAYMENTS ---
 	// Masukkan 2x Pembayaran (DP & Lunas) untuk Order 1
@@ -496,8 +498,9 @@ func TestRaceCondition_ProcessPayment_Integration(t *testing.T) {
 	cust := tests.SeedCustomer(db, "Cust Race", "081999", "Bdg")
 	cat := tests.SeedCategory(db, "Kategori Race")
 	prod := tests.SeedProduct(db, cat.ID, "Kemeja Mahal", 1000000)
+	batchPo := tests.SeedBatchPO(db, "Batch PO Test", "active")
 
-	order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
+	order := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID)
 
 	// 🚨 TAMBAHKAN BARIS INI: Force update total tagihan menjadi 1 Juta
 	db.Table("orders").Where("id = ?", order.ID).Update("total_amount", 1000000)
