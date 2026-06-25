@@ -154,7 +154,7 @@ func (r *dashboardRepository) GetReceivablesReport(ctx context.Context) ([]domai
 		Joins("LEFT JOIN payments p ON p.order_id = o.id AND p.deleted_at IS NULL").
 		Where("o.deleted_at IS NULL").
 		// Aturan Bisnis: Hanya ambil yang di meja produksi atau pending
-		Where("o.order_status IN (?, ?)", domain.OrderStatusPending, domain.OrderStatusProduction).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady).
 		// Aturan Bisnis: Hanya ambil yang status bayarnya unpaid atau partial
 		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial).
 		Group("o.id, o.order_number, o.created_at, c.name, u.name, o.order_status, o.total_amount").
