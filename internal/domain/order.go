@@ -41,6 +41,7 @@ type OrderItem struct {
 type Order struct {
 	ID              string
 	OrderNumber     string
+	BatchPoID       string
 	CustomerID      string
 	SalesID         string
 	Subtotal        float64
@@ -73,6 +74,7 @@ type OrderItemInput struct {
 }
 
 type OrderCreateInput struct {
+	BatchPoID       string
 	CustomerID      string
 	SalesID         string
 	ShippingCost    float64
@@ -96,6 +98,7 @@ type OrderUpdateInput struct {
 
 type OrderFilter struct {
 	Search        string // Untuk pencarian OrderNumber
+	BatchPoID     string
 	CustomerID    string // Filter by Customer
 	SalesID       string // Filter by Sales
 	OrderStatus   string // Filter by Order Status

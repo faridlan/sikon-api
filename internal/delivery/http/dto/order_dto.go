@@ -18,6 +18,7 @@ type OrderItemRequest struct {
 }
 
 type OrderCreateRequest struct {
+	BatchPoID       string             `json:"batch_po_id" validate:"required,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
 	CustomerID      string             `json:"customer_id" validate:"required,uuid" example:"333e4567-e89b-12d3-a456-426614174000"`
 	SalesID         string             `json:"sales_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	ShippingCost    float64            `json:"shipping_cost" validate:"omitempty,gte=0" example:"50000"`

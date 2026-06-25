@@ -213,9 +213,9 @@ func TestGetReceivablesReport_Integration(t *testing.T) {
 	tests.SeedPayment(db, order1.ID, bank.ID, 40000, "transfer") // Total 110k, Bayar 40k, Sisa 70k
 
 	// =========================================================================
-	// SKENARIO 2: Order Masih Pending, Belum Bayar Sama Sekali (Masuk Laporan)
+	// SKENARIO 2: Order Sudah Ready, Belum Bayar (Masuk Laporan)
 	// =========================================================================
-	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "pending")
+	tests.SeedOrder(db, cust.ID, sales.ID, prod.ID, "ready")
 	// Status bawaan seeder sudah 'unpaid', tidak ada data di tabel payments
 	// Total 110k, Bayar 0, Sisa 110k
 

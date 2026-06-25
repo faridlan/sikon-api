@@ -30,6 +30,7 @@ func (OrderItemModel) TableName() string {
 type OrderModel struct {
 	ID              string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	OrderNumber     string         `gorm:"type:varchar(100);unique;not null"`
+	BatchPoID       *string        `gorm:"type:uuid;index"`
 	CustomerID      string         `gorm:"type:uuid;not null"`
 	SalesID         string         `gorm:"type:uuid;not null"`
 	Subtotal        float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
@@ -61,6 +62,7 @@ func (OrderModel) TableName() string {
 
 // --- Mapper Order Item ---
 func (m *OrderItemModel) ToDomain() domain.OrderItem {
+
 	item := domain.OrderItem{
 		ID:        m.ID,
 		OrderID:   m.OrderID,
@@ -82,9 +84,15 @@ func (m *OrderItemModel) ToDomain() domain.OrderItem {
 
 // --- Mapper Order Utama ---
 func (m *OrderModel) ToDomain() *domain.Order {
+	batchPoID := ""
+	if m.BatchPoID != nil {
+		batchPoID = *m.BatchPoID
+	}
+
 	order := &domain.Order{
 		ID:              m.ID,
 		OrderNumber:     m.OrderNumber,
+		BatchPoID:       batchPoID,
 		CustomerID:      m.CustomerID,
 		SalesID:         m.SalesID,
 		Subtotal:        m.Subtotal,       // Mapping Baru
@@ -123,9 +131,15 @@ func (m *OrderModel) ToDomain() *domain.Order {
 }
 
 func FromOrderDomain(d *domain.Order) *OrderModel {
+	var batchPoID *string
+	if d.BatchPoID != "" {
+		batchPoID = &d.BatchPoID
+	}
+
 	model := &OrderModel{
 		ID:              d.ID,
 		OrderNumber:     d.OrderNumber,
+		BatchPoID:       batchPoID,
 		CustomerID:      d.CustomerID,
 		SalesID:         d.SalesID,
 		Subtotal:        d.Subtotal,       // Mapping Baru

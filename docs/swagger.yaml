@@ -59,6 +59,79 @@ definitions:
         example: Mandiri
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOCreateRequest:
+    properties:
+      end_date:
+        example: "2026-06-06T00:00:00Z"
+        type: string
+      name:
+        example: PO 1 Juni 2026
+        type: string
+      quota:
+        description: 0 berarti unlimited
+        example: 100
+        minimum: 0
+        type: integer
+      start_date:
+        example: "2026-05-30T00:00:00Z"
+        type: string
+    required:
+    - end_date
+    - name
+    - start_date
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse:
+    properties:
+      created_at:
+        example: "2026-05-25T10:00:00Z"
+        type: string
+      end_date:
+        example: "2026-06-06T00:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      name:
+        example: PO 1 Juni 2026
+        type: string
+      quota:
+        example: 100
+        type: integer
+      start_date:
+        example: "2026-05-30T00:00:00Z"
+        type: string
+      status:
+        example: draft
+        type: string
+      updated_at:
+        example: "2026-05-25T10:00:00Z"
+        type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOStatusUpdateRequest:
+    properties:
+      status:
+        enum:
+        - draft
+        - active
+        - closed
+        example: active
+        type: string
+    required:
+    - status
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOUpdateRequest:
+    properties:
+      end_date:
+        type: string
+      name:
+        example: PO 1 Juni 2026 Revisi
+        type: string
+      quota:
+        minimum: 0
+        type: integer
+      start_date:
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryRequest:
     properties:
       name:
@@ -168,6 +241,9 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
     properties:
+      batch_po_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
       courier_name:
         example: JNE Trucking
         type: string
@@ -202,6 +278,7 @@ definitions:
         example: "2026-06-15T00:00:00Z"
         type: string
     required:
+    - batch_po_id
     - customer_id
     - items
     - sales_id
@@ -322,9 +399,9 @@ definitions:
         - quotation
         - pending
         - production
+        - ready
         - completed
         - canceled
-        example: production
         type: string
     required:
     - order_status
@@ -653,6 +730,17 @@ definitions:
       meta:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse'
+        type: array
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_CategoryResponse
   : properties:
       data:
@@ -745,6 +833,15 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse'
+        type: array
+      message:
+        type: string
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse
   : properties:
       data:
@@ -776,6 +873,13 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BankAccountResponse'
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse'
       message:
         type: string
     type: object
@@ -1041,6 +1145,211 @@ paths:
       summary: Get User's Bank Accounts
       tags:
       - Bank Accounts
+  /batch-pos:
+    get:
+      parameters:
+      - default: 1
+        description: Halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: List All Batch POs (Pagination)
+      tags:
+      - BatchPOs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data Batch PO Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse'
+        "400":
+          description: Bad Request - Format input salah atau validasi gagal
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error - Terjadi kesalahan pada server
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Create Batch PO
+      tags:
+      - BatchPOs
+  /batch-pos/{id}:
+    delete:
+      parameters:
+      - description: Batch PO ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request - Format ID tidak valid
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found - Batch PO tidak ditemukan
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Delete Batch PO (Soft Delete)
+      tags:
+      - BatchPOs
+    get:
+      parameters:
+      - description: Batch PO ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse'
+        "400":
+          description: Bad Request - Format ID UUID tidak valid
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found - Batch PO tidak ditemukan
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Batch PO Detail
+      tags:
+      - BatchPOs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Batch PO ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Update PO
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse'
+        "400":
+          description: Bad Request - Format ID tidak valid atau body request salah
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found - Batch PO tidak ditemukan
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Update Batch PO
+      tags:
+      - BatchPOs
+  /batch-pos/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Batch PO ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOStatusUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request - Status tidak valid
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found - Batch PO tidak ditemukan
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Update Batch PO Status (Activate / Close)
+      tags:
+      - BatchPOs
+  /batch-pos/active:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: List Active Batch POs (For Dropdown)
+      tags:
+      - BatchPOs
   /categories:
     get:
       description: Mengambil daftar seluruh kategori produk dengan pagination

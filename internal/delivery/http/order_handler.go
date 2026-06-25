@@ -55,6 +55,7 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.OrderCreateInput{
+		BatchPoID:       req.BatchPoID,
 		CustomerID:      req.CustomerID,
 		SalesID:         req.SalesID,
 		ShippingCost:    req.ShippingCost,
