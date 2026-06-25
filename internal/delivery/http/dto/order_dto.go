@@ -40,7 +40,7 @@ type OrderUpdateRequest struct {
 }
 
 type OrderStatusUpdateRequest struct {
-	OrderStatus string `json:"order_status" validate:"required,oneof=quotation pending production completed canceled" example:"production"`
+	OrderStatus string `json:"order_status" validate:"required,oneof=quotation pending production ready completed canceled"`
 }
 
 type PaymentStatusUpdateRequest struct {

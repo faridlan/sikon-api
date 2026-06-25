@@ -31,7 +31,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 	category := tests.SeedCategory(db, "Kemeja")
 	product := tests.SeedProduct(db, category.ID, "Kemeja PDH", 150000)
 
-	// 1. SKENARIO CREATE SURAT PENAWARAN (Default Status)
+	// 1. SKENARIO CREATE SURAT PENAWARAN (Normal Flow)
 	t.Run("Success_Create_Order", func(t *testing.T) {
 		validUntil := time.Now().AddDate(0, 0, 7)
 		reqBody := dto.OrderCreateRequest{
@@ -42,13 +42,13 @@ func TestCreateOrder_Integration(t *testing.T) {
 			ShippingAddress: "Alamat Kirim",
 			ValidUntil:      &validUntil,
 			TermsConditions: "Syarat 1 2 3",
-			OrderStatus:     "quotation", // <-- Frontend mengirim status quotation untuk membuat Surat Penawaran
+			OrderStatus:     "quotation",
 			Items: []dto.OrderItemRequest{
 				{
 					ProductID: product.ID,
 					Qty:       2,
 					Price:     150000,
-					Details:   map[string]any{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}}, // Contoh variasi produk yang lebih kompleks
+					Details:   map[string]any{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}},
 				},
 			},
 		}
@@ -72,18 +72,16 @@ func TestCreateOrder_Integration(t *testing.T) {
 		assert.Equal(t, "Hitam", response.Data.Items[0].Details["Bahan"].(map[string]any)["Color"])
 
 		// --- TAMBAHAN ASSERSI PERHITUNGAN KEUANGAN ---
-		// Subtotal = 2 Qty * 150.000 = 300.000
 		assert.Equal(t, 300000.0, response.Data.Subtotal)
-		// Grand Total = Subtotal (300.000) + ShippingCost (20.000) = 320.000
 		assert.Equal(t, 320000.0, response.Data.TotalAmount)
 	})
 
-	// 2. SKENARIO BARU: CREATE ORDER LANGSUNG (Status Pending dari Frontend)
-	t.Run("Success_Create_Order_Directly_As_Pending", func(t *testing.T) {
+	// 2. 🚨 REVISI SKENARIO: ANTI-BYPASS STATUS ORDER
+	t.Run("Success_Create_Order_But_Forced_As_Quotation", func(t *testing.T) {
 		reqBody := dto.OrderCreateRequest{
 			CustomerID:      customer.ID,
 			SalesID:         sales.ID,
-			OrderStatus:     "pending", // <-- Frontend secara eksplisit mengirim status pending
+			OrderStatus:     "pending", // <-- Frontend mencoba mengirim status pending secara paksa
 			ShippingCost:    20000,
 			CourierName:     "JNT",
 			ShippingAddress: "Alamat Langsung",
@@ -92,7 +90,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 					ProductID: product.ID,
 					Qty:       1,
 					Price:     150000,
-					Details:   map[string]any{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}}, // Contoh variasi produk yang lebih kompleks
+					Details:   map[string]any{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}},
 				},
 			},
 		}
@@ -103,14 +101,16 @@ func TestCreateOrder_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode) // Tetap sukses membuat entitas data
 
 		var response utils.SuccessResponse[dto.OrderResponse]
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		// PASTIKAN: Sistem mencatatnya sebagai 'pending' (Pesanan Resmi), bukan 'quotation'
-		assert.Equal(t, "pending", response.Data.OrderStatus)
+		// 🚨 EKSPEKTASI BARU: Sistem Backend HARUS memotong manipulasi data dari luar
+		// dan memaksanya tetap lahir sebagai 'quotation' dan 'unpaid'
+		assert.Equal(t, "quotation", response.Data.OrderStatus, "Sistem kebobolan! Harusnya status dipaksa menjadi quotation")
+		assert.Equal(t, "unpaid", response.Data.PaymentStatus)
 	})
 
 	// 3. SKENARIO GAGAL VALIDASI
@@ -128,10 +128,6 @@ func TestCreateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
-
-		var response utils.ErrorResponse
-		respBody, _ := io.ReadAll(resp.Body)
-		json.Unmarshal(respBody, &response)
 	})
 }
 
@@ -278,13 +274,14 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 	prod := tests.SeedProduct(db, cat.ID, "Prod", 100)
 	order := tests.SeedOrder(db, cust.ID, sales.ID, prod.ID)
 
-	t.Run("Success_Update_Quotation_To_Pending", func(t *testing.T) {
-		// SETUP: Set kondisi awal di DB menjadi Quotation & Unpaid
+	// =========================================================================
+	// 1. TAHAP QUOTATION -> PENDING
+	// =========================================================================
+	t.Run("Failed_Update_Quotation_To_Pending_No_DP", func(t *testing.T) {
+		// SETUP: Kondisi awal Quotation tapi Customer belum transfer sama sekali
 		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "quotation", "unpaid", order.ID)
 
-		reqBody := dto.OrderStatusUpdateRequest{
-			OrderStatus: "pending",
-		}
+		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "pending"}
 		bodyJson, _ := json.Marshal(reqBody)
 
 		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
@@ -292,34 +289,15 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-	})
-
-	t.Run("Failed_Update_Pending_To_Production_No_DP", func(t *testing.T) {
-		// SETUP: Set kondisi awal menjadi Pending tapi BELUM BAYAR (Harusnya ditolak masuk pabrik)
-		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "pending", "unpaid", order.ID)
-
-		reqBody := dto.OrderStatusUpdateRequest{
-			OrderStatus: "production",
-		}
-		bodyJson, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		// ASERSI: Pastikan HTTP Status-nya 409 Conflict (Ditolak State Machine)
+		// ASERSI: Ditolak masuk antrean karena belum ada uang (409 Conflict)
 		assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 	})
 
-	t.Run("Success_Update_Pending_To_Production_With_DP", func(t *testing.T) {
-		// SETUP: Set kondisi awal menjadi Pending dan SUDAH DP/Partial (Harusnya diizinkan masuk pabrik)
-		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "pending", "partial", order.ID)
+	t.Run("Success_Update_Quotation_To_Pending_With_DP", func(t *testing.T) {
+		// SETUP: Customer sudah bayar DP (partial)
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "quotation", "partial", order.ID)
 
-		reqBody := dto.OrderStatusUpdateRequest{
-			OrderStatus: "production",
-		}
+		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "pending"}
 		bodyJson, _ := json.Marshal(reqBody)
 
 		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
@@ -330,10 +308,13 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("Failed_Invalid_Status_Enum", func(t *testing.T) {
-		reqBody := dto.OrderStatusUpdateRequest{
-			OrderStatus: "status_ngasal", // Ditolak oleh validator DTO / Usecase
-		}
+	// =========================================================================
+	// 2. TAHAP PENDING -> PRODUCTION -> READY
+	// =========================================================================
+	t.Run("Success_Update_Pending_To_Production", func(t *testing.T) {
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "pending", "partial", order.ID)
+
+		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "production"}
 		bodyJson, _ := json.Marshal(reqBody)
 
 		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
@@ -341,7 +322,70 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-		// ASERSI: Pastikan HTTP Status-nya 400 Bad Request
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("Success_Update_Production_To_Ready", func(t *testing.T) {
+		// SETUP: Kain sudah beres dijahit, masuk ke gudang
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "production", "partial", order.ID)
+
+		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "ready"}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	})
+
+	// =========================================================================
+	// 3. TAHAP READY -> COMPLETED (PENGAMBILAN BARANG)
+	// =========================================================================
+	t.Run("Failed_Update_Ready_To_Completed_Not_Paid", func(t *testing.T) {
+		// SETUP: Barang siap kirim, tapi baru dibayar DP (Barang ditahan)
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "ready", "partial", order.ID)
+
+		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "completed"}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		// ASERSI: Ditolak karena belum lunas
+		assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
+	})
+
+	t.Run("Success_Update_Ready_To_Completed_Paid", func(t *testing.T) {
+		// SETUP: Barang siap kirim, sisa tagihan sudah dilunasi
+		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "ready", "paid", order.ID)
+
+		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "completed"}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	})
+
+	// =========================================================================
+	// 4. UJI VALIDASI INPUT
+	// =========================================================================
+	t.Run("Failed_Invalid_Status_Enum", func(t *testing.T) {
+		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "status_ngasal"}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
 }
