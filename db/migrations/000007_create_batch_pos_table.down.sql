@@ -1,0 +1,5 @@
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS fk_orders_batch_pos;
+
+ALTER TABLE orders DROP COLUMN IF EXISTS batch_po_id;
+
+DROP TABLE IF EXISTS batch_pos;

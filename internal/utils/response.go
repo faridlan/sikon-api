@@ -67,6 +67,10 @@ func HandleDomainError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, domain.ErrBadParamInput):
 		return SendError(c, fiber.StatusBadRequest, err.Error())
 
+	// 🚨 TAMBAHKAN BARIS INI UNTUK MENANGKAP ERROR PO TUTUP
+	case errors.Is(err, domain.ErrForbidden):
+		return SendError(c, fiber.StatusForbidden, err.Error())
+
 	case errors.Is(err, domain.ErrLimitExceeded):
 		return SendError(c, fiber.StatusTooManyRequests, err.Error())
 

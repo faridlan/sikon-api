@@ -16,17 +16,19 @@ type orderUsecase struct {
 	customerRepo   domain.CustomerRepository
 	userRepo       domain.UserRepository // Untuk memvalidasi Sales
 	productRepo    domain.ProductRepository
+	batchPoRepo    domain.BatchPORepository
 	paymentRepo    domain.PaymentRepository
 	txManager      domain.TransactionManager
 	contextTimeout time.Duration
 }
 
-func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, payRepo domain.PaymentRepository, txManager domain.TransactionManager, timeout time.Duration) domain.OrderUsecase {
+func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, bpr domain.BatchPORepository, payRepo domain.PaymentRepository, txManager domain.TransactionManager, timeout time.Duration) domain.OrderUsecase {
 	return &orderUsecase{
 		orderRepo:      or,
 		customerRepo:   cr,
 		userRepo:       ur,
 		productRepo:    pr,
+		batchPoRepo:    bpr,
 		paymentRepo:    payRepo,
 		txManager:      txManager,
 		contextTimeout: timeout,
@@ -55,12 +57,33 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		return nil, err
 	}
 
-	// statusOrder := domain.OrderStatusPending
-	// if input.OrderStatus == domain.OrderStatusQuotation {
-	// 	statusOrder = domain.OrderStatusQuotation
-	// }
+	// ========================================================================
+	// VALIDASI BATCH PO
+	// ========================================================================
+	if input.BatchPoID == "" {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Batch PO wajib dipilih")
+	}
 
+	batchPO, err := u.batchPoRepo.GetByID(ctx, input.BatchPoID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NewError(domain.ErrBadParamInput, "Batch PO tidak ditemukan")
+		}
+		return nil, err
+	}
+
+	// Gembok Order Susulan: Hanya untuk PO Aktif (atau hak akses Admin di masa depan)
+	if batchPO.Status == domain.BatchPOStatusClosed {
+		// TODO (AUTH JWT): Nanti setelah fitur JWT terpasang, ubah logika ini untuk mengizinkan Admin
+		// if currentUser.Role != domain.RoleAdmin { ... }
+		return nil, domain.NewError(domain.ErrForbidden, "PO sudah ditutup. Hanya Admin yang dapat memasukkan order susulan.")
+	}
+
+	// ========================================================================
+	// INISIALISASI ENTITAS ORDER
+	// ========================================================================
 	order := &domain.Order{
+		BatchPoID:       input.BatchPoID, // 🚨 Menyambungkan pesanan ke Gelombang PO
 		CustomerID:      input.CustomerID,
 		SalesID:         input.SalesID,
 		ShippingCost:    input.ShippingCost,
@@ -108,15 +131,14 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 	// FASE 2: MENGUBAH DATABASE (Di dalam transaksi)
 	// ========================================================================
 
-	err := u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
 		// PERHATIAN: Gunakan txCtx HANYA untuk operasi tulis ke database
 
 		if err := u.orderRepo.Create(txCtx, order); err != nil {
 			return err // Otomatis Rollback
 		}
 
-		// (Ruang aman untuk penambahan fitur potong stok di masa depan)
-		// contoh: u.productRepo.DecreaseStock(txCtx, item.ProductID, item.Qty)
+		// (Ruang aman untuk penambahan fitur potong stok bahan baku di masa depan)
 
 		return nil // Otomatis Commit
 	})

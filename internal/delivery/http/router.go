@@ -19,6 +19,7 @@ type Handlers struct {
 	PaymentHandler      PaymentHandler
 	SpecTemplateHandler SpecTemplateHandler
 	DashboardHandler    DashboardHandler
+	BatchPOHandler      BatchPOHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers
@@ -120,4 +121,13 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	dashboard.Get("/summary", handlers.DashboardHandler.GetSummary)
 	dashboard.Get("/sales-report", handlers.DashboardHandler.GetSalesReport)
 	dashboard.Get("/receivables-report", handlers.DashboardHandler.GetReceivablesReport)
+
+	batchPos := api.Group("/batch-pos")
+	batchPos.Post("/", handlers.BatchPOHandler.CreateBatchPO)
+	batchPos.Get("/", handlers.BatchPOHandler.ListBatchPOs)
+	batchPos.Get("/active", handlers.BatchPOHandler.ListActiveBatchPOs) // Dropdown untuk Sales
+	batchPos.Get("/:id", handlers.BatchPOHandler.GetBatchPO)
+	batchPos.Put("/:id", handlers.BatchPOHandler.UpdateBatchPO)
+	batchPos.Patch("/:id/status", handlers.BatchPOHandler.UpdateStatus) // Buka/Tutup PO
+	batchPos.Delete("/:id", handlers.BatchPOHandler.DeleteBatchPO)
 }

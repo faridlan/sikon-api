@@ -1,0 +1,68 @@
+package dto
+
+import (
+	"time"
+
+	"github.com/faridlan/sikon-api/internal/domain"
+)
+
+// --- REQUEST ---
+
+type BatchPOCreateRequest struct {
+	Name      string    `json:"name" validate:"required" example:"PO 1 Juni 2026"`
+	StartDate time.Time `json:"start_date" validate:"required" example:"2026-05-30T00:00:00Z"`
+	EndDate   time.Time `json:"end_date" validate:"required" example:"2026-06-06T00:00:00Z"`
+	Quota     int       `json:"quota" validate:"gte=0" example:"100"` // 0 berarti unlimited
+}
+
+type BatchPOUpdateRequest struct {
+	Name      string     `json:"name" validate:"omitempty" example:"PO 1 Juni 2026 Revisi"`
+	StartDate *time.Time `json:"start_date" validate:"omitempty"`
+	EndDate   *time.Time `json:"end_date" validate:"omitempty"`
+	Quota     *int       `json:"quota" validate:"omitempty,gte=0"`
+}
+
+type BatchPOStatusUpdateRequest struct {
+	Status string `json:"status" validate:"required,oneof=draft active closed" example:"active"`
+}
+
+// --- RESPONSE ---
+
+type BatchPOResponse struct {
+	ID        string    `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Name      string    `json:"name" example:"PO 1 Juni 2026"`
+	StartDate time.Time `json:"start_date" example:"2026-05-30T00:00:00Z"`
+	EndDate   time.Time `json:"end_date" example:"2026-06-06T00:00:00Z"`
+	Status    string    `json:"status" example:"draft"`
+	Quota     int       `json:"quota" example:"100"`
+	CreatedAt time.Time `json:"created_at" example:"2026-05-25T10:00:00Z"`
+	UpdatedAt time.Time `json:"updated_at" example:"2026-05-25T10:00:00Z"`
+}
+
+func ToBatchPOResponse(b *domain.BatchPO) BatchPOResponse {
+	return BatchPOResponse{
+		ID:        b.ID,
+		Name:      b.Name,
+		StartDate: b.StartDate,
+		EndDate:   b.EndDate,
+		Status:    string(b.Status),
+		Quota:     b.Quota,
+		CreatedAt: b.CreatedAt,
+		UpdatedAt: b.UpdatedAt,
+	}
+}
+
+func ToBatchPOResponseList(list []domain.BatchPO) []BatchPOResponse {
+	// Early return: Jika data kosong, langsung kembalikan slice kosong
+	// Ini menjamin output JSON menjadi [] (bukan null)
+	if len(list) == 0 {
+		return []BatchPOResponse{}
+	}
+
+	responses := make([]BatchPOResponse, len(list))
+	for i, b := range list {
+		responses[i] = ToBatchPOResponse(&b)
+	}
+
+	return responses
+}

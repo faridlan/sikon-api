@@ -80,6 +80,7 @@ func main() {
 	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
 	txManager := postgres.NewTransactionManager(db)
 	dashboardRepo := postgres.NewDashboardRepository(db) // Inisialisasi repository dashboard
+	batchPORepo := postgres.NewBatchPORepository(db)     // Inisialisasi repository Batch PO
 
 	// ==========================================
 	// 2. INISIASI USECASE (Layer Logika Bisnis)
@@ -90,8 +91,9 @@ func main() {
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, contextTimeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, contextTimeout)
+	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, contextTimeout)
 	// Order butuh banyak dependensi untuk validasi bisnis
-	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, paymentRepo, txManager, contextTimeout)
+	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
 
 	// Payment butuh Order & BankAccount untuk kalkulasi status lunas
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, contextTimeout)
@@ -109,6 +111,7 @@ func main() {
 	paymentHandler := myHttp.NewPaymentHandler(paymentUsecase)
 	specTemplateHandler := myHttp.NewSpecTemplateHandler(specTemplateUsecase)
 	dashboardHandler := myHttp.NewDashboardHandler(dashboardUsecase) // Inisialisasi handler dashboard
+	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase)       // Inisialisasi handler Batch PO
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
@@ -123,6 +126,7 @@ func main() {
 		PaymentHandler:      paymentHandler,
 		SpecTemplateHandler: specTemplateHandler,
 		DashboardHandler:    dashboardHandler, // Tambahkan handler dashboard ke registry
+		BatchPOHandler:      batchPOHandler,   // Tambahkan handler Batch PO ke registry
 	}
 
 	// ==========================================
