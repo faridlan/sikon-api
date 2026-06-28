@@ -10,7 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/swagger"
 	"github.com/joho/godotenv"
 
@@ -18,6 +18,7 @@ import (
 	"github.com/faridlan/sikon-api/docs"
 	"github.com/faridlan/sikon-api/internal/config"
 	myHttp "github.com/faridlan/sikon-api/internal/delivery/http"
+	"github.com/faridlan/sikon-api/internal/delivery/http/middleware"
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/usecase"
 
@@ -149,11 +150,15 @@ func main() {
 		AllowCredentials: false,
 	}))
 
-	app.Use(logger.New(logger.Config{
-		Format:     "[${time}] ${status} - ${latency} ${method} ${path}\n",
-		TimeFormat: "2006-01-02 15:04:05",
-		TimeZone:   "Asia/Jakarta",
-	}))
+	// app.Use(logger.New(logger.Config{
+	// 	Format:     "[${time}] ${status} - ${latency} ${method} ${path}\n",
+	// 	TimeFormat: "2006-01-02 15:04:05",
+	// 	TimeZone:   "Asia/Jakarta",
+	// }))
+
+	app.Use(requestid.New())
+
+	app.Use(middleware.SlogMiddleware())
 
 	// Setup Swagger
 	swaggerHost := os.Getenv("SWAGGER_HOST")

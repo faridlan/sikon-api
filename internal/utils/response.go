@@ -31,26 +31,36 @@ func SendError(c *fiber.Ctx, statusCode int, message string, detail ...string) e
 		Error: message,
 	}
 
+	errDetail := ""
+	if len(detail) > 0 && detail[0] != "" {
+		errDetail = detail[0]
+	}
+
+	// 🚨 AMBIL TRACE ID
+	requestID := c.GetRespHeader(fiber.HeaderXRequestID)
+
+	// Pisahkan pencatatan log berdasarkan tingkat keparahan
 	if statusCode >= fiber.StatusInternalServerError {
-
-		var errDetail string
-		if len(detail) > 0 && detail[0] != "" {
-			errDetail = detail[0]
-		}
-
+		// Log 500 sebagai CRITICAL ERROR
 		slog.Error("CRITICAL SERVER ERROR",
+			slog.String("request_id", requestID),
 			slog.Int("status_code", statusCode),
 			slog.String("path", c.Path()),
 			slog.String("method", c.Method()),
 			slog.String("error_message", message),
 			slog.String("sql_detail", errDetail),
 		)
-
-		resp.Detail = ""
-	} else {
-		if len(detail) > 0 && detail[0] != "" {
-			resp.Detail = detail[0]
-		}
+		resp.Detail = "" // Sembunyikan detail SQL/Server dari End User (Keamanan)
+	} else if statusCode >= fiber.StatusBadRequest {
+		// Log 400-499 sebagai WARN (misal: validasi gagal, PO ditutup)
+		slog.Warn("Bad Request / Forbidden",
+			slog.String("request_id", requestID),
+			slog.Int("status_code", statusCode),
+			slog.String("path", c.Path()),
+			slog.String("error_message", message),
+			slog.String("detail", errDetail),
+		)
+		resp.Detail = errDetail // Boleh ditampilkan ke End User
 	}
 
 	return c.Status(statusCode).JSON(resp)
