@@ -13,6 +13,7 @@ type ProductModel struct {
 	Name        string         `gorm:"type:varchar(255);not null"`
 	Description string         `gorm:"type:text"`
 	BasePrice   float64        `gorm:"type:decimal(12,2);not null;default:0"`
+	ImageURL    string         `gorm:"type:varchar(255)"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
@@ -32,6 +33,7 @@ func (m *ProductModel) ToDomain() *domain.Product {
 		Name:        m.Name,
 		Description: m.Description,
 		BasePrice:   m.BasePrice,
+		ImageURL:    m.ImageURL,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 	}
@@ -51,6 +53,7 @@ func FromProductDomain(d *domain.Product) *ProductModel {
 		Name:        d.Name,
 		Description: d.Description,
 		BasePrice:   d.BasePrice,
+		ImageURL:    d.ImageURL,
 		CreatedAt:   d.CreatedAt,
 		UpdatedAt:   d.UpdatedAt,
 	}

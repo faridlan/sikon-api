@@ -52,6 +52,7 @@ func (h *productHandler) CreateProduct(c *fiber.Ctx) error {
 		Name:        req.Name,
 		Description: req.Description,
 		BasePrice:   req.BasePrice,
+		ImageURL:    req.ImageURL,
 	}
 
 	product, err := h.productUsecase.CreateProduct(c.Context(), domainReq)
