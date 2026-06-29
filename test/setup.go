@@ -11,6 +11,7 @@ import (
 
 	"github.com/faridlan/sikon-api/internal/config"
 	myHttp "github.com/faridlan/sikon-api/internal/delivery/http"
+	"github.com/faridlan/sikon-api/internal/infrastructure/supabase"
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/usecase"
 )
@@ -29,6 +30,10 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
+
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	supabaseKey := os.Getenv("SUPABASE_KEY")
+	supabaseBucket := os.Getenv("SUPABASE_BUCKET")
 
 	// 3. Inisiasi DB Test (Masukkan variabel di atas, JANGAN di-hardcode)
 	db := config.InitDB(dbUser, dbPassword, dbHost, dbPort, dbName)
@@ -50,6 +55,8 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	)
 
 	timeout := 5 * time.Second
+
+	storageService := supabase.NewSupabaseStorage(supabaseURL, supabaseKey, supabaseBucket)
 
 	// 1. Repo
 	categoryRepo := postgres.NewCategoryRepository(db)
@@ -75,6 +82,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout) // <-- Tambahkan ini
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, timeout)
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, timeout) // <-- Tambahkan ini
+	uploadUsecase := usecase.NewUploadUsecase(storageService, timeout)
 
 	// 3. Masukkan ke struct Handlers
 	handlers := myHttp.Handlers{
@@ -88,6 +96,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		PaymentHandler:      myHttp.NewPaymentHandler(paymentUsecase),
 		DashboardHandler:    myHttp.NewDashboardHandler(dashboardUsecase),
 		BatchPOHandler:      myHttp.NewBatchPOHandler(batchPOUsecase),
+		UploadHandler:       myHttp.NewUploadHandler(uploadUsecase),
 	}
 
 	app := fiber.New()

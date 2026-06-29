@@ -51,6 +51,31 @@ func TestCreateProduct_Integration(t *testing.T) {
 		assert.NotEmpty(t, response.Data.ID)
 	})
 
+	t.Run("Success_With_ImageURL", func(t *testing.T) {
+		reqBody := dto.ProductCreateRequest{
+			CategoryID:  category.ID,
+			Name:        "Kaos Polos Lengan Panjang",
+			Description: "Bahan Combed 30s",
+			BasePrice:   65000,
+			ImageURL:    "https://example.com/image.jpg",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/products", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.ProductResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Equal(t, "Kaos Polos Lengan Panjang", response.Data.Name)
+		assert.Equal(t, "https://example.com/image.jpg", response.Data.ImageURL)
+	})
+
 	t.Run("Failed_Category_Not_Found", func(t *testing.T) {
 		// Menggunakan UUID yang valid secara format, tapi TIDAK ADA di database
 		randomCatID := uuid.New().String()

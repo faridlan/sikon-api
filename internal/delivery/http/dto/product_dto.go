@@ -12,6 +12,7 @@ type ProductCreateRequest struct {
 	Name        string  `json:"name" validate:"required" example:"Kaos Polos Cotton Combed 30s"`
 	Description string  `json:"description" example:"Kaos polos bahan cotton combed 30s kualitas premium"`
 	BasePrice   float64 `json:"base_price" validate:"required,gt=0" example:"35000"`
+	ImageURL    string  `json:"image_url" validate:"omitempty,url" example:"https://supabase.../gambar.jpg"`
 }
 
 type ProductUpdateRequest struct {
@@ -19,6 +20,7 @@ type ProductUpdateRequest struct {
 	Name        string  `json:"name" validate:"omitempty" example:"Kaos Polos Lengan Panjang"`
 	Description string  `json:"description" validate:"omitempty" example:"Versi lengan panjang"`
 	BasePrice   float64 `json:"base_price" validate:"omitempty,gt=0" example:"45000"`
+	ImageURL    string  `json:"image_url" validate:"omitempty,url" example:"https://supabase.../gambar.jpg"`
 }
 
 // --- RESPONSE ---
@@ -30,6 +32,7 @@ type ProductResponse struct {
 	BasePrice   float64   `json:"base_price" example:"35000"`
 	CreatedAt   time.Time `json:"created_at" example:"2023-10-01T15:00:00Z"`
 	UpdatedAt   time.Time `json:"updated_at" example:"2023-10-01T15:00:00Z"`
+	ImageURL    string    `json:"image_url" example:"https://supabase.../gambar.jpg"`
 
 	Category *CategoryResponse `json:"category,omitempty"`
 }
@@ -43,6 +46,7 @@ func ToProductResponse(p *domain.Product) ProductResponse {
 		BasePrice:   p.BasePrice,
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,
+		ImageURL:    p.ImageURL,
 	}
 
 	if p.Category != nil {

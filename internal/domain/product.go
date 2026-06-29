@@ -13,6 +13,7 @@ type Product struct {
 	BasePrice   float64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	ImageURL    string // URL gambar produk
 
 	Category *Category // Relasi
 }
@@ -22,6 +23,7 @@ type ProductCreateInput struct {
 	Name        string
 	Description string
 	BasePrice   float64
+	ImageURL    string // URL gambar produk
 }
 
 type ProductUpdateInput struct {
@@ -29,6 +31,7 @@ type ProductUpdateInput struct {
 	Name        string
 	Description string
 	BasePrice   float64
+	ImageURL    string // URL gambar produk
 }
 
 type ProductFilter struct {

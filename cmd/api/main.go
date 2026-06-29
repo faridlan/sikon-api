@@ -19,6 +19,7 @@ import (
 	"github.com/faridlan/sikon-api/internal/config"
 	myHttp "github.com/faridlan/sikon-api/internal/delivery/http"
 	"github.com/faridlan/sikon-api/internal/delivery/http/middleware"
+	"github.com/faridlan/sikon-api/internal/infrastructure/supabase"
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/usecase"
 
@@ -54,6 +55,10 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	dbURL := os.Getenv("DB_URL") // Contoh: postgres://user:pass@host:5432/dbname?sslmode=disable
 
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	supabaseKey := os.Getenv("SUPABASE_KEY")
+	supabaseBucket := os.Getenv("SUPABASE_BUCKET")
+
 	// Menjalankan Migrasi Database
 	if dbURL != "" {
 		config.RunDBMigration(dbURL)
@@ -66,6 +71,8 @@ func main() {
 
 	// Context timeout untuk membatasi lama eksekusi query (Cegah query gantung)
 	contextTimeout := 5 * time.Second
+
+	storageService := supabase.NewSupabaseStorage(supabaseURL, supabaseKey, supabaseBucket)
 
 	// ==========================================
 	// 1. INISIASI REPOSITORY (Layer Data)
@@ -93,6 +100,8 @@ func main() {
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, contextTimeout)
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, contextTimeout)
+	uploadUsecase := usecase.NewUploadUsecase(storageService, contextTimeout)
+
 	// Order butuh banyak dependensi untuk validasi bisnis
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
 
@@ -113,6 +122,7 @@ func main() {
 	specTemplateHandler := myHttp.NewSpecTemplateHandler(specTemplateUsecase)
 	dashboardHandler := myHttp.NewDashboardHandler(dashboardUsecase) // Inisialisasi handler dashboard
 	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase)       // Inisialisasi handler Batch PO
+	uploadHandler := myHttp.NewUploadHandler(uploadUsecase)
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
@@ -128,6 +138,7 @@ func main() {
 		SpecTemplateHandler: specTemplateHandler,
 		DashboardHandler:    dashboardHandler, // Tambahkan handler dashboard ke registry
 		BatchPOHandler:      batchPOHandler,   // Tambahkan handler Batch PO ke registry
+		UploadHandler:       uploadHandler,
 	}
 
 	// ==========================================

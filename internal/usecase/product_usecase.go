@@ -41,6 +41,7 @@ func (u *productUsecase) CreateProduct(c context.Context, input domain.ProductCr
 		Name:        input.Name,
 		Description: input.Description,
 		BasePrice:   input.BasePrice,
+		ImageURL:    input.ImageURL,
 	}
 
 	if err := u.productRepo.Create(ctx, product); err != nil {
@@ -122,6 +123,10 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 	}
 	if input.BasePrice > 0 {
 		existingProduct.BasePrice = input.BasePrice
+	}
+
+	if input.ImageURL != "" {
+		existingProduct.ImageURL = input.ImageURL
 	}
 
 	if err := u.productRepo.Update(ctx, existingProduct); err != nil {

@@ -14,6 +14,10 @@ import (
 	"github.com/faridlan/sikon-api/internal/usecase"
 )
 
+func StringPtr(s string) *string {
+	return &s
+}
+
 func TestProductUsecase_CreateProduct(t *testing.T) {
 	mockProductRepo := new(mocks.ProductRepository)
 	mockCategoryRepo := new(mocks.CategoryRepository)
@@ -41,6 +45,34 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, input.Name, result.Name)
+		mockCategoryRepo.AssertExpectations(t)
+		mockProductRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - With ImageURL", func(t *testing.T) {
+		inputWithImage := domain.ProductCreateInput{
+			CategoryID:  "cat-123",
+			Name:        "Kaos Cotton",
+			Description: "Bahan Halus",
+			BasePrice:   50000,
+			ImageURL:    "https://example.com/image.jpg",
+		}
+
+		// Mock: Kategori harus ditemukan
+		mockCategoryRepo.On("GetByID", mock.Anything, inputWithImage.CategoryID).
+			Return(&domain.Category{ID: inputWithImage.CategoryID}, nil).Once()
+
+		// Mock: Produk berhasil dibuat
+		mockProductRepo.On("Create", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
+			return p.Name == inputWithImage.Name && p.CategoryID == inputWithImage.CategoryID && p.BasePrice == inputWithImage.BasePrice && p.ImageURL == inputWithImage.ImageURL
+		})).Return(nil).Once()
+
+		result, err := uc.CreateProduct(context.Background(), inputWithImage)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, inputWithImage.Name, result.Name)
+		assert.Equal(t, inputWithImage.ImageURL, result.ImageURL)
 		mockCategoryRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
 	})
@@ -170,12 +202,14 @@ func TestProductUsecase_UpdateProduct(t *testing.T) {
 		Name:        "Kaos Lama",
 		Description: "Bahan Biasa",
 		BasePrice:   30000,
+		ImageURL:    "https://example.com/old-image.jpg",
 	}
 
 	t.Run("Success - Update without Category Change", func(t *testing.T) {
 		input := domain.ProductUpdateInput{
 			Name:      "Kaos Baru",
 			BasePrice: 40000,
+			ImageURL:  "https://example.com/new-image.jpg",
 		}
 
 		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
