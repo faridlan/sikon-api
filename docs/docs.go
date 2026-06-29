@@ -2619,6 +2619,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/uploads/image": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Uploads"
+                ],
+                "summary": "Upload Image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "general",
+                        "description": "Nama folder tujuan",
+                        "name": "folder",
+                        "in": "query"
+                    },
+                    {
+                        "type": "file",
+                        "description": "File gambar (Max 2MB)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-map_string_string"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "description": "Mengambil daftar seluruh user dengan pagination",
@@ -3605,6 +3643,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Kaos polos bahan cotton combed 30s kualitas premium"
                 },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://supabase.../gambar.jpg"
+                },
                 "name": {
                     "type": "string",
                     "example": "Kaos Polos Cotton Combed 30s"
@@ -3637,6 +3679,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "999e4567-e89b-12d3-a456-426614174000"
                 },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://supabase.../gambar.jpg"
+                },
                 "name": {
                     "type": "string",
                     "example": "Kaos Polos Cotton Combed 30s"
@@ -3661,6 +3707,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string",
                     "example": "Versi lengan panjang"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://supabase.../gambar.jpg"
                 },
                 "name": {
                     "type": "string",
@@ -4223,6 +4273,23 @@ const docTemplate = `{
                 "message": {
                     "type": "string"
                 }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-map_string_string": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/map_string_string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "map_string_string": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
             }
         }
     },

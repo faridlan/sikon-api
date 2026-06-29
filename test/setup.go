@@ -19,7 +19,7 @@ import (
 // SetupTestApp menginisialisasi DB dan Fiber App khusus untuk Test
 func SetupTestApp() (*fiber.App, *gorm.DB) {
 	// 1. Membaca .env.test
-	err := godotenv.Load("../../.env.test")
+	err := godotenv.Overload("../../.env.test")
 	if err != nil {
 		slog.Warn("Peringatan: Gagal meload .env.test, menggunakan environment variables dari OS/CI-CD")
 	}
@@ -35,6 +35,15 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	supabaseKey := os.Getenv("SUPABASE_KEY")
 	supabaseBucket := os.Getenv("SUPABASE_BUCKET")
 
+	// 🚨 DEBUG: Cek apa yang terbaca
+	slog.Info("INTEGRATION TEST CONFIG",
+		slog.String("bucket_detected", supabaseBucket),
+		slog.String("url_detected", supabaseURL),
+	)
+
+	if supabaseBucket == "" {
+		panic("SUPABASE_BUCKET kosong! Pastikan .env.test terbaca dengan benar.")
+	}
 	// 3. Inisiasi DB Test (Masukkan variabel di atas, JANGAN di-hardcode)
 	db := config.InitDB(dbUser, dbPassword, dbHost, dbPort, dbName)
 
