@@ -147,6 +147,7 @@ func (h *productHandler) UpdateProduct(c *fiber.Ctx) error {
 		Name:        req.Name,
 		Description: req.Description,
 		BasePrice:   req.BasePrice,
+		ImageURL:    req.ImageURL,
 	}
 
 	product, err := h.productUsecase.UpdateProduct(c.Context(), id, domainReq)

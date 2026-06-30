@@ -528,6 +528,9 @@ definitions:
       description:
         example: Kaos polos bahan cotton combed 30s kualitas premium
         type: string
+      image_url:
+        example: https://supabase.../gambar.jpg
+        type: string
       name:
         example: Kaos Polos Cotton Combed 30s
         type: string
@@ -555,6 +558,9 @@ definitions:
       id:
         example: 999e4567-e89b-12d3-a456-426614174000
         type: string
+      image_url:
+        example: https://supabase.../gambar.jpg
+        type: string
       name:
         example: Kaos Polos Cotton Combed 30s
         type: string
@@ -572,6 +578,9 @@ definitions:
         type: string
       description:
         example: Versi lengan panjang
+        type: string
+      image_url:
+        example: https://supabase.../gambar.jpg
         type: string
       name:
         example: Kaos Polos Lengan Panjang
@@ -945,6 +954,17 @@ definitions:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.EmptyObj'
       message:
         type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_utils.SuccessResponse-map_string_string:
+    properties:
+      data:
+        $ref: '#/definitions/map_string_string'
+      message:
+        type: string
+    type: object
+  map_string_string:
+    additionalProperties:
+      type: string
     type: object
 host: localhost:8080
 info:
@@ -2695,6 +2715,31 @@ paths:
       summary: Update Spec Template
       tags:
       - SpecTemplates
+  /uploads/image:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - default: general
+        description: Nama folder tujuan
+        in: query
+        name: folder
+        type: string
+      - description: File gambar (Max 2MB)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-map_string_string'
+      summary: Upload Image
+      tags:
+      - Uploads
   /users:
     get:
       description: Mengambil daftar seluruh user dengan pagination
