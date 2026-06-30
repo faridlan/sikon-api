@@ -95,7 +95,7 @@ func main() {
 	// ==========================================
 	userUsecase := usecase.NewUserUsecase(userRepo, contextTimeout)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, contextTimeout)
-	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, contextTimeout)
+	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, contextTimeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, contextTimeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, contextTimeout)

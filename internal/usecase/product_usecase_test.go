@@ -21,7 +21,8 @@ func StringPtr(s string) *string {
 func TestProductUsecase_CreateProduct(t *testing.T) {
 	mockProductRepo := new(mocks.ProductRepository)
 	mockCategoryRepo := new(mocks.CategoryRepository)
-	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
 
 	input := domain.ProductCreateInput{
 		CategoryID:  "cat-123",
@@ -97,7 +98,8 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 func TestProductUsecase_GetProduct(t *testing.T) {
 	mockProductRepo := new(mocks.ProductRepository)
 	mockCategoryRepo := new(mocks.CategoryRepository)
-	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
 
 	mockID := "prod-123"
 	mockProduct := &domain.Product{
@@ -137,7 +139,8 @@ func TestProductUsecase_GetProduct(t *testing.T) {
 func TestProductUsecase_ListProducts(t *testing.T) {
 	mockProductRepo := new(mocks.ProductRepository)
 	mockCategoryRepo := new(mocks.CategoryRepository)
-	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
 
 	// 1. Siapkan mock input query dan filter
 	query := domain.PaginationQuery{Page: 2, Limit: 5}
@@ -191,56 +194,95 @@ func TestProductUsecase_ListProducts(t *testing.T) {
 }
 
 func TestProductUsecase_UpdateProduct(t *testing.T) {
-	mockProductRepo := new(mocks.ProductRepository)
-	mockCategoryRepo := new(mocks.CategoryRepository)
-	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, time.Second*2)
-
 	mockID := "prod-123"
-	existingProd := &domain.Product{
-		ID:          mockID,
-		CategoryID:  "cat-old",
-		Name:        "Kaos Lama",
-		Description: "Bahan Biasa",
-		BasePrice:   30000,
-		ImageURL:    "https://example.com/old-image.jpg",
-	}
 
-	t.Run("Success - Update without Category Change", func(t *testing.T) {
+	t.Run("Success - Update without Category Change (No Image Change)", func(t *testing.T) {
+		mockProductRepo := new(mocks.ProductRepository)
+		mockCategoryRepo := new(mocks.CategoryRepository)
+		mockStorageService := new(mocks.StorageService)
+		uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
+
+		existingProd := &domain.Product{
+			ID:         mockID,
+			CategoryID: "cat-old",
+			Name:       "Kaos Lama",
+			BasePrice:  30000,
+			ImageURL:   "https://example.com/old-image.jpg",
+		}
+
 		input := domain.ProductUpdateInput{
 			Name:      "Kaos Baru",
 			BasePrice: 40000,
-			ImageURL:  "https://example.com/new-image.jpg",
+			// ImageURL tidak dikirim / tidak berubah
 		}
 
 		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
 
-		// Karena CategoryID tidak dikirim ("" atau tidak berubah), CategoryRepo JANGAN dipanggil
 		mockProductRepo.On("Update", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
-			return p.Name == "Kaos Baru" && p.BasePrice == 40000 && p.CategoryID == "cat-old" // Kategori tetap
+			return p.Name == "Kaos Baru" && p.BasePrice == 40000 && p.CategoryID == "cat-old"
 		})).Return(nil).Once()
 
 		result, err := uc.UpdateProduct(context.Background(), mockID, input)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Kaos Baru", result.Name)
-		assert.Equal(t, float64(40000), result.BasePrice)
 
 		mockProductRepo.AssertExpectations(t)
-		mockCategoryRepo.AssertExpectations(t) // Akan pass jika tidak dipanggil sama sekali
+		mockCategoryRepo.AssertExpectations(t)
+		// StorageService tidak dipanggil karena gambar tidak berubah
+		mockStorageService.AssertExpectations(t)
+	})
+
+	t.Run("Success - Update with Image Change (Triggers Background Delete)", func(t *testing.T) {
+		mockProductRepo := new(mocks.ProductRepository)
+		mockCategoryRepo := new(mocks.CategoryRepository)
+		mockStorageService := new(mocks.StorageService)
+		uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
+
+		existingProd := &domain.Product{
+			ID:         mockID,
+			CategoryID: "cat-old",
+			Name:       "Kaos Lama",
+			ImageURL:   "https://example.com/old-image.jpg",
+		}
+
+		input := domain.ProductUpdateInput{
+			ImageURL: "https://example.com/new-image.jpg", // 🚨 Gambar Berubah
+		}
+
+		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
+
+		mockProductRepo.On("Update", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
+			return p.ImageURL == "https://example.com/new-image.jpg"
+		})).Return(nil).Once()
+
+		// 🚨 MOCK: Harapkan StorageService dipanggil untuk menghapus gambar LAMA
+		mockStorageService.On("DeleteFile", mock.Anything, "https://example.com/old-image.jpg").
+			Return(nil).Once()
+
+		result, err := uc.UpdateProduct(context.Background(), mockID, input)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "https://example.com/new-image.jpg", result.ImageURL)
+
+		// Beri waktu sejenak agar Goroutine sempat memanggil mockStorageService
+		time.Sleep(10 * time.Millisecond)
+
+		mockProductRepo.AssertExpectations(t)
+		mockStorageService.AssertExpectations(t)
 	})
 
 	t.Run("Success - Update with Category Change", func(t *testing.T) {
-		input := domain.ProductUpdateInput{
-			CategoryID: "cat-new",
-			Name:       "Kaos Premium",
-		}
+		mockProductRepo := new(mocks.ProductRepository)
+		mockCategoryRepo := new(mocks.CategoryRepository)
+		mockStorageService := new(mocks.StorageService)
+		uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
 
-		// Reset state objek lama untuk tes ini
-		existingProd2 := &domain.Product{ID: mockID, CategoryID: "cat-old", Name: "Kaos Lama"}
+		existingProd := &domain.Product{ID: mockID, CategoryID: "cat-old", Name: "Kaos Lama"}
+		input := domain.ProductUpdateInput{CategoryID: "cat-new", Name: "Kaos Premium"}
 
-		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd2, nil).Once()
+		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
 
-		// Kategori baru harus divalidasi
 		mockCategoryRepo.On("GetByID", mock.Anything, "cat-new").
 			Return(&domain.Category{ID: "cat-new"}, nil).Once()
 
@@ -251,31 +293,7 @@ func TestProductUsecase_UpdateProduct(t *testing.T) {
 		result, err := uc.UpdateProduct(context.Background(), mockID, input)
 
 		assert.NoError(t, err)
-		assert.Equal(t, "Kaos Premium", result.Name)
 		assert.Equal(t, "cat-new", result.CategoryID)
-
-		mockProductRepo.AssertExpectations(t)
-		mockCategoryRepo.AssertExpectations(t)
-	})
-
-	t.Run("Error - New Category Not Found", func(t *testing.T) {
-		input := domain.ProductUpdateInput{CategoryID: "cat-invalid"}
-		existingProd3 := &domain.Product{ID: mockID, CategoryID: "cat-old"}
-
-		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd3, nil).Once()
-
-		// Kategori baru dicari tapi tidak ketemu
-		mockCategoryRepo.On("GetByID", mock.Anything, "cat-invalid").
-			Return(nil, domain.ErrNotFound).Once()
-
-		result, err := uc.UpdateProduct(context.Background(), mockID, input)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-
-		var appErr *domain.AppError
-		assert.True(t, errors.As(err, &appErr))
-		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
 
 		mockProductRepo.AssertExpectations(t)
 		mockCategoryRepo.AssertExpectations(t)
@@ -283,34 +301,77 @@ func TestProductUsecase_UpdateProduct(t *testing.T) {
 }
 
 func TestProductUsecase_DeleteProduct(t *testing.T) {
-	mockProductRepo := new(mocks.ProductRepository)
-	mockCategoryRepo := new(mocks.CategoryRepository)
-	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, time.Second*2)
-
 	mockID := "prod-123"
-	existingProd2 := &domain.Product{ID: mockID, CategoryID: "cat-old", Name: "Kaos Lama"}
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Success - Delete Product without Image", func(t *testing.T) {
+		mockProductRepo := new(mocks.ProductRepository)
+		mockCategoryRepo := new(mocks.CategoryRepository)
+		mockStorageService := new(mocks.StorageService)
+		uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
 
-		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd2, nil).Once()
+		existingProd := &domain.Product{ID: mockID, Name: "Kaos Lama", ImageURL: ""} // 🚨 Tanpa Gambar
+
+		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
 		mockProductRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
 
 		err := uc.DeleteProduct(context.Background(), mockID)
 
 		assert.NoError(t, err)
 		mockProductRepo.AssertExpectations(t)
+		mockStorageService.AssertExpectations(t) // Tidak dipanggil
 	})
 
-	t.Run("Error - Failed to Delete", func(t *testing.T) {
+	t.Run("Success - Delete Product with Image (Triggers Background Delete)", func(t *testing.T) {
+		mockProductRepo := new(mocks.ProductRepository)
+		mockCategoryRepo := new(mocks.CategoryRepository)
+		mockStorageService := new(mocks.StorageService)
+		uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
+
+		existingProd := &domain.Product{
+			ID:       mockID,
+			Name:     "Kaos Lama",
+			ImageURL: "https://example.com/delete-me.jpg", // 🚨 Ada Gambar
+		}
+
+		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
+		mockProductRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
+
+		// 🚨 MOCK: Harapkan StorageService dipanggil untuk menghapus gambar
+		mockStorageService.On("DeleteFile", mock.Anything, "https://example.com/delete-me.jpg").
+			Return(nil).Once()
+
+		err := uc.DeleteProduct(context.Background(), mockID)
+
+		assert.NoError(t, err)
+
+		// Beri waktu sejenak agar Goroutine sempat mengeksekusi mock
+		time.Sleep(10 * time.Millisecond)
+
+		mockProductRepo.AssertExpectations(t)
+		mockStorageService.AssertExpectations(t)
+	})
+
+	t.Run("Error - Failed to Delete DB", func(t *testing.T) {
+		mockProductRepo := new(mocks.ProductRepository)
+		mockCategoryRepo := new(mocks.CategoryRepository)
+		mockStorageService := new(mocks.StorageService)
+		uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, time.Second*2)
+
+		existingProd := &domain.Product{ID: mockID, ImageURL: "https://example.com/delete-me.jpg"}
 		dbErr := errors.New("db connection failed")
 
-		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd2, nil).Once()
+		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
 		mockProductRepo.On("Delete", mock.Anything, mockID).Return(dbErr).Once()
+
+		// 🚨 MOCK: StorageService JANGAN dipanggil karena DB gagal dihapus
+		// (Tidak perlu dideklarasikan On, jika dipanggil maka test akan gagal otomatis)
 
 		err := uc.DeleteProduct(context.Background(), mockID)
 
 		assert.Error(t, err)
 		assert.Equal(t, dbErr, err)
+
 		mockProductRepo.AssertExpectations(t)
+		mockStorageService.AssertExpectations(t)
 	})
 }

@@ -260,6 +260,31 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 	})
 
+	// 🚨 TAMBAHAN: Skenario Update Gambar
+	t.Run("Success_Update_Image", func(t *testing.T) {
+		// Set gambar awal secara manual via GORM
+		db.Model(&product).Update("image_url", "https://example.com/gambar-lama.jpg")
+
+		reqBody := dto.ProductUpdateRequest{
+			ImageURL: "https://example.com/gambar-baru.jpg",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("PUT", "/api/products/"+product.ID, bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		// Verifikasi response memiliki URL baru
+		var response utils.SuccessResponse[dto.ProductResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Equal(t, "https://example.com/gambar-baru.jpg", response.Data.ImageURL)
+	})
+
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
 		reqBody := dto.ProductUpdateRequest{Name: "Update Gaib"}
@@ -295,6 +320,19 @@ func TestDeleteProduct_Integration(t *testing.T) {
 		reqCheck := httptest.NewRequest("GET", "/api/products/"+product.ID, nil)
 		respCheck, _ := app.Test(reqCheck, -1)
 		assert.Equal(t, fiber.StatusNotFound, respCheck.StatusCode)
+	})
+
+	// 🚨 TAMBAHAN: Skenario Hapus Produk dengan Gambar
+	t.Run("Success_With_Image", func(t *testing.T) {
+		// Buat produk baru khusus untuk tes ini
+		productWithImage := tests.SeedProduct(db, category.ID, "Topi Taktikal", 45000)
+		db.Model(&productWithImage).Update("image_url", "https://example.com/topi.jpg")
+
+		req := httptest.NewRequest("DELETE", "/api/products/"+productWithImage.ID, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode) // API harus tetap membalas 200 dengan cepat
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {

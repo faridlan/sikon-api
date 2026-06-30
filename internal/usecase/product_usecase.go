@@ -12,13 +12,15 @@ import (
 type productUsecase struct {
 	productRepo    domain.ProductRepository
 	categoryRepo   domain.CategoryRepository
+	storageService domain.StorageService
 	contextTimeout time.Duration
 }
 
-func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, timeout time.Duration) domain.ProductUsecase {
+func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, ss domain.StorageService, timeout time.Duration) domain.ProductUsecase {
 	return &productUsecase{
 		productRepo:    pr,
 		categoryRepo:   cr,
+		storageService: ss,
 		contextTimeout: timeout,
 	}
 }
@@ -125,12 +127,27 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 		existingProduct.BasePrice = input.BasePrice
 	}
 
-	if input.ImageURL != "" {
+	// 🚨 LOGIKA UPDATE GAMBAR
+	oldImageURL := existingProduct.ImageURL // Simpan URL lama
+	isImageChanged := false
+
+	if input.ImageURL != "" && input.ImageURL != oldImageURL {
 		existingProduct.ImageURL = input.ImageURL
+		isImageChanged = true
 	}
 
+	// 1. Eksekusi Update ke Database terlebih dahulu
 	if err := u.productRepo.Update(ctx, existingProduct); err != nil {
 		return nil, err
+	}
+
+	// 2. Jika DB sukses di-update dan gambar berubah, hapus gambar lama di background
+	if isImageChanged && oldImageURL != "" {
+		// Gunakan context.Background() agar tidak terpengaruh timeout request HTTP
+		go func(urlToDelete string) {
+			// Kita abaikan error-nya karena ini adalah background cleanup task
+			_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
+		}(oldImageURL)
 	}
 
 	return existingProduct, nil
@@ -140,7 +157,8 @@ func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	_, err := u.productRepo.GetByID(ctx, id)
+	// 🚨 Ubah '_' menjadi 'existingProduct' agar kita bisa membaca ImageURL-nya
+	existingProduct, err := u.productRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrNotFound, "Produk dengan ID tersebut tidak ditemukan")
@@ -148,5 +166,17 @@ func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
 		return err
 	}
 
-	return u.productRepo.Delete(ctx, id)
+	// 1. Hapus dari Database Postgres terlebih dahulu
+	if err := u.productRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	// 2. Jika berhasil dihapus dari DB dan produk memiliki gambar, bersihkan storage
+	if existingProduct.ImageURL != "" {
+		go func(urlToDelete string) {
+			_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
+		}(existingProduct.ImageURL)
+	}
+
+	return nil
 }
