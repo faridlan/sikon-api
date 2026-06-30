@@ -24,12 +24,23 @@ func (r *productRepository) Create(ctx context.Context, product *domain.Product)
 	product.ID = model.ID
 	product.CreatedAt = model.CreatedAt
 	product.UpdatedAt = model.UpdatedAt
+
+	for i := range product.Images {
+		product.Images[i].ID = model.Images[i].ID
+		product.Images[i].ProductID = model.ID
+	}
+
 	return nil
 }
 
 func (r *productRepository) GetByID(ctx context.Context, id string) (*domain.Product, error) {
 	var model ProductModel
-	if err := r.db.WithContext(ctx).Preload("Category").Where("id = ?", id).First(&model).Error; err != nil {
+	// 🚨 Tambahkan Preload("Images")
+	if err := r.db.WithContext(ctx).
+		Preload("Category").
+		Preload("Images"). // Tarik semua gambar milik produk ini
+		Where("id = ?", id).
+		First(&model).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 	return model.ToDomain(), nil
@@ -62,6 +73,7 @@ func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilt
 	// 4. Tambahkan Preload, Limit, Offset, lalu Find
 	err := query.
 		Preload("Category").
+		Preload("Images").
 		Limit(limit).
 		Offset(offset).
 		Order("created_at DESC").
@@ -81,9 +93,20 @@ func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilt
 
 func (r *productRepository) Update(ctx context.Context, product *domain.Product) error {
 	model := FromProductDomain(product)
+
+	// 1. Update data utama (Tabel Products)
 	if err := r.db.WithContext(ctx).Model(&ProductModel{ID: model.ID}).Updates(model).Error; err != nil {
 		return TranslateError(err)
 	}
+
+	// 2. Ganti total (Replace) relasi gambarnya
+	// Ini akan menghapus baris lama di product_images dan melakukan INSERT baris baru.
+	// Jika model.Images kosong, maka GORM akan menghapus semua gambar untuk produk ini.
+	err := r.db.WithContext(ctx).Model(&model).Association("Images").Replace(model.Images)
+	if err != nil {
+		return TranslateError(err)
+	}
+
 	return nil
 }
 

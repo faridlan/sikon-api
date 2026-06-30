@@ -43,7 +43,18 @@ func (u *productUsecase) CreateProduct(c context.Context, input domain.ProductCr
 		Name:        input.Name,
 		Description: input.Description,
 		BasePrice:   input.BasePrice,
-		ImageURL:    input.ImageURL,
+	}
+
+	// 🚨 MAPPING ARRAY GAMBAR
+	if len(input.ImageURLs) > 0 {
+		var images []domain.ProductImage
+		for i, url := range input.ImageURLs {
+			images = append(images, domain.ProductImage{
+				ImageURL:  url,
+				IsPrimary: i == 0, // Gambar pertama otomatis diset sebagai primary
+			})
+		}
+		product.Images = images
 	}
 
 	if err := u.productRepo.Create(ctx, product); err != nil {
@@ -68,7 +79,6 @@ func (u *productUsecase) GetProduct(c context.Context, id string) (*domain.Produ
 	return product, nil
 }
 
-// Tambahkan parameter filter domain.ProductFilter
 func (u *productUsecase) ListProducts(c context.Context, filter domain.ProductFilter, query domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
@@ -76,7 +86,6 @@ func (u *productUsecase) ListProducts(c context.Context, filter domain.ProductFi
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	// Teruskan filter ke Repository
 	products, totalItems, err := u.productRepo.Fetch(ctx, filter, limit, offset)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
@@ -105,7 +114,6 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 		return nil, err
 	}
 
-	// Jika CategoryID diganti, validasi lagi kategorinya
 	if input.CategoryID != "" && input.CategoryID != existingProduct.CategoryID {
 		_, err := u.categoryRepo.GetByID(ctx, input.CategoryID)
 		if err != nil {
@@ -127,27 +135,49 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 		existingProduct.BasePrice = input.BasePrice
 	}
 
-	// 🚨 LOGIKA UPDATE GAMBAR
-	oldImageURL := existingProduct.ImageURL // Simpan URL lama
-	isImageChanged := false
+	// 🚨 LOGIKA UPDATE BANYAK GAMBAR
+	var urlsToDelete []string
 
-	if input.ImageURL != "" && input.ImageURL != oldImageURL {
-		existingProduct.ImageURL = input.ImageURL
-		isImageChanged = true
+	// Cek apakah Frontend mengirimkan array ImageURLs (bisa array kosong jika ingin menghapus semua gambar)
+	if input.ImageURLs != nil {
+		// 1. Ekstrak URL lama ke dalam slice string agar mudah dicari
+		oldURLs := make(map[string]bool)
+		for _, img := range existingProduct.Images {
+			oldURLs[img.ImageURL] = true
+		}
+
+		// 2. Buat struktur gambar baru
+		var newImages []domain.ProductImage
+		for i, url := range input.ImageURLs {
+			newImages = append(newImages, domain.ProductImage{
+				ImageURL:  url,
+				IsPrimary: i == 0,
+			})
+			// Hapus URL yang dipertahankan dari map oldURLs
+			delete(oldURLs, url)
+		}
+
+		// 3. Sisanya di oldURLs adalah gambar yang dihapus oleh user
+		for url := range oldURLs {
+			urlsToDelete = append(urlsToDelete, url)
+		}
+
+		// Terapkan relasi gambar baru ke model yang akan diupdate
+		existingProduct.Images = newImages
 	}
 
-	// 1. Eksekusi Update ke Database terlebih dahulu
+	// Eksekusi Update ke Database (Repository akan melakukan Replace pada relasi Images)
 	if err := u.productRepo.Update(ctx, existingProduct); err != nil {
 		return nil, err
 	}
 
-	// 2. Jika DB sukses di-update dan gambar berubah, hapus gambar lama di background
-	if isImageChanged && oldImageURL != "" {
-		// Gunakan context.Background() agar tidak terpengaruh timeout request HTTP
-		go func(urlToDelete string) {
-			// Kita abaikan error-nya karena ini adalah background cleanup task
-			_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
-		}(oldImageURL)
+	// Jika DB sukses di-update, jalankan pembersihan Supabase di background
+	if len(urlsToDelete) > 0 {
+		go func(urls []string) {
+			for _, urlToDelete := range urls {
+				_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
+			}
+		}(urlsToDelete)
 	}
 
 	return existingProduct, nil
@@ -157,7 +187,6 @@ func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// 🚨 Ubah '_' menjadi 'existingProduct' agar kita bisa membaca ImageURL-nya
 	existingProduct, err := u.productRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
@@ -166,16 +195,24 @@ func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
 		return err
 	}
 
-	// 1. Hapus dari Database Postgres terlebih dahulu
+	// Hapus dari Database Postgres (Cascade otomatis menghapus data di product_images)
 	if err := u.productRepo.Delete(ctx, id); err != nil {
 		return err
 	}
 
-	// 2. Jika berhasil dihapus dari DB dan produk memiliki gambar, bersihkan storage
-	if existingProduct.ImageURL != "" {
-		go func(urlToDelete string) {
-			_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
-		}(existingProduct.ImageURL)
+	// Kumpulkan semua URL gambar milik produk ini
+	var urlsToDelete []string
+	for _, img := range existingProduct.Images {
+		urlsToDelete = append(urlsToDelete, img.ImageURL)
+	}
+
+	// Bersihkan storage Supabase di background
+	if len(urlsToDelete) > 0 {
+		go func(urls []string) {
+			for _, urlToDelete := range urls {
+				_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
+			}
+		}(urlsToDelete)
 	}
 
 	return nil

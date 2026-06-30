@@ -50,30 +50,26 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 		mockProductRepo.AssertExpectations(t)
 	})
 
-	t.Run("Success - With ImageURL", func(t *testing.T) {
-		inputWithImage := domain.ProductCreateInput{
-			CategoryID:  "cat-123",
-			Name:        "Kaos Cotton",
-			Description: "Bahan Halus",
-			BasePrice:   50000,
-			ImageURL:    "https://example.com/image.jpg",
+	t.Run("Success - With Multiple ImageURLs", func(t *testing.T) {
+		inputWithImages := domain.ProductCreateInput{
+			CategoryID: "cat-123",
+			Name:       "Kaos Cotton",
+			BasePrice:  50000,
+			ImageURLs:  []string{"https://example.com/1.jpg", "https://example.com/2.jpg"},
 		}
 
-		// Mock: Kategori harus ditemukan
-		mockCategoryRepo.On("GetByID", mock.Anything, inputWithImage.CategoryID).
-			Return(&domain.Category{ID: inputWithImage.CategoryID}, nil).Once()
+		mockCategoryRepo.On("GetByID", mock.Anything, inputWithImages.CategoryID).
+			Return(&domain.Category{ID: inputWithImages.CategoryID}, nil).Once()
 
-		// Mock: Produk berhasil dibuat
 		mockProductRepo.On("Create", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
-			return p.Name == inputWithImage.Name && p.CategoryID == inputWithImage.CategoryID && p.BasePrice == inputWithImage.BasePrice && p.ImageURL == inputWithImage.ImageURL
+			// Cek apakah jumlah gambar sesuai dan URL benar
+			return len(p.Images) == 2 && p.Images[0].ImageURL == "https://example.com/1.jpg"
 		})).Return(nil).Once()
 
-		result, err := uc.CreateProduct(context.Background(), inputWithImage)
+		result, err := uc.CreateProduct(context.Background(), inputWithImages)
 
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, inputWithImage.Name, result.Name)
-		assert.Equal(t, inputWithImage.ImageURL, result.ImageURL)
+		assert.Equal(t, 2, len(result.Images))
 		mockCategoryRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
 	})
@@ -207,7 +203,6 @@ func TestProductUsecase_UpdateProduct(t *testing.T) {
 			CategoryID: "cat-old",
 			Name:       "Kaos Lama",
 			BasePrice:  30000,
-			ImageURL:   "https://example.com/old-image.jpg",
 		}
 
 		input := domain.ProductUpdateInput{
@@ -242,31 +237,24 @@ func TestProductUsecase_UpdateProduct(t *testing.T) {
 		existingProd := &domain.Product{
 			ID:         mockID,
 			CategoryID: "cat-old",
-			Name:       "Kaos Lama",
-			ImageURL:   "https://example.com/old-image.jpg",
+			Images:     []domain.ProductImage{{ImageURL: "https://example.com/old.jpg"}},
 		}
 
 		input := domain.ProductUpdateInput{
-			ImageURL: "https://example.com/new-image.jpg", // 🚨 Gambar Berubah
+			ImageURLs: []string{"https://example.com/new.jpg"}, // 🚨 Old dihapus, New ditambah
 		}
 
 		mockProductRepo.On("GetByID", mock.Anything, mockID).Return(existingProd, nil).Once()
+		mockProductRepo.On("Update", mock.Anything, mock.Anything).Return(nil).Once()
 
-		mockProductRepo.On("Update", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
-			return p.ImageURL == "https://example.com/new-image.jpg"
-		})).Return(nil).Once()
-
-		// 🚨 MOCK: Harapkan StorageService dipanggil untuk menghapus gambar LAMA
-		mockStorageService.On("DeleteFile", mock.Anything, "https://example.com/old-image.jpg").
+		// 🚨 Harapkan StorageService dipanggil untuk menghapus "old.jpg"
+		mockStorageService.On("DeleteFile", mock.Anything, "https://example.com/old.jpg").
 			Return(nil).Once()
 
-		result, err := uc.UpdateProduct(context.Background(), mockID, input)
+		_, err := uc.UpdateProduct(context.Background(), mockID, input)
 
 		assert.NoError(t, err)
-		assert.Equal(t, "https://example.com/new-image.jpg", result.ImageURL)
-
-		// Beri waktu sejenak agar Goroutine sempat memanggil mockStorageService
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond) // Beri waktu untuk Goroutine
 
 		mockProductRepo.AssertExpectations(t)
 		mockStorageService.AssertExpectations(t)

@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+type ProductImage struct {
+	ID        string
+	ProductID string
+	ImageURL  string
+	IsPrimary bool
+}
+
 type Product struct {
 	ID          string
 	CategoryID  string
@@ -13,8 +20,8 @@ type Product struct {
 	BasePrice   float64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	ImageURL    string // URL gambar produk
 
+	Images   []ProductImage
 	Category *Category // Relasi
 }
 
@@ -23,7 +30,7 @@ type ProductCreateInput struct {
 	Name        string
 	Description string
 	BasePrice   float64
-	ImageURL    string // URL gambar produk
+	ImageURLs   []string // URL gambar produk
 }
 
 type ProductUpdateInput struct {
@@ -31,7 +38,7 @@ type ProductUpdateInput struct {
 	Name        string
 	Description string
 	BasePrice   float64
-	ImageURL    string // URL gambar produk
+	ImageURLs   []string // URL gambar produk
 }
 
 type ProductFilter struct {
