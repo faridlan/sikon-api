@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -23,12 +24,11 @@ func TestCreateProduct_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	// Persiapan: Buat data kategori yang valid
 	category := tests.SeedCategory(db, "Kaos Sablon")
 
 	t.Run("Success", func(t *testing.T) {
 		reqBody := dto.ProductCreateRequest{
-			CategoryID:  category.ID, // Menggunakan ID yang valid dari seeder
+			CategoryID:  category.ID,
 			Name:        "Kaos Sablon Custom",
 			Description: "Bahan Combed 30s",
 			BasePrice:   55000,
@@ -51,13 +51,14 @@ func TestCreateProduct_Integration(t *testing.T) {
 		assert.NotEmpty(t, response.Data.ID)
 	})
 
-	t.Run("Success_With_ImageURL", func(t *testing.T) {
+	// 🚨 TAMBAHAN: Test Array Gambar
+	t.Run("Success_With_Multiple_Images", func(t *testing.T) {
 		reqBody := dto.ProductCreateRequest{
 			CategoryID:  category.ID,
 			Name:        "Kaos Polos Lengan Panjang",
 			Description: "Bahan Combed 30s",
 			BasePrice:   65000,
-			ImageURL:    "https://example.com/image.jpg",
+			ImageURLs:   []string{"https://example.com/depan.jpg", "https://example.com/belakang.jpg"},
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -73,13 +74,17 @@ func TestCreateProduct_Integration(t *testing.T) {
 		json.Unmarshal(respBody, &response)
 
 		assert.Equal(t, "Kaos Polos Lengan Panjang", response.Data.Name)
-		assert.Equal(t, "https://example.com/image.jpg", response.Data.ImageURL)
+
+		// Verifikasi bahwa 2 gambar tersimpan dan ter-mapping dengan benar
+		assert.Equal(t, 2, len(response.Data.Images))
+		assert.Equal(t, "https://example.com/depan.jpg", response.Data.Images[0].ImageURL)
+		assert.True(t, response.Data.Images[0].IsPrimary) // Gambar pertama harus Primary
+		assert.Equal(t, "https://example.com/belakang.jpg", response.Data.Images[1].ImageURL)
+		assert.False(t, response.Data.Images[1].IsPrimary) // Gambar kedua bukan Primary
 	})
 
 	t.Run("Failed_Category_Not_Found", func(t *testing.T) {
-		// Menggunakan UUID yang valid secara format, tapi TIDAK ADA di database
 		randomCatID := uuid.New().String()
-
 		reqBody := dto.ProductCreateRequest{
 			CategoryID: randomCatID,
 			Name:       "Produk Gaib",
@@ -92,10 +97,6 @@ func TestCreateProduct_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-
-		// Harusnya 404 atau 400 (tergantung bagaimana Usecase Anda menangani error Foreign Key)
-		// Jika Usecase Anda melakukan GetCategoryByID dulu, biasanya akan me-return 404
-		// Jika Usecase Anda langsung insert dan mengandalkan error GORM constraint, mungkin 400/500
 		assert.NotEqual(t, fiber.StatusCreated, resp.StatusCode)
 	})
 
@@ -103,7 +104,7 @@ func TestCreateProduct_Integration(t *testing.T) {
 		reqBody := dto.ProductCreateRequest{
 			CategoryID: category.ID,
 			Name:       "Barang Gratis",
-			BasePrice:  0, // Validator "gt=0" harusnya menolak ini
+			BasePrice:  0,
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -260,13 +261,19 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 	})
 
-	// 🚨 TAMBAHAN: Skenario Update Gambar
 	t.Run("Success_Update_Image", func(t *testing.T) {
-		// Set gambar awal secara manual via GORM
-		db.Model(&product).Update("image_url", "https://example.com/gambar-lama.jpg")
+		// 🚨 Buat gambar lama secara manual di tabel relasi product_images
+		// (Pastikan kamu meng-import package postgres tempat modelmu berada)
+		oldImage := postgres.ProductImageModel{
+			ProductID: product.ID,
+			ImageURL:  "https://example.com/gambar-lama.jpg",
+			IsPrimary: true,
+		}
+		db.Create(&oldImage)
 
+		// Request update dengan daftar gambar baru
 		reqBody := dto.ProductUpdateRequest{
-			ImageURL: "https://example.com/gambar-baru.jpg",
+			ImageURLs: []string{"https://example.com/gambar-baru.jpg"}, // Mengganti gambar lama
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -277,12 +284,13 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		// Verifikasi response memiliki URL baru
 		var response utils.SuccessResponse[dto.ProductResponse]
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		assert.Equal(t, "https://example.com/gambar-baru.jpg", response.Data.ImageURL)
+		// Verifikasi response memiliki URL array yang baru dan hanya ada 1 gambar
+		assert.Equal(t, 1, len(response.Data.Images))
+		assert.Equal(t, "https://example.com/gambar-baru.jpg", response.Data.Images[0].ImageURL)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {

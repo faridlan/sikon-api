@@ -13,14 +13,16 @@ type productUsecase struct {
 	productRepo    domain.ProductRepository
 	categoryRepo   domain.CategoryRepository
 	storageService domain.StorageService
+	txManager      domain.TransactionManager
 	contextTimeout time.Duration
 }
 
-func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, ss domain.StorageService, timeout time.Duration) domain.ProductUsecase {
+func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, ss domain.StorageService, tm domain.TransactionManager, timeout time.Duration) domain.ProductUsecase {
 	return &productUsecase{
 		productRepo:    pr,
 		categoryRepo:   cr,
 		storageService: ss,
+		txManager:      tm,
 		contextTimeout: timeout,
 	}
 }
@@ -135,43 +137,46 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 		existingProduct.BasePrice = input.BasePrice
 	}
 
-	// 🚨 LOGIKA UPDATE BANYAK GAMBAR
 	var urlsToDelete []string
 
-	// Cek apakah Frontend mengirimkan array ImageURLs (bisa array kosong jika ingin menghapus semua gambar)
 	if input.ImageURLs != nil {
-		// 1. Ekstrak URL lama ke dalam slice string agar mudah dicari
-		oldURLs := make(map[string]bool)
+		oldImagesMap := make(map[string]string)
 		for _, img := range existingProduct.Images {
-			oldURLs[img.ImageURL] = true
+			oldImagesMap[img.ImageURL] = img.ID
 		}
 
-		// 2. Buat struktur gambar baru
 		var newImages []domain.ProductImage
 		for i, url := range input.ImageURLs {
+			imageID := oldImagesMap[url]
 			newImages = append(newImages, domain.ProductImage{
+				ID:        imageID,
 				ImageURL:  url,
 				IsPrimary: i == 0,
 			})
-			// Hapus URL yang dipertahankan dari map oldURLs
-			delete(oldURLs, url)
+			delete(oldImagesMap, url)
 		}
 
-		// 3. Sisanya di oldURLs adalah gambar yang dihapus oleh user
-		for url := range oldURLs {
+		for url := range oldImagesMap {
 			urlsToDelete = append(urlsToDelete, url)
 		}
 
-		// Terapkan relasi gambar baru ke model yang akan diupdate
 		existingProduct.Images = newImages
 	}
 
-	// Eksekusi Update ke Database (Repository akan melakukan Replace pada relasi Images)
-	if err := u.productRepo.Update(ctx, existingProduct); err != nil {
+	// 🚨 BUNGKUS DENGAN TRANSACTION MANAGER
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// Gunakan txCtx agar Repository membaca "Kertas Buram"
+		if err := u.productRepo.Update(txCtx, existingProduct); err != nil {
+			return err // Otomatis Rollback
+		}
+		return nil // Otomatis Commit
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	// Jika DB sukses di-update, jalankan pembersihan Supabase di background
+	// Jika sukses, bersihkan file di storage (Background)
 	if len(urlsToDelete) > 0 {
 		go func(urls []string) {
 			for _, urlToDelete := range urls {

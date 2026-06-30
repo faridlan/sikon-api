@@ -22,6 +22,7 @@ func TestProduct_Integration(t *testing.T) {
 
 	t.Run("Upload Image & Create Product - Success", func(t *testing.T) {
 		// 1. UPLOAD IMAGE (Multipart)
+		// Bagian ini tidak berubah karena endpoint upload tetap mengembalikan 1 URL
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 
@@ -48,7 +49,7 @@ func TestProduct_Integration(t *testing.T) {
 			Name:        "Kaos Testing",
 			Description: "Bahan Combed",
 			BasePrice:   50000,
-			ImageURL:    imageURL,
+			ImageURLs:   []string{imageURL}, // 🚨 Masukkan URL hasil upload ke dalam array
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -62,7 +63,10 @@ func TestProduct_Integration(t *testing.T) {
 		var prodResp utils.SuccessResponse[dto.ProductResponse]
 		json.NewDecoder(respCreate.Body).Decode(&prodResp)
 
-		assert.Equal(t, imageURL, prodResp.Data.ImageURL)
+		// 🚨 Verifikasi bahwa array Images terisi dengan benar
+		assert.Equal(t, 1, len(prodResp.Data.Images))
+		assert.Equal(t, imageURL, prodResp.Data.Images[0].ImageURL)
+		assert.True(t, prodResp.Data.Images[0].IsPrimary) // Karena ini gambar pertama/satu-satunya
 	})
 
 	t.Run("Upload Image - Failed (Invalid Type)", func(t *testing.T) {
