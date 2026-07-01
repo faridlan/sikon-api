@@ -20,6 +20,7 @@ type User struct {
 	Email     string
 	Password  string
 	Role      Role
+	ImageURL  string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -45,11 +46,13 @@ type UserRegisterInput struct {
 	Email    string
 	Password string
 	Role     Role
+	ImageURL string
 }
 
 type UserUpdateInput struct {
-	Name string
-	Role Role
+	Name     string
+	Role     Role
+	ImageURL string
 	// Sengaja tidak memasukan Email dan Password di sini karena biasanya butuh flow khusus (seperti verifikasi)
 }
 

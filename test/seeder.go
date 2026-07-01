@@ -31,13 +31,19 @@ func SeedProduct(db *gorm.DB, categoryID string, name string, price float64) pos
 	return product
 }
 
-func SeedUser(db *gorm.DB, name, email, role string) postgres.UserModel {
+func SeedUser(db *gorm.DB, name, email, role string, image ...string) postgres.UserModel {
+
+	if len(image) == 0 {
+		image = append(image, "") // Default kosong jika tidak ada image yang diberikan
+	}
+
 	user := postgres.UserModel{
 		ID:       uuid.New().String(),
 		Name:     name,
 		Email:    email,
 		Password: "hashedpassword123", // Anggap saja ini sudah di-hash oleh repo/usecase
 		Role:     role,
+		ImageURL: image[0],
 	}
 	db.Create(&user)
 	return user
