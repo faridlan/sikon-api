@@ -12,13 +12,17 @@ import (
 type productUsecase struct {
 	productRepo    domain.ProductRepository
 	categoryRepo   domain.CategoryRepository
+	storageService domain.StorageService
+	txManager      domain.TransactionManager
 	contextTimeout time.Duration
 }
 
-func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, timeout time.Duration) domain.ProductUsecase {
+func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, ss domain.StorageService, tm domain.TransactionManager, timeout time.Duration) domain.ProductUsecase {
 	return &productUsecase{
 		productRepo:    pr,
 		categoryRepo:   cr,
+		storageService: ss,
+		txManager:      tm,
 		contextTimeout: timeout,
 	}
 }
@@ -41,7 +45,18 @@ func (u *productUsecase) CreateProduct(c context.Context, input domain.ProductCr
 		Name:        input.Name,
 		Description: input.Description,
 		BasePrice:   input.BasePrice,
-		ImageURL:    input.ImageURL,
+	}
+
+	// 🚨 MAPPING ARRAY GAMBAR
+	if len(input.ImageURLs) > 0 {
+		var images []domain.ProductImage
+		for i, url := range input.ImageURLs {
+			images = append(images, domain.ProductImage{
+				ImageURL:  url,
+				IsPrimary: i == 0, // Gambar pertama otomatis diset sebagai primary
+			})
+		}
+		product.Images = images
 	}
 
 	if err := u.productRepo.Create(ctx, product); err != nil {
@@ -66,7 +81,6 @@ func (u *productUsecase) GetProduct(c context.Context, id string) (*domain.Produ
 	return product, nil
 }
 
-// Tambahkan parameter filter domain.ProductFilter
 func (u *productUsecase) ListProducts(c context.Context, filter domain.ProductFilter, query domain.PaginationQuery) ([]domain.Product, domain.PaginationMeta, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
@@ -74,7 +88,6 @@ func (u *productUsecase) ListProducts(c context.Context, filter domain.ProductFi
 	offset := query.GetOffset()
 	limit := query.Limit
 
-	// Teruskan filter ke Repository
 	products, totalItems, err := u.productRepo.Fetch(ctx, filter, limit, offset)
 	if err != nil {
 		return nil, domain.PaginationMeta{}, err
@@ -103,7 +116,6 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 		return nil, err
 	}
 
-	// Jika CategoryID diganti, validasi lagi kategorinya
 	if input.CategoryID != "" && input.CategoryID != existingProduct.CategoryID {
 		_, err := u.categoryRepo.GetByID(ctx, input.CategoryID)
 		if err != nil {
@@ -125,12 +137,52 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 		existingProduct.BasePrice = input.BasePrice
 	}
 
-	if input.ImageURL != "" {
-		existingProduct.ImageURL = input.ImageURL
+	var urlsToDelete []string
+
+	if input.ImageURLs != nil {
+		oldImagesMap := make(map[string]string)
+		for _, img := range existingProduct.Images {
+			oldImagesMap[img.ImageURL] = img.ID
+		}
+
+		var newImages []domain.ProductImage
+		for i, url := range input.ImageURLs {
+			imageID := oldImagesMap[url]
+			newImages = append(newImages, domain.ProductImage{
+				ID:        imageID,
+				ImageURL:  url,
+				IsPrimary: i == 0,
+			})
+			delete(oldImagesMap, url)
+		}
+
+		for url := range oldImagesMap {
+			urlsToDelete = append(urlsToDelete, url)
+		}
+
+		existingProduct.Images = newImages
 	}
 
-	if err := u.productRepo.Update(ctx, existingProduct); err != nil {
+	// 🚨 BUNGKUS DENGAN TRANSACTION MANAGER
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// Gunakan txCtx agar Repository membaca "Kertas Buram"
+		if err := u.productRepo.Update(txCtx, existingProduct); err != nil {
+			return err // Otomatis Rollback
+		}
+		return nil // Otomatis Commit
+	})
+
+	if err != nil {
 		return nil, err
+	}
+
+	// Jika sukses, bersihkan file di storage (Background)
+	if len(urlsToDelete) > 0 {
+		go func(urls []string) {
+			for _, urlToDelete := range urls {
+				_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
+			}
+		}(urlsToDelete)
 	}
 
 	return existingProduct, nil
@@ -140,7 +192,7 @@ func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	_, err := u.productRepo.GetByID(ctx, id)
+	existingProduct, err := u.productRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrNotFound, "Produk dengan ID tersebut tidak ditemukan")
@@ -148,5 +200,25 @@ func (u *productUsecase) DeleteProduct(c context.Context, id string) error {
 		return err
 	}
 
-	return u.productRepo.Delete(ctx, id)
+	// Hapus dari Database Postgres (Cascade otomatis menghapus data di product_images)
+	if err := u.productRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	// Kumpulkan semua URL gambar milik produk ini
+	var urlsToDelete []string
+	for _, img := range existingProduct.Images {
+		urlsToDelete = append(urlsToDelete, img.ImageURL)
+	}
+
+	// Bersihkan storage Supabase di background
+	if len(urlsToDelete) > 0 {
+		go func(urls []string) {
+			for _, urlToDelete := range urls {
+				_ = u.storageService.DeleteFile(context.Background(), urlToDelete)
+			}
+		}(urlsToDelete)
+	}
+
+	return nil
 }

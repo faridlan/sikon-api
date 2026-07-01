@@ -61,6 +61,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.PaymentModel{},
 		&postgres.SpecTemplateModel{},
 		&postgres.BatchPOModel{},
+		&postgres.ProductImageModel{},
 	)
 
 	timeout := 5 * time.Second
@@ -82,7 +83,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 
 	// 2. Usecase (Perhatikan bahwa productUsecase juga butuh categoryRepo)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
-	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, timeout) // <-- Tambahkan ini
+	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout) // <-- Tambahkan ini
 	userUsecase := usecase.NewUserUsecase(userRepo, timeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)

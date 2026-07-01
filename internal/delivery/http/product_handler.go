@@ -27,7 +27,7 @@ func NewProductHandler(pu domain.ProductUsecase) ProductHandler {
 }
 
 // @Summary Create Product
-// @Description Menambahkan produk baru ke dalam katalog
+// @Description Menambahkan produk baru ke dalam katalog beserta daftar gambarnya
 // @Tags Products
 // @Accept json
 // @Produce json
@@ -52,7 +52,7 @@ func (h *productHandler) CreateProduct(c *fiber.Ctx) error {
 		Name:        req.Name,
 		Description: req.Description,
 		BasePrice:   req.BasePrice,
-		ImageURL:    req.ImageURL,
+		ImageURLs:   req.ImageURLs,
 	}
 
 	product, err := h.productUsecase.CreateProduct(c.Context(), domainReq)
@@ -116,13 +116,13 @@ func (h *productHandler) ListProducts(c *fiber.Ctx) error {
 }
 
 // @Summary Update Product
-// @Description Memperbarui data produk (nama, harga, kategori)
+// @Description Memperbarui data produk (nama, harga, kategori, dan daftar gambar)
 // @Tags Products
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID (UUID)"
 // @Param request body dto.ProductUpdateRequest true "Data Update Produk"
-// @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
+// @Success 200 {object} utils.SuccessResponse[dto.ProductResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
@@ -147,7 +147,7 @@ func (h *productHandler) UpdateProduct(c *fiber.Ctx) error {
 		Name:        req.Name,
 		Description: req.Description,
 		BasePrice:   req.BasePrice,
-		ImageURL:    req.ImageURL,
+		ImageURLs:   req.ImageURLs,
 	}
 
 	product, err := h.productUsecase.UpdateProduct(c.Context(), id, domainReq)
