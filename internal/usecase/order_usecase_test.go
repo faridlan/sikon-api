@@ -31,7 +31,6 @@ func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks
 func TestOrderUsecase_CreateOrder(t *testing.T) {
 	validUntil := time.Now().AddDate(0, 0, 7) // Penawaran berlaku 7 hari
 
-	// Base Input: Tambahkan BatchPoID
 	baseInput := domain.OrderCreateInput{
 		BatchPoID:       "batch-123", // 🚨 Wajib Ada
 		CustomerID:      "cust-123",
@@ -40,7 +39,8 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		ValidUntil:      &validUntil,
 		TermsConditions: "DP Minimal 50%",
 		Items: []domain.OrderItemInput{
-			{ProductID: "prod-1", Qty: 2, Price: 0},
+			// 🌟 TAMBAHAN: Sisipkan CustomName di salah satu item untuk diuji
+			{ProductID: "prod-1", CustomName: "Kemeja PDH PT ABC", Qty: 2, Price: 0},
 			{ProductID: "prod-2", Qty: 1, Price: 15000},
 		},
 	}
@@ -76,6 +76,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 				o.Subtotal == 115000 &&
 				o.TotalAmount == 165000 &&
 				len(o.Items) == 2 &&
+				o.Items[0].CustomName == "Kemeja PDH PT ABC" && // 🌟 TAMBAHAN: Pastikan CustomName terbawa hingga ke repository!
 				o.OrderStatus == domain.OrderStatusQuotation &&
 				o.PaymentStatus == domain.PaymentStatusUnpaid
 		})).Return(nil).Once()
@@ -485,9 +486,10 @@ func TestAddOrderItem(t *testing.T) {
 	orderID := "order-123"
 	productID := "prod-123"
 	input := domain.OrderItemInput{
-		ProductID: productID,
-		Qty:       2,
-		Price:     15000,
+		ProductID:  productID,
+		CustomName: "Kemeja PDH Bank ERT",
+		Qty:        2,
+		Price:      15000,
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -505,31 +507,32 @@ func TestAddOrderItem(t *testing.T) {
 		// =========================================================
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
 			Run(func(args mock.Arguments) {
-				// Ambil parameter yang dikirim ke RunInTransaction
 				ctx := args.Get(0).(context.Context)
 				fn := args.Get(1).(func(context.Context) error)
-
-				// Eksekusi fungsi closure-nya agar mock repo di dalamnya ikut berjalan!
 				err := fn(ctx)
 				assert.NoError(t, err)
 			}).
 			Return(nil).Once()
+
 		// =========================================================
 
 		// 2. Buat item (Akan tereksekusi berkat Run() di atas)
-		mockOrderRepo.On("CreateItem", mock.Anything, mock.AnythingOfType("*domain.OrderItem")).Return(nil).Once()
+		mockOrderRepo.On("CreateItem", mock.Anything, mock.MatchedBy(func(item *domain.OrderItem) bool {
+			// Kita pastikan Usecase mem-passing CustomName ke entity OrderItem
+			return item.CustomName == "Kemeja PDH Bank ERT" &&
+				item.ProductID == productID &&
+				item.Qty == 2
+		})).Return(nil).Once()
 
 		// 3. Masuk ke recalculateOrderTotal
 		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
 			ID: orderID,
 			Items: []domain.OrderItem{
-				{Price: 15000, Qty: 2}, // Subtotal & Total = 30000
+				{Price: 15000, Qty: 2},
 			},
 		}, nil).Once()
 
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return([]domain.Payment{}, nil).Once()
-
-		// 4. Update order header dengan total dan status yang baru
 		mockOrderRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Order")).Return(nil).Once()
 
 		result, err := u.AddOrderItem(context.Background(), orderID, input)
@@ -580,9 +583,10 @@ func TestUpdateOrderItem(t *testing.T) {
 	itemID := "item-123"
 	productID := "prod-123"
 	input := domain.OrderItemInput{
-		ProductID: productID,
-		Qty:       5, // Qty diubah jadi 5
-		Price:     0, // Misal harga dikosongkan agar pakai BasePrice product
+		ProductID:  productID,
+		CustomName: "Kemeja PDH Revisi",
+		Qty:        5, // Qty diubah jadi 5
+		Price:      0, // Misal harga dikosongkan agar pakai BasePrice product
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -591,9 +595,8 @@ func TestUpdateOrderItem(t *testing.T) {
 		mockPaymentRepo.ExpectedCalls = nil // Reset mock payment
 		mockTxManager.ExpectedCalls = nil   // Reset mock transaction
 
-		existingItem := &domain.OrderItem{ID: itemID, OrderID: orderID, ProductID: productID, Qty: 2, Price: 10000}
+		existingItem := &domain.OrderItem{ID: itemID, OrderID: orderID, ProductID: productID, CustomName: "Nama Lama", Qty: 2, Price: 10000}
 
-		// 1. Ambil data item & produk (Dijalankan di LUAR transaksi)
 		mockOrderRepo.On("GetItemByID", mock.Anything, orderID, itemID).Return(existingItem, nil).Once()
 		mockProductRepo.On("GetByID", mock.Anything, productID).Return(&domain.Product{ID: productID, BasePrice: 20000}, nil).Once()
 
@@ -604,8 +607,6 @@ func TestUpdateOrderItem(t *testing.T) {
 			Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				fn := args.Get(1).(func(context.Context) error)
-
-				// Eksekusi closure agar UpdateItem dan recalculateOrderTotal ikut berjalan
 				err := fn(ctx)
 				assert.NoError(t, err)
 			}).
@@ -613,13 +614,15 @@ func TestUpdateOrderItem(t *testing.T) {
 		// =========================================================
 
 		// 2. Update item (Dijalankan di DALAM transaksi)
-		mockOrderRepo.On("UpdateItem", mock.Anything, mock.AnythingOfType("*domain.OrderItem")).Return(nil).Once()
+		mockOrderRepo.On("UpdateItem", mock.Anything, mock.MatchedBy(func(item *domain.OrderItem) bool {
+			return item.CustomName == "Kemeja PDH Revisi" && item.Qty == 5
+		})).Return(nil).Once()
 
 		// 3. Masuk ke recalculateOrderTotal (Dijalankan di DALAM transaksi)
 		mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{
 			ID: orderID,
 			Items: []domain.OrderItem{
-				{Price: 20000, Qty: 5}, // Subtotal = 100000
+				{Price: 20000, Qty: 5},
 			},
 		}, nil).Once()
 

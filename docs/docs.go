@@ -3312,6 +3312,10 @@ const docTemplate = `{
                 "qty"
             ],
             "properties": {
+                "custom_name": {
+                    "type": "string",
+                    "example": "Custom Name"
+                },
                 "details": {
                     "description": "@Schema type object\n@Schema example {\"ukuran\": \"L\", \"warna\": \"Hitam\"}",
                     "type": "object",
@@ -3334,6 +3338,10 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse": {
             "type": "object",
             "properties": {
+                "custom_name": {
+                    "type": "string",
+                    "example": "Custom Name"
+                },
                 "details": {
                     "type": "object",
                     "additionalProperties": {}
