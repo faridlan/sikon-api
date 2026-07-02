@@ -14,6 +14,7 @@ type UserModel struct {
 	Email     string         `gorm:"type:varchar(255);unique;not null"`
 	Password  string         `gorm:"type:varchar(255);not null"`
 	Role      string         `gorm:"type:varchar(50);not null"`
+	ImageURL  string         `gorm:"type:varchar(255)"`
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
@@ -32,6 +33,7 @@ func (m *UserModel) ToDomain() *domain.User {
 		Email:     m.Email,
 		Password:  m.Password,
 		Role:      domain.Role(m.Role),
+		ImageURL:  m.ImageURL,
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
 	}
@@ -45,6 +47,7 @@ func FromUserDomain(d *domain.User) *UserModel {
 		Email:     d.Email,
 		Password:  d.Password,
 		Role:      string(d.Role),
+		ImageURL:  d.ImageURL,
 		CreatedAt: d.CreatedAt,
 		UpdatedAt: d.UpdatedAt,
 	}

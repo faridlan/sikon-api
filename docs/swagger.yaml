@@ -673,6 +673,9 @@ definitions:
       email:
         example: budi@sikon.com
         type: string
+      image_url:
+        example: https://example.com/image.jpg
+        type: string
       name:
         example: Budi Haryanto
         type: string
@@ -703,6 +706,9 @@ definitions:
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      image_url:
+        example: https://example.com/image.jpg
+        type: string
       name:
         example: Budi Haryanto
         type: string
@@ -715,6 +721,9 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.UserUpdateRequest:
     properties:
+      image_url:
+        example: https://example.com/image_updated.jpg
+        type: string
       name:
         example: Budi Haryanto Update
         type: string

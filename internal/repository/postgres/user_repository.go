@@ -91,7 +91,9 @@ func (r *userRepository) Fetch(ctx context.Context, limit, offset int, filter do
 func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
 	model := FromUserDomain(user)
 
-	err := r.db.WithContext(ctx).Model(&UserModel{ID: model.ID}).Updates(model).Error
+	db := GetTx(ctx, r.db) // Gunakan GetTx untuk mendukung transaksi
+
+	err := db.WithContext(ctx).Model(&UserModel{ID: model.ID}).Updates(model).Error
 	if err != nil {
 		return TranslateError(err)
 	}
@@ -100,7 +102,9 @@ func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
 }
 
 func (r *userRepository) Delete(ctx context.Context, id string) error {
-	err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&UserModel{}).Error
+	db := GetTx(ctx, r.db)
+
+	err := db.WithContext(ctx).Where("id = ?", id).Delete(&UserModel{}).Error
 	if err != nil {
 		return TranslateError(err)
 	}

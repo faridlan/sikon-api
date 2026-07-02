@@ -54,6 +54,7 @@ func (h *userHandler) Register(c *fiber.Ctx) error {
 		Email:    req.Email,
 		Password: req.Password,
 		Role:     domain.Role(req.Role),
+		ImageURL: req.ImageURL,
 	}
 
 	user, err := h.userUsecase.Register(c.Context(), domainReq)
@@ -149,8 +150,9 @@ func (h *userHandler) UpdateUser(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.UserUpdateInput{
-		Name: req.Name,
-		Role: domain.Role(req.Role),
+		Name:     req.Name,
+		Role:     domain.Role(req.Role),
+		ImageURL: req.ImageURL,
 	}
 
 	user, err := h.userUsecase.UpdateUser(c.Context(), id, domainReq)

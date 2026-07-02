@@ -12,13 +12,17 @@ import (
 
 type userUsecase struct {
 	userRepo       domain.UserRepository
+	storageService domain.StorageService
+	txManager      domain.TransactionManager
 	contextTimeout time.Duration
 }
 
 // NewUserUsecase adalah constructor
-func NewUserUsecase(ur domain.UserRepository, timeout time.Duration) domain.UserUsecase {
+func NewUserUsecase(ur domain.UserRepository, ss domain.StorageService, tm domain.TransactionManager, timeout time.Duration) domain.UserUsecase {
 	return &userUsecase{
 		userRepo:       ur,
+		storageService: ss,
+		txManager:      tm,
 		contextTimeout: timeout,
 	}
 }
@@ -46,6 +50,7 @@ func (u *userUsecase) Register(c context.Context, input domain.UserRegisterInput
 		Email:    input.Email,
 		Password: string(hashedPassword),
 		Role:     input.Role,
+		ImageURL: input.ImageURL,
 	}
 
 	if err := u.userRepo.Create(ctx, user); err != nil {
@@ -111,12 +116,35 @@ func (u *userUsecase) UpdateUser(c context.Context, id string, input domain.User
 	if input.Name != "" {
 		existingUser.Name = input.Name
 	}
+
 	if input.Role != "" {
 		existingUser.Role = input.Role
 	}
 
-	if err := u.userRepo.Update(ctx, existingUser); err != nil {
+	oldImageURL := existingUser.ImageURL
+
+	if input.ImageURL != "" {
+		existingUser.ImageURL = input.ImageURL
+	}
+
+	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// Update user di dalam transaksi
+		if err := u.userRepo.Update(txCtx, existingUser); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
+	}
+
+	if input.ImageURL != "" && oldImageURL != "" && oldImageURL != input.ImageURL {
+		// Hapus file lama dari storage
+		if err := u.storageService.DeleteFile(ctx, oldImageURL); err != nil {
+			// Opsional: Log error di sini agar tidak menggagalkan response user jika transaksi DB sudah sukses
+			return nil, domain.NewError(domain.ErrInternalServerError, "Gagal menghapus file lama dari storage")
+		}
 	}
 
 	return existingUser, nil
@@ -126,14 +154,30 @@ func (u *userUsecase) DeleteUser(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	_, err := u.userRepo.GetByID(ctx, id)
+	// 1. Tangkap data user ke variabel existingUser
+	existingUser, err := u.userRepo.GetByID(ctx, id)
 	if err != nil {
-		// PENAMBAHAN IF STATEMENT
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.NewError(domain.ErrNotFound, "User tidak ditemukan")
 		}
 		return err
 	}
 
-	return u.userRepo.Delete(ctx, id)
+	// 2. Hapus data user dari database terlebih dahulu
+	err = u.userRepo.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 3. Cek apakah user memiliki file gambar, jika ada baru hapus dari storage
+	if existingUser.ImageURL != "" {
+		// Gunakan existingUser.ImageURL, BUKAN id user
+		if err := u.storageService.DeleteFile(ctx, existingUser.ImageURL); err != nil {
+			// Opsional: Kamu bisa memilih untuk mengembalikan error, atau hanya me-log error ini
+			// agar user tetap terhapus walaupun file lamanya gagal dibersihkan.
+			return domain.NewError(domain.ErrInternalServerError, "Gagal menghapus file gambar dari storage")
+		}
+	}
+
+	return nil
 }

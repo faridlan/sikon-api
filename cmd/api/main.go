@@ -93,7 +93,7 @@ func main() {
 	// ==========================================
 	// 2. INISIASI USECASE (Layer Logika Bisnis)
 	// ==========================================
-	userUsecase := usecase.NewUserUsecase(userRepo, contextTimeout)
+	userUsecase := usecase.NewUserUsecase(userRepo, storageService, txManager, contextTimeout)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, contextTimeout)
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, contextTimeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, contextTimeout)

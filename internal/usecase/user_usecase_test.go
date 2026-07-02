@@ -17,7 +17,10 @@ import (
 
 func TestUserUsecase_Register(t *testing.T) {
 	mockRepo := new(mocks.UserRepository)
-	uc := usecase.NewUserUsecase(mockRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	mockTxManager := new(mocks.TransactionManager)
+
+	uc := usecase.NewUserUsecase(mockRepo, mockStorageService, mockTxManager, time.Second*2)
 
 	input := domain.UserRegisterInput{
 		Name:     "Budi",
@@ -44,6 +47,24 @@ func TestUserUsecase_Register(t *testing.T) {
 		// Verifikasi apakah password benar-benar di-hash menggunakan bcrypt
 		errBcrypt := bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(input.Password))
 		assert.NoError(t, errBcrypt, "Password harus di-hash dengan benar")
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success With Image URL", func(t *testing.T) {
+		inputWithImage := input
+		inputWithImage.ImageURL = "https://example.com/image.jpg"
+
+		mockRepo.On("GetByEmail", mock.Anything, inputWithImage.Email).Return(nil, domain.ErrNotFound).Once()
+		mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
+			return u.Name == inputWithImage.Name && u.Email == inputWithImage.Email && u.Role == inputWithImage.Role && u.ImageURL == inputWithImage.ImageURL
+		})).Return(nil).Once()
+
+		result, err := uc.Register(context.Background(), inputWithImage)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, inputWithImage.ImageURL, result.ImageURL)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -82,13 +103,18 @@ func TestUserUsecase_Register(t *testing.T) {
 
 func TestUserUsecase_GetProfile(t *testing.T) {
 	mockRepo := new(mocks.UserRepository)
-	uc := usecase.NewUserUsecase(mockRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	mockTxManager := new(mocks.TransactionManager)
+
+	uc := usecase.NewUserUsecase(mockRepo, mockStorageService, mockTxManager, time.Second*2)
 
 	mockID := "user-123"
 	mockUser := &domain.User{
-		ID:    mockID,
-		Name:  "Budi",
-		Email: "budi@example.com",
+		ID:       mockID,
+		Name:     "Budi",
+		Email:    "budi@example.com",
+		ImageURL: "https://example.com/image.jpg",
+		Role:     domain.RoleSales,
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -99,6 +125,7 @@ func TestUserUsecase_GetProfile(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, mockUser.Name, result.Name)
+		assert.Equal(t, mockUser.ImageURL, result.ImageURL)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -121,13 +148,16 @@ func TestUserUsecase_GetProfile(t *testing.T) {
 
 func TestUserUsecase_ListUsers(t *testing.T) {
 	mockRepo := new(mocks.UserRepository)
-	uc := usecase.NewUserUsecase(mockRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	mockTxManager := new(mocks.TransactionManager)
+
+	uc := usecase.NewUserUsecase(mockRepo, mockStorageService, mockTxManager, time.Second*2)
 
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
 
 	mockUsers := []domain.User{
-		{ID: "1", Name: "User 1"},
-		{ID: "2", Name: "User 2"},
+		{ID: "1", Name: "User 1", Role: domain.RoleSales, ImageURL: "https://example.com/image1.jpg"},
+		{ID: "2", Name: "User 2", Role: domain.RoleSales, ImageURL: "https://example.com/image2.jpg"},
 	}
 	var totalItems int64 = 15
 
@@ -144,6 +174,8 @@ func TestUserUsecase_ListUsers(t *testing.T) {
 		assert.Len(t, users, 2)
 		assert.Equal(t, 2, meta.TotalPages)
 		assert.Equal(t, int64(15), meta.TotalItems)
+		assert.Equal(t, mockUsers[0].ImageURL, users[0].ImageURL)
+		assert.Equal(t, mockUsers[1].ImageURL, users[1].ImageURL)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -153,7 +185,7 @@ func TestUserUsecase_ListUsers(t *testing.T) {
 		activeFilter := domain.UserFilter{Role: "sales"}
 
 		mockSalesUsers := []domain.User{
-			{ID: "1", Name: "User 1"}, // Asumsi hanya 1 data yang sesuai
+			{ID: "1", Name: "User 1", Role: domain.RoleSales, ImageURL: "https://example.com/image1.jpg"}, // Asumsi hanya 1 data yang sesuai
 		}
 
 		// Pastikan Mocking mengharapkan activeFilter
@@ -165,6 +197,7 @@ func TestUserUsecase_ListUsers(t *testing.T) {
 		assert.Len(t, users, 1) // Memastikan hasil sesuai mock (1 data)
 		assert.Equal(t, 1, meta.TotalPages)
 		assert.Equal(t, int64(1), meta.TotalItems)
+		assert.Equal(t, "https://example.com/image1.jpg", users[0].ImageURL)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -188,28 +221,46 @@ func TestUserUsecase_ListUsers(t *testing.T) {
 
 func TestUserUsecase_UpdateUser(t *testing.T) {
 	mockRepo := new(mocks.UserRepository)
-	uc := usecase.NewUserUsecase(mockRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	mockTxManager := new(mocks.TransactionManager)
+
+	uc := usecase.NewUserUsecase(mockRepo, mockStorageService, mockTxManager, time.Second*2)
 
 	mockID := "user-123"
 	input := domain.UserUpdateInput{
-		Name: "Budi Updated",
-		Role: domain.RoleAdmin,
+		Name:     "Budi Updated",
+		Role:     domain.RoleAdmin,
+		ImageURL: "https://example.com/new_image.jpg",
 	}
 
 	// Data yang ada di DB sebelum di-update
 	existingUser := &domain.User{
-		ID:   mockID,
-		Name: "Budi Lama",
-		Role: domain.RoleSales,
+		ID:       mockID,
+		Name:     "Budi Lama",
+		Role:     domain.RoleSales,
+		ImageURL: "https://example.com/old_image.jpg",
+	}
+
+	setupTxMock := func(mockTx *mocks.TransactionManager) {
+		mockTx.On("RunInTransaction", mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				// Ambil fungsi callback (argumen ke-2) dan jalankan
+				fn := args.Get(1).(func(context.Context) error)
+				fn(args.Get(0).(context.Context))
+			}).
+			Return(nil)
 	}
 
 	t.Run("Success", func(t *testing.T) {
 		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingUser, nil).Once()
 
+		setupTxMock(mockTxManager)
 		// Ekspektasi saat Update dipanggil, datanya sudah berubah sesuai input
 		mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
-			return u.Name == input.Name && u.Role == input.Role
+			return u.Name == input.Name && u.Role == input.Role && u.ImageURL == input.ImageURL
 		})).Return(nil).Once()
+
+		mockStorageService.On("DeleteFile", mock.Anything, existingUser.ImageURL).Return(nil).Once()
 
 		result, err := uc.UpdateUser(context.Background(), mockID, input)
 
@@ -217,7 +268,7 @@ func TestUserUsecase_UpdateUser(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Equal(t, "Budi Updated", result.Name)
 		assert.Equal(t, domain.RoleAdmin, result.Role)
-
+		assert.Equal(t, "https://example.com/new_image.jpg", result.ImageURL)
 		mockRepo.AssertExpectations(t)
 	})
 
@@ -235,7 +286,10 @@ func TestUserUsecase_UpdateUser(t *testing.T) {
 
 func TestUserUsecase_DeleteUser(t *testing.T) {
 	mockRepo := new(mocks.UserRepository)
-	uc := usecase.NewUserUsecase(mockRepo, time.Second*2)
+	mockStorageService := new(mocks.StorageService)
+	mockTxManager := new(mocks.TransactionManager)
+
+	uc := usecase.NewUserUsecase(mockRepo, mockStorageService, mockTxManager, time.Second*2)
 
 	mockID := "user-123"
 	existingUser := &domain.User{
