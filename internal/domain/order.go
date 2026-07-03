@@ -32,7 +32,7 @@ type OrderItem struct {
 	Qty        int
 	Price      float64
 	// Details untuk menyimpan JSON variasi (misal: S: 10, M: 20)
-	Details   map[string]any
+	Details   any
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
@@ -72,7 +72,7 @@ type OrderItemInput struct {
 	CustomName string
 	Qty        int
 	Price      float64
-	Details    map[string]any
+	Details    any
 }
 
 type OrderCreateInput struct {

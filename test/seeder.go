@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -145,13 +146,26 @@ func SeedOrder(db *gorm.DB, batchPoID, customerID, salesID, productID string, cu
 	}
 	db.Create(&order)
 
+	detailsData := map[string]any{
+		"Benang":  "Benang Bordir Menggunakan Benang Polyster",
+		"Bordir":  "Bordir Menggunakan Sistem Komputerisasi",
+		"Jahitan": "Jahit Rapi",
+		"Bahan": map[string]any{
+			"Name":  "Katun Baby Canvas",
+			"Spec":  "menggunakan baby canvas",
+			"Color": "Hitam",
+		},
+	}
+
+	detailsBytes, _ := json.Marshal(detailsData)
+
 	orderItem := postgres.OrderItemModel{
 		ID:        uuid.New().String(),
 		OrderID:   orderID,
 		ProductID: productID,
 		Qty:       2,
 		Price:     50000,
-		Details:   datatypes.JSONMap{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}},
+		Details:   datatypes.JSON(detailsBytes),
 	}
 	db.Create(&orderItem)
 
