@@ -9,15 +9,16 @@ import (
 )
 
 type OrderItemModel struct {
-	ID        string            `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderID   string            `gorm:"type:uuid;not null"`
-	ProductID string            `gorm:"type:uuid;not null"`
-	Qty       int               `gorm:"not null"`
-	Price     float64           `gorm:"type:decimal(12,2);not null"`
-	Details   datatypes.JSONMap `gorm:"type:jsonb"` // Magic dari GORM
-	CreatedAt time.Time         `gorm:"autoCreateTime"`
-	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
-	DeletedAt gorm.DeletedAt    `gorm:"index"`
+	ID         string            `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderID    string            `gorm:"type:uuid;not null"`
+	ProductID  string            `gorm:"type:uuid;not null"`
+	CustomName string            `gorm:"type:varchar(255)"`
+	Qty        int               `gorm:"not null"`
+	Price      float64           `gorm:"type:decimal(12,2);not null"`
+	Details    datatypes.JSONMap `gorm:"type:jsonb"` // Magic dari GORM
+	CreatedAt  time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt  time.Time         `gorm:"autoUpdateTime"`
+	DeletedAt  gorm.DeletedAt    `gorm:"index"`
 
 	// Relasi
 	Product *ProductModel `gorm:"foreignKey:ProductID"`
@@ -64,14 +65,15 @@ func (OrderModel) TableName() string {
 func (m *OrderItemModel) ToDomain() domain.OrderItem {
 
 	item := domain.OrderItem{
-		ID:        m.ID,
-		OrderID:   m.OrderID,
-		ProductID: m.ProductID,
-		Qty:       m.Qty,
-		Price:     m.Price,
-		Details:   map[string]any(m.Details), // Konversi JSONB ke map biasa
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:         m.ID,
+		OrderID:    m.OrderID,
+		ProductID:  m.ProductID,
+		CustomName: m.CustomName,
+		Qty:        m.Qty,
+		Price:      m.Price,
+		Details:    map[string]any(m.Details), // Konversi JSONB ke map biasa
+		CreatedAt:  m.CreatedAt,
+		UpdatedAt:  m.UpdatedAt,
 	}
 
 	if m.Product != nil {

@@ -8,9 +8,10 @@ import (
 
 // --- REQUEST ---
 type OrderItemRequest struct {
-	ProductID string  `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
-	Qty       int     `json:"qty" validate:"required,gt=0" example:"100"`
-	Price     float64 `json:"price" validate:"omitempty" example:"35000"`
+	ProductID  string  `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
+	CustomName string  `json:"custom_name" validate:"omitempty" example:"Custom Name"`
+	Qty        int     `json:"qty" validate:"required,gt=0" example:"100"`
+	Price      float64 `json:"price" validate:"omitempty" example:"35000"`
 
 	// @Schema type object
 	// @Schema example {"ukuran": "L", "warna": "Hitam"}
@@ -50,12 +51,13 @@ type PaymentStatusUpdateRequest struct {
 
 // --- RESPONSE ---
 type OrderItemResponse struct {
-	ID        string           `json:"id" example:"item-uuid"`
-	ProductID string           `json:"product_id" example:"999e4567-e89b-12d3-a456-426614174000"`
-	Qty       int              `json:"qty" example:"100"`
-	Price     float64          `json:"price" example:"35000"`
-	Details   map[string]any   `json:"details"`
-	Product   *ProductResponse `json:"product,omitempty"`
+	ID         string           `json:"id" example:"item-uuid"`
+	ProductID  string           `json:"product_id" example:"999e4567-e89b-12d3-a456-426614174000"`
+	CustomName string           `json:"custom_name" example:"Custom Name"`
+	Qty        int              `json:"qty" example:"100"`
+	Price      float64          `json:"price" example:"35000"`
+	Details    map[string]any   `json:"details"`
+	Product    *ProductResponse `json:"product,omitempty"`
 }
 
 type OrderResponse struct {
@@ -112,11 +114,12 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 		resp.Items = make([]OrderItemResponse, 0, len(o.Items))
 		for _, item := range o.Items {
 			itemResp := OrderItemResponse{
-				ID:        item.ID,
-				ProductID: item.ProductID,
-				Qty:       item.Qty,
-				Price:     item.Price,
-				Details:   item.Details,
+				ID:         item.ID,
+				ProductID:  item.ProductID,
+				CustomName: item.CustomName,
+				Qty:        item.Qty,
+				Price:      item.Price,
+				Details:    item.Details,
 			}
 			if item.Product != nil {
 				prodResp := ToProductResponse(item.Product)

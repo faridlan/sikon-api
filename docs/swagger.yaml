@@ -285,6 +285,9 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest:
     properties:
+      custom_name:
+        example: Custom Name
+        type: string
       details:
         additionalProperties: {}
         description: |-
@@ -306,6 +309,9 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse:
     properties:
+      custom_name:
+        example: Custom Name
+        type: string
       details:
         additionalProperties: {}
         type: object
