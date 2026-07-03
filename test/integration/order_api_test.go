@@ -162,6 +162,72 @@ func TestCreateOrder_Integration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
+
+	t.Run("Success_Create_Order_With_Array_Details", func(t *testing.T) {
+		validUntil := time.Now().AddDate(0, 0, 7)
+		reqBody := dto.OrderCreateRequest{
+			BatchPoID:       batchPoID,
+			CustomerID:      customer.ID,
+			SalesID:         sales.ID,
+			ShippingCost:    20000,
+			CourierName:     "JNE",
+			ShippingAddress: "Alamat Kirim Setelan",
+			ValidUntil:      &validUntil,
+			TermsConditions: "Syarat Setelan",
+			OrderStatus:     "quotation",
+			Items: []dto.OrderItemRequest{
+				{
+					ProductID:  product.ID, // Asumsi product ini adalah PDH Setelan
+					CustomName: "PDH ERT ABU (Setelan)",
+					Qty:        10,
+					Price:      750000,
+					// 👇 INI BAGIAN PENTINGNYA: Kita kirim Array (Slice of Maps) bukan satu Map tunggal
+					Details: []map[string]any{
+						{
+							"part":          "Kemeja",
+							"material_name": "American Drill",
+							"spec":          "Tebal dan tidak kusut",
+						},
+						{
+							"part":          "Celana",
+							"material_name": "American Drill",
+							"spec":          "Kuat dan rapi",
+						},
+					},
+				},
+			},
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+
+		// 🚨 ALAT DEBUGGING: Cetak pesan error dari DTO jika bukan 201 Created
+		if resp.StatusCode != fiber.StatusCreated {
+			respBody, _ := io.ReadAll(resp.Body)
+			t.Fatalf("GAGAL! Ekspektasi 201 Created, tapi dapat %d. Pesan Error DTO: %s", resp.StatusCode, string(respBody))
+		}
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Asersi Dasar
+		assert.Equal(t, "quotation", response.Data.OrderStatus)
+		assert.Equal(t, "PDH ERT ABU (Setelan)", response.Data.Items[0].CustomName)
+
+		// Asersi Spesifik untuk Array JSON
+		assert.NotNil(t, response.Data.Items[0].Details, "Details tidak boleh nil")
+
+		// Karena JSON Array diubah ke interface{} (any) saat di-unmarshal,
+		// Golang membacanya sebagai slice of interface{} ([]any).
+		detailsArray, ok := response.Data.Items[0].Details.([]any)
+		assert.True(t, ok, "Details harus berhasil di-casting menjadi Array ([]any)")
+		assert.Len(t, detailsArray, 2, "Harus ada tepat 2 item spesifikasi di dalam array Details")
+	})
 }
 
 // ==========================================

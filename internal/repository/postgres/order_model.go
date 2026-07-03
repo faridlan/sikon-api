@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
@@ -9,16 +10,16 @@ import (
 )
 
 type OrderItemModel struct {
-	ID         string            `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderID    string            `gorm:"type:uuid;not null"`
-	ProductID  string            `gorm:"type:uuid;not null"`
-	CustomName string            `gorm:"type:varchar(255)"`
-	Qty        int               `gorm:"not null"`
-	Price      float64           `gorm:"type:decimal(12,2);not null"`
-	Details    datatypes.JSONMap `gorm:"type:jsonb"` // Magic dari GORM
-	CreatedAt  time.Time         `gorm:"autoCreateTime"`
-	UpdatedAt  time.Time         `gorm:"autoUpdateTime"`
-	DeletedAt  gorm.DeletedAt    `gorm:"index"`
+	ID         string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderID    string         `gorm:"type:uuid;not null"`
+	ProductID  string         `gorm:"type:uuid;not null"`
+	CustomName string         `gorm:"type:varchar(255)"`
+	Qty        int            `gorm:"not null"`
+	Price      float64        `gorm:"type:decimal(12,2);not null"`
+	Details    datatypes.JSON `gorm:"type:jsonb"`
+	CreatedAt  time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt  time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
 
 	// Relasi
 	Product *ProductModel `gorm:"foreignKey:ProductID"`
@@ -64,6 +65,11 @@ func (OrderModel) TableName() string {
 // --- Mapper Order Item ---
 func (m *OrderItemModel) ToDomain() domain.OrderItem {
 
+	var detailsAny any
+	if len(m.Details) > 0 {
+		_ = json.Unmarshal(m.Details, &detailsAny)
+	}
+
 	item := domain.OrderItem{
 		ID:         m.ID,
 		OrderID:    m.OrderID,
@@ -71,7 +77,7 @@ func (m *OrderItemModel) ToDomain() domain.OrderItem {
 		CustomName: m.CustomName,
 		Qty:        m.Qty,
 		Price:      m.Price,
-		Details:    map[string]any(m.Details), // Konversi JSONB ke map biasa
+		Details:    detailsAny,
 		CreatedAt:  m.CreatedAt,
 		UpdatedAt:  m.UpdatedAt,
 	}
@@ -164,13 +170,21 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 	// Mapping detail items
 	if len(d.Items) > 0 {
 		for _, item := range d.Items {
+			var detailsJSON datatypes.JSON
+			if item.Details != nil {
+				bytes, err := json.Marshal(item.Details)
+				if err == nil {
+					detailsJSON = datatypes.JSON(bytes)
+				}
+			}
+
 			model.Items = append(model.Items, OrderItemModel{
 				ID:        item.ID,
 				OrderID:   item.OrderID,
 				ProductID: item.ProductID,
 				Qty:       item.Qty,
 				Price:     item.Price,
-				Details:   datatypes.JSONMap(item.Details), // Konversi map biasa ke JSONB
+				Details:   detailsJSON, // Konversi map biasa ke JSONB
 				CreatedAt: item.CreatedAt,
 				UpdatedAt: item.UpdatedAt,
 			})

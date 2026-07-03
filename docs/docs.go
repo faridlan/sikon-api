@@ -3317,9 +3317,7 @@ const docTemplate = `{
                     "example": "Custom Name"
                 },
                 "details": {
-                    "description": "@Schema type object\n@Schema example {\"ukuran\": \"L\", \"warna\": \"Hitam\"}",
-                    "type": "object",
-                    "additionalProperties": {}
+                    "description": "@Schema type object\n@Schema example {\"ukuran\": \"L\", \"warna\": \"Hitam\"}"
                 },
                 "price": {
                     "type": "number",
@@ -3342,10 +3340,7 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Custom Name"
                 },
-                "details": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
+                "details": {},
                 "id": {
                     "type": "string",
                     "example": "item-uuid"

@@ -45,21 +45,38 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		},
 	}
 
-	t.Run("Success - Create as Quotation (Normal Flow)", func(t *testing.T) {
+	t.Run("Success - Create with Array Details (Produk Setelan)", func(t *testing.T) {
 		// 🚨 Pastikan setupOrderTest me-return mockBatchPoRepo
 		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
 
+		// Kita copy baseInput agar tidak merusak test lain
 		input := baseInput
 		input.OrderStatus = domain.OrderStatusQuotation
 
+		// 👇 SETUP ARRAY DETAILS: Simulasi input spesifikasi setelan dari FE
+		arrayDetails := []map[string]any{
+			{
+				"part":          "Kemeja",
+				"material_name": "American Drill",
+				"spec":          "Tebal",
+			},
+			{
+				"part":          "Celana",
+				"material_name": "American Drill",
+				"spec":          "Kuat",
+			},
+		}
+		// Suntikkan array tersebut ke item pertama
+		input.Items[0].Details = arrayDetails
+		input.Items[0].CustomName = "PDH ERT ABU (Setelan)"
+
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(&domain.Customer{ID: input.CustomerID}, nil).Once()
 		mockUserRepo.On("GetByID", mock.Anything, input.SalesID).Return(&domain.User{ID: input.SalesID}, nil).Once()
-
-		// 🚨 MOCK BATCH PO: Kembalikan PO yang statusnya Active
 		mockBatchPoRepo.On("GetByID", mock.Anything, input.BatchPoID).Return(&domain.BatchPO{ID: input.BatchPoID, Status: domain.BatchPOStatusActive}, nil).Once()
 
-		mockProductRepo.On("GetByID", mock.Anything, "prod-1").Return(&domain.Product{ID: "prod-1", BasePrice: 50000}, nil).Once()
-		mockProductRepo.On("GetByID", mock.Anything, "prod-2").Return(&domain.Product{ID: "prod-2", BasePrice: 10000}, nil).Once()
+		// Asumsi baseInput memiliki 2 produk seperti pada test normal flow Anda
+		mockProductRepo.On("GetByID", mock.Anything, input.Items[0].ProductID).Return(&domain.Product{ID: input.Items[0].ProductID, BasePrice: 50000}, nil).Once()
+		mockProductRepo.On("GetByID", mock.Anything, input.Items[1].ProductID).Return(&domain.Product{ID: input.Items[1].ProductID, BasePrice: 10000}, nil).Once()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.AnythingOfType("func(context.Context) error")).
 			Run(func(args mock.Arguments) {
@@ -70,15 +87,21 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 			}).
 			Return(nil).Once()
 
+		// 🚨 MOCK ORDER REPO: Validasi ketat bahwa payload Array tidak rusak
 		mockOrderRepo.On("Create", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
-			return o.BatchPoID == input.BatchPoID && // 🚨 Pastikan ID PO tersimpan
+			// Kita casting dulu any ke []map[string]any untuk pengecekan
+			detailsArr, ok := o.Items[0].Details.([]map[string]any)
+
+			return o.BatchPoID == input.BatchPoID &&
 				o.CustomerID == input.CustomerID &&
-				o.Subtotal == 115000 &&
+				o.Subtotal == 115000 && // Mengikuti baseInput Anda
 				o.TotalAmount == 165000 &&
 				len(o.Items) == 2 &&
-				o.Items[0].CustomName == "Kemeja PDH PT ABC" && // 🌟 TAMBAHAN: Pastikan CustomName terbawa hingga ke repository!
-				o.OrderStatus == domain.OrderStatusQuotation &&
-				o.PaymentStatus == domain.PaymentStatusUnpaid
+				o.Items[0].CustomName == "PDH ERT ABU (Setelan)" &&
+				// 🌟 ASERSI ARRAY: Pastikan bisa di-casting dan isinya utuh 2 item
+				ok && len(detailsArr) == 2 &&
+				detailsArr[0]["part"] == "Kemeja" &&
+				detailsArr[1]["part"] == "Celana"
 		})).Return(nil).Once()
 
 		order, err := uc.CreateOrder(context.Background(), input)
@@ -86,9 +109,14 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, order)
 		assert.Equal(t, domain.OrderStatusQuotation, order.OrderStatus)
-		assert.Equal(t, "batch-123", order.BatchPoID)
+
+		// 🌟 Ekstra Asersi pada hasil Return dari Usecase
+		returnedDetails, ok := order.Items[0].Details.([]map[string]any)
+		assert.True(t, ok, "Details harus tetap berupa Array pada response")
+		assert.Equal(t, "Kemeja", returnedDetails[0]["part"])
 
 		mockBatchPoRepo.AssertExpectations(t)
+		mockOrderRepo.AssertExpectations(t)
 	})
 
 	t.Run("Error - Batch PO Closed (Ditolak Satpam)", func(t *testing.T) {

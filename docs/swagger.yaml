@@ -289,11 +289,9 @@ definitions:
         example: Custom Name
         type: string
       details:
-        additionalProperties: {}
         description: |-
           @Schema type object
           @Schema example {"ukuran": "L", "warna": "Hitam"}
-        type: object
       price:
         example: 35000
         type: number
@@ -312,9 +310,7 @@ definitions:
       custom_name:
         example: Custom Name
         type: string
-      details:
-        additionalProperties: {}
-        type: object
+      details: {}
       id:
         example: item-uuid
         type: string

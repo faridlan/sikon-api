@@ -15,7 +15,7 @@ type OrderItemRequest struct {
 
 	// @Schema type object
 	// @Schema example {"ukuran": "L", "warna": "Hitam"}
-	Details map[string]any `json:"details"`
+	Details any `json:"details"`
 }
 
 type OrderCreateRequest struct {
@@ -56,7 +56,7 @@ type OrderItemResponse struct {
 	CustomName string           `json:"custom_name" example:"Custom Name"`
 	Qty        int              `json:"qty" example:"100"`
 	Price      float64          `json:"price" example:"35000"`
-	Details    map[string]any   `json:"details"`
+	Details    any              `json:"details"`
 	Product    *ProductResponse `json:"product,omitempty"`
 }
 
