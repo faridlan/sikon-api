@@ -1,0 +1,1 @@
+ALTER TABLE order_items ADD COLUMN custom_name VARCHAR(255) NULL;

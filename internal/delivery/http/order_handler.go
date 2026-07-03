@@ -69,10 +69,11 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 
 	for _, itemReq := range req.Items {
 		domainReq.Items = append(domainReq.Items, domain.OrderItemInput{
-			ProductID: itemReq.ProductID,
-			Qty:       itemReq.Qty,
-			Price:     itemReq.Price,
-			Details:   itemReq.Details,
+			ProductID:  itemReq.ProductID,
+			CustomName: itemReq.CustomName,
+			Qty:        itemReq.Qty,
+			Price:      itemReq.Price,
+			Details:    itemReq.Details,
 		})
 	}
 
@@ -328,10 +329,11 @@ func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
 	}
 
 	input := domain.OrderItemInput{
-		ProductID: req.ProductID,
-		Qty:       req.Qty,
-		Price:     req.Price,
-		Details:   req.Details,
+		ProductID:  req.ProductID,
+		CustomName: req.CustomName,
+		Qty:        req.Qty,
+		Price:      req.Price,
+		Details:    req.Details,
 	}
 
 	order, err := h.orderUsecase.AddOrderItem(c.Context(), orderID, input)
@@ -370,10 +372,11 @@ func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
 	}
 
 	input := domain.OrderItemInput{
-		ProductID: req.ProductID,
-		Qty:       req.Qty,
-		Price:     req.Price,
-		Details:   req.Details,
+		ProductID:  req.ProductID,
+		CustomName: req.CustomName,
+		Qty:        req.Qty,
+		Price:      req.Price,
+		Details:    req.Details,
 	}
 
 	order, err := h.orderUsecase.UpdateOrderItem(c.Context(), orderID, itemID, input)

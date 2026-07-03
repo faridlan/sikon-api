@@ -49,6 +49,33 @@ func TestRegisterUser_Integration(t *testing.T) {
 		assert.NotEmpty(t, response.Data.ID)
 	})
 
+	t.Run("Success_Register_With_Image", func(t *testing.T) {
+		reqBody := dto.UserRegisterRequest{
+			Name:     "Budi dengan Image",
+			Email:    "budiwithimage@admin.com",
+			Password: "rahasia123",
+			Role:     "admin",
+			ImageURL: "https://example.com/image.jpg",
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.UserResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Equal(t, "Budi dengan Image", response.Data.Name)
+		assert.Equal(t, "budiwithimage@admin.com", response.Data.Email)
+		assert.Equal(t, "https://example.com/image.jpg", response.Data.ImageURL)
+		assert.NotEmpty(t, response.Data.ID)
+	})
+
 	t.Run("Failed_Email_Already_Exists", func(t *testing.T) {
 		// 1. Kita buat dulu user dengan email tina@sales.com langsung ke DB
 		tests.SeedUser(db, "Tina Asli", "tina@sales.com", "sales")
@@ -98,9 +125,9 @@ func TestListUsers_Integration(t *testing.T) {
 	tests.ClearTables(db)
 
 	// Seed 3 data user ke database
-	tests.SeedUser(db, "User Satu", "user1@sikon.com", "sales")
-	tests.SeedUser(db, "User Dua", "user2@sikon.com", "admin")
-	tests.SeedUser(db, "User Tiga", "user3@sikon.com", "sales")
+	tests.SeedUser(db, "User Satu", "user1@sikon.com", "sales", "https://example.com/image1.jpg")
+	tests.SeedUser(db, "User Dua", "user2@sikon.com", "admin", "https://example.com/image2.jpg")
+	tests.SeedUser(db, "User Tiga", "user3@sikon.com", "sales", "https://example.com/image3.jpg")
 
 	t.Run("Success_GetList_TanpaFilter", func(t *testing.T) {
 		// Tembak endpoint tanpa filter khusus
@@ -124,6 +151,9 @@ func TestListUsers_Integration(t *testing.T) {
 		// Verifikasi bahwa ada 3 data user yang dikembalikan
 		assert.Len(t, response.Data, 3)
 		assert.NotNil(t, response.Meta)
+		assert.Equal(t, "https://example.com/image1.jpg", response.Data[0].ImageURL)
+		assert.Equal(t, "https://example.com/image2.jpg", response.Data[1].ImageURL)
+		assert.Equal(t, "https://example.com/image3.jpg", response.Data[2].ImageURL)
 	})
 
 	t.Run("Success_GetList_FilterRoleSales", func(t *testing.T) {
@@ -195,7 +225,7 @@ func TestGetUser_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	user := tests.SeedUser(db, "Andi", "andi@sikon.com", "sales")
+	user := tests.SeedUser(db, "Andi", "andi@sikon.com", "sales", "https://example.com/andi.jpg")
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/users/"+user.ID, nil)
@@ -210,6 +240,7 @@ func TestGetUser_Integration(t *testing.T) {
 
 		assert.Equal(t, user.ID, response.Data.ID)
 		assert.Equal(t, "Andi", response.Data.Name)
+		assert.Equal(t, "https://example.com/andi.jpg", response.Data.ImageURL)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
@@ -234,8 +265,9 @@ func TestUpdateUser_Integration(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Update name dan role menjadi admin
 		reqBody := dto.UserUpdateRequest{
-			Name: "Siti Manajer",
-			Role: "admin",
+			Name:     "Siti Manajer",
+			Role:     "admin",
+			ImageURL: "https://example.com/new_image.jpg",
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -252,6 +284,7 @@ func TestUpdateUser_Integration(t *testing.T) {
 
 		assert.Equal(t, "Siti Manajer", response.Data.Name)
 		assert.Equal(t, "admin", response.Data.Role)
+		assert.Equal(t, "https://example.com/new_image.jpg", response.Data.ImageURL)
 	})
 
 	t.Run("Failed_Validation_Invalid_Role", func(t *testing.T) {

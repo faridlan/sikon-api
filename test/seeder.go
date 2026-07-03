@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,13 +32,19 @@ func SeedProduct(db *gorm.DB, categoryID string, name string, price float64) pos
 	return product
 }
 
-func SeedUser(db *gorm.DB, name, email, role string) postgres.UserModel {
+func SeedUser(db *gorm.DB, name, email, role string, image ...string) postgres.UserModel {
+
+	if len(image) == 0 {
+		image = append(image, "") // Default kosong jika tidak ada image yang diberikan
+	}
+
 	user := postgres.UserModel{
 		ID:       uuid.New().String(),
 		Name:     name,
 		Email:    email,
 		Password: "hashedpassword123", // Anggap saja ini sudah di-hash oleh repo/usecase
 		Role:     role,
+		ImageURL: image[0],
 	}
 	db.Create(&user)
 	return user
@@ -139,13 +146,26 @@ func SeedOrder(db *gorm.DB, batchPoID, customerID, salesID, productID string, cu
 	}
 	db.Create(&order)
 
+	detailsData := map[string]any{
+		"Benang":  "Benang Bordir Menggunakan Benang Polyster",
+		"Bordir":  "Bordir Menggunakan Sistem Komputerisasi",
+		"Jahitan": "Jahit Rapi",
+		"Bahan": map[string]any{
+			"Name":  "Katun Baby Canvas",
+			"Spec":  "menggunakan baby canvas",
+			"Color": "Hitam",
+		},
+	}
+
+	detailsBytes, _ := json.Marshal(detailsData)
+
 	orderItem := postgres.OrderItemModel{
 		ID:        uuid.New().String(),
 		OrderID:   orderID,
 		ProductID: productID,
 		Qty:       2,
 		Price:     50000,
-		Details:   datatypes.JSONMap{"Benang": "Benang Bordir Menggunakan Benang Polyster", "Bordir": "Bordir Menggunakan Sistem Komputerisasi", "Jahitan": "Jahit Rapi", "Bahan": map[string]any{"Name": "Katun Baby Canvas", "Spec": "menggunakan baby canvas", "Color": "Hitam"}},
+		Details:   datatypes.JSON(detailsBytes),
 	}
 	db.Create(&orderItem)
 

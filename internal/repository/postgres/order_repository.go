@@ -193,12 +193,13 @@ func (r *orderRepository) CreateItem(ctx context.Context, item *domain.OrderItem
 	db := GetTx(ctx, r.db)
 
 	err := db.WithContext(ctx).Table("order_items").Create(map[string]any{
-		"id":         item.ID,
-		"order_id":   item.OrderID,
-		"product_id": item.ProductID,
-		"qty":        item.Qty,
-		"price":      item.Price,
-		"details":    detailsJSON,
+		"id":          item.ID,
+		"order_id":    item.OrderID,
+		"product_id":  item.ProductID,
+		"custom_name": item.CustomName,
+		"qty":         item.Qty,
+		"price":       item.Price,
+		"details":     detailsJSON,
 	}).Error
 
 	if err != nil {
@@ -214,16 +215,19 @@ func (r *orderRepository) UpdateItem(ctx context.Context, item *domain.OrderItem
 		detailsJSON, _ = json.Marshal(item.Details)
 	}
 
+	db := GetTx(ctx, r.db)
+
 	// Note: Menggunakan map alih-alih OrderItemModel struct untuk menghindari
 	// GORM secara tidak sengaja meng-update tabel relasi (Product/Order)
 	// dan memastikan zero-value (seperti qty/harga 0) tetap ter-update.
-	err := r.db.WithContext(ctx).Table("order_items").
+	err := db.WithContext(ctx).Table("order_items").
 		Where("id = ? AND order_id = ?", item.ID, item.OrderID).
 		Updates(map[string]any{
-			"product_id": item.ProductID,
-			"qty":        item.Qty,
-			"price":      item.Price,
-			"details":    detailsJSON,
+			"product_id":  item.ProductID,
+			"custom_name": item.CustomName,
+			"qty":         item.Qty,
+			"price":       item.Price,
+			"details":     detailsJSON,
 		}).Error
 
 	if err != nil {

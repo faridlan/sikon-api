@@ -25,13 +25,14 @@ const (
 )
 
 type OrderItem struct {
-	ID        string
-	OrderID   string
-	ProductID string
-	Qty       int
-	Price     float64
+	ID         string
+	OrderID    string
+	ProductID  string
+	CustomName string
+	Qty        int
+	Price      float64
 	// Details untuk menyimpan JSON variasi (misal: S: 10, M: 20)
-	Details   map[string]any
+	Details   any
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
@@ -67,10 +68,11 @@ type Order struct {
 }
 
 type OrderItemInput struct {
-	ProductID string
-	Qty       int
-	Price     float64
-	Details   map[string]any
+	ProductID  string
+	CustomName string
+	Qty        int
+	Price      float64
+	Details    any
 }
 
 type OrderCreateInput struct {

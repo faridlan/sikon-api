@@ -2203,7 +2203,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Menambahkan produk baru ke dalam katalog",
+                "description": "Menambahkan produk baru ke dalam katalog beserta daftar gambarnya",
                 "consumes": [
                     "application/json"
                 ],
@@ -2294,7 +2294,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Memperbarui data produk (nama, harga, kategori)",
+                "description": "Memperbarui data produk (nama, harga, kategori, dan daftar gambar)",
                 "consumes": [
                     "application/json"
                 ],
@@ -2327,7 +2327,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductResponse"
                         }
                     },
                     "400": {
@@ -3312,10 +3312,12 @@ const docTemplate = `{
                 "qty"
             ],
             "properties": {
+                "custom_name": {
+                    "type": "string",
+                    "example": "Custom Name"
+                },
                 "details": {
-                    "description": "@Schema type object\n@Schema example {\"ukuran\": \"L\", \"warna\": \"Hitam\"}",
-                    "type": "object",
-                    "additionalProperties": {}
+                    "description": "@Schema type object\n@Schema example {\"ukuran\": \"L\", \"warna\": \"Hitam\"}"
                 },
                 "price": {
                     "type": "number",
@@ -3334,10 +3336,11 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse": {
             "type": "object",
             "properties": {
-                "details": {
-                    "type": "object",
-                    "additionalProperties": {}
+                "custom_name": {
+                    "type": "string",
+                    "example": "Custom Name"
                 },
+                "details": {},
                 "id": {
                     "type": "string",
                     "example": "item-uuid"
@@ -3643,13 +3646,33 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Kaos polos bahan cotton combed 30s kualitas premium"
                 },
-                "image_url": {
-                    "type": "string",
-                    "example": "https://supabase.../gambar.jpg"
+                "image_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"https://supa.../1.jpg\"",
+                        " \"https://supa.../2.jpg\"]"
+                    ]
                 },
                 "name": {
                     "type": "string",
                     "example": "Kaos Polos Cotton Combed 30s"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_primary": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3679,9 +3702,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "999e4567-e89b-12d3-a456-426614174000"
                 },
-                "image_url": {
-                    "type": "string",
-                    "example": "https://supabase.../gambar.jpg"
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse"
+                    }
                 },
                 "name": {
                     "type": "string",
@@ -3708,9 +3733,15 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Versi lengan panjang"
                 },
-                "image_url": {
-                    "type": "string",
-                    "example": "https://supabase.../gambar.jpg"
+                "image_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"https://supa.../1.jpg\"",
+                        " \"https://supa.../2.jpg\"]"
+                    ]
                 },
                 "name": {
                     "type": "string",
@@ -3825,6 +3856,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "budi@sikon.com"
                 },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
+                },
                 "name": {
                     "type": "string",
                     "example": "Budi Haryanto"
@@ -3859,6 +3894,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
+                },
                 "name": {
                     "type": "string",
                     "example": "Budi Haryanto"
@@ -3876,6 +3915,10 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.UserUpdateRequest": {
             "type": "object",
             "properties": {
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/image_updated.jpg"
+                },
                 "name": {
                     "type": "string",
                     "example": "Budi Haryanto Update"

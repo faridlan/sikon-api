@@ -51,10 +51,11 @@ func TestCreateOrder_Integration(t *testing.T) {
 			OrderStatus:     "quotation",
 			Items: []dto.OrderItemRequest{
 				{
-					ProductID: product.ID,
-					Qty:       2,
-					Price:     150000,
-					Details:   map[string]any{"Bahan": "Polyster"},
+					ProductID:  product.ID,
+					CustomName: "Kemeja PDH Custom",
+					Qty:        2,
+					Price:      150000,
+					Details:    map[string]any{"Bahan": "Polyster"},
 				},
 			},
 		}
@@ -78,6 +79,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 
 		assert.Equal(t, "quotation", response.Data.OrderStatus)
 		assert.Equal(t, 320000.0, response.Data.TotalAmount)
+		assert.Equal(t, "Kemeja PDH Custom", response.Data.Items[0].CustomName)
 	})
 
 	// 2. SKENARIO BYPASS
@@ -159,6 +161,72 @@ func TestCreateOrder_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("Success_Create_Order_With_Array_Details", func(t *testing.T) {
+		validUntil := time.Now().AddDate(0, 0, 7)
+		reqBody := dto.OrderCreateRequest{
+			BatchPoID:       batchPoID,
+			CustomerID:      customer.ID,
+			SalesID:         sales.ID,
+			ShippingCost:    20000,
+			CourierName:     "JNE",
+			ShippingAddress: "Alamat Kirim Setelan",
+			ValidUntil:      &validUntil,
+			TermsConditions: "Syarat Setelan",
+			OrderStatus:     "quotation",
+			Items: []dto.OrderItemRequest{
+				{
+					ProductID:  product.ID, // Asumsi product ini adalah PDH Setelan
+					CustomName: "PDH ERT ABU (Setelan)",
+					Qty:        10,
+					Price:      750000,
+					// 👇 INI BAGIAN PENTINGNYA: Kita kirim Array (Slice of Maps) bukan satu Map tunggal
+					Details: []map[string]any{
+						{
+							"part":          "Kemeja",
+							"material_name": "American Drill",
+							"spec":          "Tebal dan tidak kusut",
+						},
+						{
+							"part":          "Celana",
+							"material_name": "American Drill",
+							"spec":          "Kuat dan rapi",
+						},
+					},
+				},
+			},
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+
+		// 🚨 ALAT DEBUGGING: Cetak pesan error dari DTO jika bukan 201 Created
+		if resp.StatusCode != fiber.StatusCreated {
+			respBody, _ := io.ReadAll(resp.Body)
+			t.Fatalf("GAGAL! Ekspektasi 201 Created, tapi dapat %d. Pesan Error DTO: %s", resp.StatusCode, string(respBody))
+		}
+
+		var response utils.SuccessResponse[dto.OrderResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		// Asersi Dasar
+		assert.Equal(t, "quotation", response.Data.OrderStatus)
+		assert.Equal(t, "PDH ERT ABU (Setelan)", response.Data.Items[0].CustomName)
+
+		// Asersi Spesifik untuk Array JSON
+		assert.NotNil(t, response.Data.Items[0].Details, "Details tidak boleh nil")
+
+		// Karena JSON Array diubah ke interface{} (any) saat di-unmarshal,
+		// Golang membacanya sebagai slice of interface{} ([]any).
+		detailsArray, ok := response.Data.Items[0].Details.([]any)
+		assert.True(t, ok, "Details harus berhasil di-casting menjadi Array ([]any)")
+		assert.Len(t, detailsArray, 2, "Harus ada tepat 2 item spesifikasi di dalam array Details")
 	})
 }
 
@@ -669,9 +737,10 @@ func TestOrderItems_Integration(t *testing.T) {
 
 		// Payload untuk menambah Prod2 (Qty 2 x 25.000 = 50.000)
 		reqBody := dto.OrderItemRequest{
-			ProductID: prod2.ID,
-			Qty:       2,
-			Price:     25000,
+			ProductID:  prod2.ID,
+			CustomName: "Kemeja PDH Bank ERT", // 🌟 TAMBAHAN: Test mengirim CustomName saat Add
+			Qty:        2,
+			Price:      25000,
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -689,10 +758,19 @@ func TestOrderItems_Integration(t *testing.T) {
 		// ASERSI:
 		// 1. Jumlah item di order sekarang harus ada 2
 		assert.Len(t, response.Data.Items, 2)
+
+		// 🌟 TAMBAHAN: Cari item yang baru ditambahkan (prod2) dan pastikan CustomName-nya tersimpan
+		var addedItem dto.OrderItemResponse
+		for _, item := range response.Data.Items {
+			if item.ProductID == prod2.ID {
+				addedItem = item
+				break
+			}
+		}
+		assert.Equal(t, "Kemeja PDH Bank ERT", addedItem.CustomName)
+
 		// 2. Subtotal dan TotalAmount baru harus otomatis terhitung: 100.000 + 50.000 = 150.000
-
 		ongkir := order.ShippingCost
-
 		expectedSubtotal := 150000.0 // 100rb (awal) + 50rb (baru)
 		expectedTotal := expectedSubtotal + ongkir
 
@@ -716,11 +794,12 @@ func TestOrderItems_Integration(t *testing.T) {
 		var existingItem postgres.OrderItemModel
 		db.Where("order_id = ?", order.ID).First(&existingItem)
 
-		// Payload: Kita ubah qty-nya jadi 5, dan harganya kita diskon jadi 90.000 per item
+		// Payload: Kita ubah qty-nya jadi 5, diskon harga jadi 90.000, dan UPDATE CustomName
 		reqBody := dto.OrderItemRequest{
-			ProductID: prod.ID,
-			Qty:       5,
-			Price:     90000,
+			ProductID:  prod.ID,
+			CustomName: "Kemeja PDH Revisi Nama", // 🌟 TAMBAHAN: Test update CustomName
+			Qty:        5,
+			Price:      90000,
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -740,6 +819,10 @@ func TestOrderItems_Integration(t *testing.T) {
 		assert.Len(t, response.Data.Items, 1)
 		assert.Equal(t, 5, response.Data.Items[0].Qty)
 		assert.Equal(t, 90000.0, response.Data.Items[0].Price)
+
+		// 🌟 TAMBAHAN: Pastikan CustomName berhasil di-update dari API ke Database dan balik lagi ke JSON
+		assert.Equal(t, "Kemeja PDH Revisi Nama", response.Data.Items[0].CustomName)
+
 		// 2. Subtotal baru harus 5 x 90.000 = 450.000
 		assert.Equal(t, 450000.0, response.Data.Subtotal)
 	})
@@ -793,8 +876,9 @@ func TestOrderItems_Integration(t *testing.T) {
 
 		// Sengaja kirim Qty: 0 agar gagal di DTO Validator
 		reqBody := dto.OrderItemRequest{
-			ProductID: prod.ID,
-			Qty:       0,
+			ProductID:  prod.ID,
+			CustomName: "Kemeja Gagal", // Optional, sekalian dites
+			Qty:        0,
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 

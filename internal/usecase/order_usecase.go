@@ -112,10 +112,11 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 		}
 
 		order.Items = append(order.Items, domain.OrderItem{
-			ProductID: itemInput.ProductID,
-			Qty:       itemInput.Qty,
-			Price:     price,
-			Details:   itemInput.Details,
+			ProductID:  itemInput.ProductID,
+			CustomName: itemInput.CustomName,
+			Qty:        itemInput.Qty,
+			Price:      price,
+			Details:    itemInput.Details,
 		})
 	}
 
@@ -363,12 +364,13 @@ func (u *orderUsecase) AddOrderItem(c context.Context, orderID string, input dom
 		// PERHATIAN: Di dalam blok ini, WAJIB menggunakan txCtx, BUKAN ctx!
 
 		newItem := &domain.OrderItem{
-			ID:        uuid.New().String(),
-			OrderID:   orderID,
-			ProductID: input.ProductID,
-			Qty:       input.Qty,
-			Price:     price,
-			Details:   input.Details,
+			ID:         uuid.New().String(),
+			OrderID:    orderID,
+			ProductID:  input.ProductID,
+			CustomName: input.CustomName,
+			Qty:        input.Qty,
+			Price:      price,
+			Details:    input.Details,
 		}
 
 		// Query 1: Simpan item (Staf otomatis membaca txCtx dan memakai Kertas Buram)
@@ -417,6 +419,7 @@ func (u *orderUsecase) UpdateOrderItem(c context.Context, orderID, itemID string
 	}
 
 	existingItem.ProductID = input.ProductID
+	existingItem.CustomName = input.CustomName
 	existingItem.Qty = input.Qty
 	existingItem.Price = price
 	existingItem.Details = input.Details
@@ -425,12 +428,12 @@ func (u *orderUsecase) UpdateOrderItem(c context.Context, orderID, itemID string
 
 	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
 		// 4. Simpan perubahan Item
-		if err := u.orderRepo.UpdateItem(ctx, existingItem); err != nil {
+		if err := u.orderRepo.UpdateItem(txCtx, existingItem); err != nil {
 			return err
 		}
 
 		// 5. Hitung ulang total dan kembalikan order terbaru
-		order, err := u.recalculateOrderTotal(ctx, orderID)
+		order, err := u.recalculateOrderTotal(txCtx, orderID)
 		if err != nil {
 			return err
 		}

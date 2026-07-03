@@ -285,12 +285,13 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest:
     properties:
+      custom_name:
+        example: Custom Name
+        type: string
       details:
-        additionalProperties: {}
         description: |-
           @Schema type object
           @Schema example {"ukuran": "L", "warna": "Hitam"}
-        type: object
       price:
         example: 35000
         type: number
@@ -306,9 +307,10 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse:
     properties:
-      details:
-        additionalProperties: {}
-        type: object
+      custom_name:
+        example: Custom Name
+        type: string
+      details: {}
       id:
         example: item-uuid
         type: string
@@ -528,9 +530,13 @@ definitions:
       description:
         example: Kaos polos bahan cotton combed 30s kualitas premium
         type: string
-      image_url:
-        example: https://supabase.../gambar.jpg
-        type: string
+      image_urls:
+        example:
+        - '["https://supa.../1.jpg"'
+        - ' "https://supa.../2.jpg"]'
+        items:
+          type: string
+        type: array
       name:
         example: Kaos Polos Cotton Combed 30s
         type: string
@@ -538,6 +544,15 @@ definitions:
     - base_price
     - category_id
     - name
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse:
+    properties:
+      id:
+        type: string
+      image_url:
+        type: string
+      is_primary:
+        type: boolean
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductResponse:
     properties:
@@ -558,9 +573,10 @@ definitions:
       id:
         example: 999e4567-e89b-12d3-a456-426614174000
         type: string
-      image_url:
-        example: https://supabase.../gambar.jpg
-        type: string
+      images:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse'
+        type: array
       name:
         example: Kaos Polos Cotton Combed 30s
         type: string
@@ -579,9 +595,13 @@ definitions:
       description:
         example: Versi lengan panjang
         type: string
-      image_url:
-        example: https://supabase.../gambar.jpg
-        type: string
+      image_urls:
+        example:
+        - '["https://supa.../1.jpg"'
+        - ' "https://supa.../2.jpg"]'
+        items:
+          type: string
+        type: array
       name:
         example: Kaos Polos Lengan Panjang
         type: string
@@ -655,6 +675,9 @@ definitions:
       email:
         example: budi@sikon.com
         type: string
+      image_url:
+        example: https://example.com/image.jpg
+        type: string
       name:
         example: Budi Haryanto
         type: string
@@ -685,6 +708,9 @@ definitions:
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      image_url:
+        example: https://example.com/image.jpg
+        type: string
       name:
         example: Budi Haryanto
         type: string
@@ -697,6 +723,9 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.UserUpdateRequest:
     properties:
+      image_url:
+        example: https://example.com/image_updated.jpg
+        type: string
       name:
         example: Budi Haryanto Update
         type: string
@@ -2442,7 +2471,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Menambahkan produk baru ke dalam katalog
+      description: Menambahkan produk baru ke dalam katalog beserta daftar gambarnya
       parameters:
       - description: Data Produk Baru
         in: body
@@ -2528,7 +2557,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Memperbarui data produk (nama, harga, kategori)
+      description: Memperbarui data produk (nama, harga, kategori, dan daftar gambar)
       parameters:
       - description: Product ID (UUID)
         in: path
@@ -2547,7 +2576,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductResponse'
         "400":
           description: Bad Request
           schema:

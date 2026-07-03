@@ -54,3 +54,14 @@ mockup:
 # .PHONY memastikan make tidak bentrok dengan nama folder/file yang kebetulan sama
 # ==============================================================================
 .PHONY: postgres createdb dropdb migrateup migratedown
+
+.PHONY: migrate-create
+
+# Perintah untuk membuat migrasi baru
+# Cara pakai: make migrate-create name=nama_migrasi_kamu
+migrate-create:
+	@if [ -z "$(name)" ]; then \
+		echo "Error: Kamu harus memasukkan nama migrasi. Contoh: make migrate-create name=create_users_table"; \
+		exit 1; \
+	fi
+	migrate create -ext sql -dir db/migrations -seq $(name)
