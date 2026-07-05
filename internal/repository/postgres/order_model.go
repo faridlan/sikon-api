@@ -179,14 +179,15 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 			}
 
 			model.Items = append(model.Items, OrderItemModel{
-				ID:        item.ID,
-				OrderID:   item.OrderID,
-				ProductID: item.ProductID,
-				Qty:       item.Qty,
-				Price:     item.Price,
-				Details:   detailsJSON, // Konversi map biasa ke JSONB
-				CreatedAt: item.CreatedAt,
-				UpdatedAt: item.UpdatedAt,
+				ID:         item.ID,
+				OrderID:    item.OrderID,
+				ProductID:  item.ProductID,
+				CustomName: item.CustomName,
+				Qty:        item.Qty,
+				Price:      item.Price,
+				Details:    detailsJSON, // Konversi map biasa ke JSONB
+				CreatedAt:  item.CreatedAt,
+				UpdatedAt:  item.UpdatedAt,
 			})
 		}
 	}

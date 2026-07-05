@@ -109,6 +109,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, order)
 		assert.Equal(t, domain.OrderStatusQuotation, order.OrderStatus)
+		assert.Equal(t, "PDH ERT ABU (Setelan)", order.Items[0].CustomName)
 
 		// 🌟 Ekstra Asersi pada hasil Return dari Usecase
 		returnedDetails, ok := order.Items[0].Details.([]map[string]any)
