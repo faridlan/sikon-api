@@ -32,10 +32,11 @@ func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error
 	order.CreatedAt = model.CreatedAt
 	order.UpdatedAt = model.UpdatedAt
 
-	// Mengisi ID untuk setiap item yang baru dibuat
+	// Mengisi ID dan memastikan nilai item sesuai hasil insert.
 	for i := range model.Items {
 		order.Items[i].ID = model.Items[i].ID
 		order.Items[i].OrderID = model.ID
+		order.Items[i].CustomName = model.Items[i].CustomName
 	}
 
 	return nil
