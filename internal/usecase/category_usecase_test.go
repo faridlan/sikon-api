@@ -19,12 +19,13 @@ func TestCategoryUsecase_CreateCategory(t *testing.T) {
 	uc := usecase.NewCategoryUsecase(mockRepo, time.Second*2)
 
 	input := domain.CategoryCreateInput{
-		Name: "Kaos Polos",
+		Name:     "Kaos Polos",
+		ImageURL: "https://example.com/kaos.jpg",
 	}
 
 	t.Run("Success", func(t *testing.T) {
 		mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
-			return c.Name == input.Name
+			return c.Name == input.Name && c.ImageURL == input.ImageURL
 		})).Return(nil).Once()
 
 		result, err := uc.CreateCategory(context.Background(), input)
@@ -32,6 +33,7 @@ func TestCategoryUsecase_CreateCategory(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, input.Name, result.Name)
+		assert.Equal(t, input.ImageURL, result.ImageURL)
 		mockRepo.AssertExpectations(t)
 	})
 
@@ -81,19 +83,35 @@ func TestCategoryUsecase_UpdateCategory(t *testing.T) {
 	uc := usecase.NewCategoryUsecase(mockRepo, time.Second*2)
 
 	mockID := "cat-123"
-	existingCat := &domain.Category{ID: mockID, Name: "Kaos"}
-	input := domain.CategoryUpdateInput{Name: "Kaos Lengan Panjang"}
+	existingCat := &domain.Category{ID: mockID, Name: "Kaos", ImageURL: "https://example.com/original.jpg"}
 
 	t.Run("Success", func(t *testing.T) {
+		input := domain.CategoryUpdateInput{Name: "Kaos Lengan Panjang", ImageURL: "https://example.com/updated.jpg"}
 		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingCat, nil).Once()
 		mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
-			return c.Name == "Kaos Lengan Panjang"
+			return c.Name == "Kaos Lengan Panjang" && c.ImageURL == "https://example.com/updated.jpg"
 		})).Return(nil).Once()
 
 		result, err := uc.UpdateCategory(context.Background(), mockID, input)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Kaos Lengan Panjang", result.Name)
+		assert.Equal(t, "https://example.com/updated.jpg", result.ImageURL)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success_UpdateImageURLOnly", func(t *testing.T) {
+		input := domain.CategoryUpdateInput{ImageURL: "https://example.com/only-image.jpg"}
+		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingCat, nil).Once()
+		mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
+			return c.Name == existingCat.Name && c.ImageURL == input.ImageURL
+		})).Return(nil).Once()
+
+		result, err := uc.UpdateCategory(context.Background(), mockID, input)
+
+		assert.NoError(t, err)
+		assert.Equal(t, existingCat.Name, result.Name)
+		assert.Equal(t, input.ImageURL, result.ImageURL)
 		mockRepo.AssertExpectations(t)
 	})
 }

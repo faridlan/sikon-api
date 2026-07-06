@@ -10,6 +10,7 @@ import (
 type CategoryModel struct {
 	ID        string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	Name      string         `gorm:"type:varchar(255);not null"`
+	ImageURL  string         `gorm:"type:varchar(255)"`
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
@@ -23,6 +24,7 @@ func (m *CategoryModel) ToDomain() *domain.Category {
 	return &domain.Category{
 		ID:        m.ID,
 		Name:      m.Name,
+		ImageURL:  m.ImageURL,
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
 	}
@@ -32,6 +34,7 @@ func FromCategoryDomain(d *domain.Category) *CategoryModel {
 	return &CategoryModel{
 		ID:        d.ID,
 		Name:      d.Name,
+		ImageURL:  d.ImageURL,
 		CreatedAt: d.CreatedAt,
 		UpdatedAt: d.UpdatedAt,
 	}

@@ -11,10 +11,15 @@ import (
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 )
 
-func SeedCategory(db *gorm.DB, name string) postgres.CategoryModel {
+func SeedCategory(db *gorm.DB, name string, image ...string) postgres.CategoryModel {
+	if len(image) == 0 {
+		image = append(image, "")
+	}
+
 	category := postgres.CategoryModel{
-		ID:   uuid.New().String(),
-		Name: name,
+		ID:       uuid.New().String(),
+		Name:     name,
+		ImageURL: image[0],
 	}
 	db.Create(&category)
 	return category
