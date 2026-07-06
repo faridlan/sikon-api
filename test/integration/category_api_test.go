@@ -24,7 +24,7 @@ func TestCreateCategory_Integration(t *testing.T) {
 	tests.ClearTables(db)
 
 	t.Run("Success", func(t *testing.T) {
-		reqBody := dto.CategoryRequest{Name: "Kain Katun Premium"}
+		reqBody := dto.CategoryRequest{Name: "Kain Katun Premium", ImageURL: "https://example.com/kain-katun.jpg"}
 		bodyJson, _ := json.Marshal(reqBody)
 
 		req := httptest.NewRequest("POST", "/api/categories", bytes.NewBuffer(bodyJson))
@@ -39,6 +39,7 @@ func TestCreateCategory_Integration(t *testing.T) {
 		json.Unmarshal(respBody, &response)
 
 		assert.Equal(t, "Kain Katun Premium", response.Data.Name)
+		assert.Equal(t, "https://example.com/kain-katun.jpg", response.Data.ImageURL)
 		assert.NotEmpty(t, response.Data.ID)
 	})
 
@@ -63,7 +64,7 @@ func TestGetCategory_Integration(t *testing.T) {
 	tests.ClearTables(db)
 
 	// Seed data kategori ke DB terlebih dahulu
-	category := tests.SeedCategory(db, "Kemeja Flanel")
+	category := tests.SeedCategory(db, "Kemeja Flanel", "https://example.com/flanel.jpg")
 
 	t.Run("Success", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/categories/"+category.ID, nil)
@@ -78,6 +79,7 @@ func TestGetCategory_Integration(t *testing.T) {
 
 		assert.Equal(t, category.ID, response.Data.ID)
 		assert.Equal(t, "Kemeja Flanel", response.Data.Name)
+		assert.Equal(t, "https://example.com/flanel.jpg", response.Data.ImageURL)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
@@ -130,10 +132,10 @@ func TestUpdateCategory_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	category := tests.SeedCategory(db, "Nama Lama")
+	category := tests.SeedCategory(db, "Nama Lama", "https://example.com/old.jpg")
 
 	t.Run("Success", func(t *testing.T) {
-		reqBody := dto.CategoryRequest{Name: "Nama Baru Terupdate"}
+		reqBody := dto.CategoryRequest{Name: "Nama Baru Terupdate", ImageURL: "https://example.com/updated-nama.jpg"}
 		bodyJson, _ := json.Marshal(reqBody)
 
 		req := httptest.NewRequest("PUT", "/api/categories/"+category.ID, bytes.NewBuffer(bodyJson))

@@ -8,17 +8,20 @@ import (
 type Category struct {
 	ID        string
 	Name      string
+	ImageURL  string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 // Struct khusus untuk Input Usecase
 type CategoryCreateInput struct {
-	Name string
+	Name     string
+	ImageURL string
 }
 
 type CategoryUpdateInput struct {
-	Name string
+	Name     string
+	ImageURL string
 }
 
 type CategoryRepository interface {

@@ -48,7 +48,8 @@ func (h *categoryHandler) CreateCategory(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.CategoryCreateInput{
-		Name: req.Name,
+		Name:     req.Name,
+		ImageURL: req.ImageURL,
 	}
 
 	category, err := h.categoryUsecase.CreateCategory(c.Context(), domainReq)
@@ -137,7 +138,8 @@ func (h *categoryHandler) UpdateCategory(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.CategoryUpdateInput{
-		Name: req.Name,
+		Name:     req.Name,
+		ImageURL: req.ImageURL,
 	}
 
 	category, err := h.categoryUsecase.UpdateCategory(c.Context(), id, domainReq)

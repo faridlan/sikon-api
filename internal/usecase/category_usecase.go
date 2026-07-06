@@ -26,7 +26,8 @@ func (u *categoryUsecase) CreateCategory(c context.Context, input domain.Categor
 	defer cancel()
 
 	category := &domain.Category{
-		Name: input.Name,
+		Name:     input.Name,
+		ImageURL: input.ImageURL,
 	}
 
 	if err := u.categoryRepo.Create(ctx, category); err != nil {
@@ -88,6 +89,9 @@ func (u *categoryUsecase) UpdateCategory(c context.Context, id string, input dom
 
 	if input.Name != "" {
 		existingCategory.Name = input.Name
+	}
+	if input.ImageURL != "" {
+		existingCategory.ImageURL = input.ImageURL
 	}
 
 	if err := u.categoryRepo.Update(ctx, existingCategory); err != nil {
