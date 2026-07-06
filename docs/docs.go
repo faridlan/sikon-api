@@ -3099,6 +3099,10 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/cat.jpg"
+                },
                 "name": {
                     "type": "string",
                     "example": "Kaos Polos"
@@ -3115,6 +3119,10 @@ const docTemplate = `{
                 "id": {
                     "type": "string",
                     "example": "123e4567-e89b-12d3-a456-426614174000"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/cat.jpg"
                 },
                 "name": {
                     "type": "string",
