@@ -134,6 +134,9 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryRequest:
     properties:
+      image_url:
+        example: https://example.com/cat.jpg
+        type: string
       name:
         example: Kaos Polos
         type: string
@@ -147,6 +150,9 @@ definitions:
         type: string
       id:
         example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      image_url:
+        example: https://example.com/cat.jpg
         type: string
       name:
         example: Kaos Polos
