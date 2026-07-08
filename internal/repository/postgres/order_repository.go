@@ -50,6 +50,7 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Order
 		Preload("Items").
 		Preload("Customer").
 		Preload("Sales").
+		Preload("BatchPO").
 		Preload("Items.Product"). // Preload produk di setiap item untuk detail yang lengkap
 		Where("id = ?", id).
 		First(&model).Error
@@ -103,6 +104,7 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 	err := query.
 		Preload("Customer"). // Hanya Preload relasi utama untuk list agar ringan
 		Preload("Sales").
+		Preload("BatchPO").
 		Limit(limit).
 		Offset(offset).
 		Order("created_at DESC").
@@ -260,6 +262,7 @@ func (r *orderRepository) GetByIDForUpdate(ctx context.Context, id string) (*dom
 		Preload("Items").
 		Preload("Customer").
 		Preload("Sales").
+		Preload("BatchPO").
 		// Preload("Items.Product"). // Boleh dihilangkan di sini agar lock lebih ringan, kita hanya butuh TotalAmount
 		Clauses(clause.Locking{Strength: "UPDATE"}). // <--- INI GEMBOKNYA!
 		Where("id = ?", id).

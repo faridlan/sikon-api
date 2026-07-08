@@ -258,6 +258,10 @@ func TestGetOrder_Integration(t *testing.T) {
 
 		assert.Equal(t, order.ID, response.Data.ID)
 		assert.Equal(t, cust.ID, response.Data.CustomerID)
+		assert.Equal(t, batchPo.ID, response.Data.BatchPoID)
+		assert.NotNil(t, response.Data.BatchPO)
+		assert.Equal(t, batchPo.ID, response.Data.BatchPO.ID)
+		assert.Equal(t, batchPo.Name, response.Data.BatchPO.Name)
 		assert.Len(t, response.Data.Items, 1) // Pastikan Itemnya ikut terbawa (Eager Loading)
 	})
 }

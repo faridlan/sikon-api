@@ -84,6 +84,7 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 	// ========================================================================
 	order := &domain.Order{
 		BatchPoID:       input.BatchPoID, // 🚨 Menyambungkan pesanan ke Gelombang PO
+		BatchPO:         batchPO,
 		CustomerID:      input.CustomerID,
 		SalesID:         input.SalesID,
 		ShippingCost:    input.ShippingCost,

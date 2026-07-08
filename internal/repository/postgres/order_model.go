@@ -56,6 +56,7 @@ type OrderModel struct {
 	Items    []OrderItemModel `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Customer *CustomerModel   `gorm:"foreignKey:CustomerID"`
 	Sales    *UserModel       `gorm:"foreignKey:SalesID"`
+	BatchPO  *BatchPOModel    `gorm:"foreignKey:BatchPoID"`
 }
 
 func (OrderModel) TableName() string {
@@ -133,6 +134,10 @@ func (m *OrderModel) ToDomain() *domain.Order {
 	// Map Sales
 	if m.Sales != nil {
 		order.Sales = m.Sales.ToDomain()
+	}
+	// Map BatchPO
+	if m.BatchPO != nil {
+		order.BatchPO = m.BatchPO.ToDomain()
 	}
 
 	return order
