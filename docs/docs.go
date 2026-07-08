@@ -3373,6 +3373,13 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse": {
             "type": "object",
             "properties": {
+                "batch_po": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse"
+                },
+                "batch_po_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                },
                 "courier_name": {
                     "type": "string",
                     "example": "JNE Trucking"
