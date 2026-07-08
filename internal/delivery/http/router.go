@@ -19,6 +19,7 @@ type Handlers struct {
 	PaymentHandler      PaymentHandler
 	SpecTemplateHandler SpecTemplateHandler
 	DashboardHandler    DashboardHandler
+	ReportHandler       ReportHandler
 	BatchPOHandler      BatchPOHandler
 	UploadHandler       UploadHandler
 }
@@ -122,6 +123,9 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	dashboard.Get("/summary", handlers.DashboardHandler.GetSummary)
 	dashboard.Get("/sales-report", handlers.DashboardHandler.GetSalesReport)
 	dashboard.Get("/receivables-report", handlers.DashboardHandler.GetReceivablesReport)
+
+	reports := api.Group("/reports")
+	reports.Get("/daily", handlers.ReportHandler.GetDailyReport)
 
 	batchPos := api.Group("/batch-pos")
 	batchPos.Post("/", handlers.BatchPOHandler.CreateBatchPO)
