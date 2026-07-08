@@ -43,6 +43,7 @@ type Order struct {
 	ID              string
 	OrderNumber     string
 	BatchPoID       string
+	BatchPO         *BatchPO
 	CustomerID      string
 	SalesID         string
 	Subtotal        float64

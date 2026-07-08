@@ -63,6 +63,7 @@ type OrderItemResponse struct {
 type OrderResponse struct {
 	ID              string     `json:"id" example:"ord-uuid"`
 	OrderNumber     string     `json:"order_number" example:"ORD-20231001-1234"`
+	BatchPoID       string     `json:"batch_po_id" example:"123e4567-e89b-12d3-a456-426614174000"`
 	CustomerID      string     `json:"customer_id" example:"333e4567-e89b-12d3-a456-426614174000"`
 	SalesID         string     `json:"sales_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Subtotal        float64    `json:"subtotal" example:"3500000"`
@@ -84,6 +85,7 @@ type OrderResponse struct {
 	Items    []OrderItemResponse `json:"items,omitempty"`
 	Customer *CustomerResponse   `json:"customer,omitempty"`
 	Sales    *UserResponse       `json:"sales,omitempty"`
+	BatchPO  *BatchPOResponse    `json:"batch_po,omitempty"`
 }
 
 func ToOrderResponse(o *domain.Order) OrderResponse {
@@ -91,6 +93,7 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 	resp := OrderResponse{
 		ID:              o.ID,
 		OrderNumber:     o.OrderNumber,
+		BatchPoID:       o.BatchPoID,
 		CustomerID:      o.CustomerID,
 		SalesID:         o.SalesID,
 		Subtotal:        o.Subtotal,
@@ -137,6 +140,11 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 	if o.Sales != nil {
 		salesResp := ToUserResponse(o.Sales)
 		resp.Sales = &salesResp
+	}
+
+	if o.BatchPO != nil {
+		batchPOResp := ToBatchPOResponse(o.BatchPO)
+		resp.BatchPO = &batchPOResp
 	}
 
 	return resp
