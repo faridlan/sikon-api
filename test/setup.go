@@ -79,6 +79,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	specTemplateRepo := postgres.NewSpecTemplateRepository(db) // <-- Tambahkan ini
 	txManager := postgres.NewTransactionManager(db)
 	dashboardRepo := postgres.NewDashboardRepository(db)
+	reportRepo := postgres.NewReportRepository(db)
 	batchPORepo := postgres.NewBatchPORepository(db) // <-- Tambahkan ini
 
 	// 2. Usecase (Perhatikan bahwa productUsecase juga butuh categoryRepo)
@@ -91,6 +92,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, timeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout) // <-- Tambahkan ini
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, timeout)
+	reportUsecase := usecase.NewReportUsecase(reportRepo, timeout)
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, timeout) // <-- Tambahkan ini
 	uploadUsecase := usecase.NewUploadUsecase(storageService, timeout)
 
@@ -105,6 +107,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		OrderHandler:        myHttp.NewOrderHandler(orderUsecase),
 		PaymentHandler:      myHttp.NewPaymentHandler(paymentUsecase),
 		DashboardHandler:    myHttp.NewDashboardHandler(dashboardUsecase),
+		ReportHandler:       myHttp.NewReportHandler(reportUsecase),
 		BatchPOHandler:      myHttp.NewBatchPOHandler(batchPOUsecase),
 		UploadHandler:       myHttp.NewUploadHandler(uploadUsecase),
 	}
