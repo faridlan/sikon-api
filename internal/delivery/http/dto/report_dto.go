@@ -26,6 +26,7 @@ type ActivePOResponse struct {
 	BatchPOName         string  `json:"batch_po_name"`
 	BatchPOID           string  `json:"batch_po_id"`
 	TotalRevenueEntered float64 `json:"total_revenue_entered"`
+	TotalQtyReceived    int64   `json:"total_qty_received"`
 	RemainingQuota      int64   `json:"remaining_quota"`
 }
 
@@ -66,6 +67,7 @@ func ToReportResponse(src *domain.ReportResponse) ReportResponse {
 			BatchPOName:         item.BatchPOName,
 			BatchPOID:           item.BatchPOID,
 			TotalRevenueEntered: item.TotalRevenueEntered,
+			TotalQtyReceived:    item.TotalQtyReceived,
 			RemainingQuota:      item.RemainingQuota,
 		})
 	}
