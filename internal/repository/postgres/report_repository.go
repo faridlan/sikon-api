@@ -56,13 +56,13 @@ func (r *reportRepository) GetDailyReport(ctx context.Context, date string) (*do
 			c.name as product_category,
 			COALESCE(SUM(oi.qty), 0) as total_qty
 		`).
+		Joins("LEFT JOIN batch_pos bp ON bp.id = o.batch_po_id AND bp.deleted_at IS NULL AND bp.status = ?", domain.BatchPOStatusActive).
 		Joins("LEFT JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
 		Joins("LEFT JOIN products p ON p.id = oi.product_id AND p.deleted_at IS NULL").
 		Joins("LEFT JOIN categories c ON c.id = p.category_id AND c.deleted_at IS NULL").
 		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
 		Where("o.deleted_at IS NULL").
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
-		Where("o.updated_at BETWEEN ? AND ?", startOfDay, endOfDay).
 		Group("u.name, c.name").
 		Order("total_qty DESC").
 		Scan(&salesPerformance).Error
@@ -79,7 +79,7 @@ func (r *reportRepository) GetDailyReport(ctx context.Context, date string) (*do
 			COALESCE(SUM(o.total_amount), 0) as total_revenue_entered,
 			(bp.quota - COALESCE(COUNT(o.id), 0)) as remaining_quota
 		`).
-		Joins("LEFT JOIN orders o ON o.batch_po_id = bp.id AND o.deleted_at IS NULL").
+		Joins("LEFT JOIN orders o ON o.batch_po_id = bp.id AND o.deleted_at IS NULL AND o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
 		Where("bp.deleted_at IS NULL").
 		Where("bp.status = ?", domain.BatchPOStatusActive).
 		Group("bp.id, bp.name, bp.quota").
@@ -96,11 +96,11 @@ func (r *reportRepository) GetDailyReport(ctx context.Context, date string) (*do
 	err = r.db.WithContext(ctx).Table("orders o").
 		Select(`
 			COALESCE(SUM(CASE WHEN o.payment_status IN (?, ?) THEN o.total_amount - COALESCE(p.total_paid, 0) ELSE 0 END), 0) as total_outstanding,
-			COALESCE(SUM(CASE WHEN o.payment_status IN (?, ?) AND bp.status = ? THEN o.total_amount - COALESCE(p.total_paid, 0) ELSE 0 END), 0) as active_po
-		`, domain.PaymentStatusUnpaid, domain.PaymentStatusPartial, domain.PaymentStatusUnpaid, domain.PaymentStatusPartial, domain.BatchPOStatusActive).
+			COALESCE(SUM(CASE WHEN o.payment_status IN (?, ?) AND o.order_status IN (?, ?) THEN o.total_amount - COALESCE(p.total_paid, 0) ELSE 0 END), 0) as active_po
+		`, domain.PaymentStatusUnpaid, domain.PaymentStatusPartial, domain.PaymentStatusUnpaid, domain.PaymentStatusPartial, domain.OrderStatusProduction, domain.OrderStatusReady).
 		Joins("LEFT JOIN (SELECT order_id, COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
-		Joins("LEFT JOIN batch_pos bp ON bp.id = o.batch_po_id AND bp.deleted_at IS NULL").
 		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady).
 		Scan(&outstanding).Error
 	if err != nil {
 		return nil, TranslateError(err)
@@ -116,6 +116,7 @@ func (r *reportRepository) GetDailyReport(ctx context.Context, date string) (*do
 			cu.name as customer_name,
 			(o.total_amount - COALESCE(p.total_paid, 0)) as unpaid_balance
 		`).
+		Joins("LEFT JOIN batch_pos bp ON bp.id = o.batch_po_id AND bp.deleted_at IS NULL AND bp.status = ?", domain.BatchPOStatusClosed).
 		Joins("LEFT JOIN (SELECT order_id, COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
 		Joins("LEFT JOIN customers cu ON cu.id = o.customer_id AND cu.deleted_at IS NULL").
 		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
