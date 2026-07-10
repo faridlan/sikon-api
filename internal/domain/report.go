@@ -1,6 +1,9 @@
 package domain
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type ReportResponse struct {
 	DailySnapshot               DailySnapshot       `json:"daily_snapshot"`
@@ -26,6 +29,7 @@ type ActivePO struct {
 	BatchPOName         string  `json:"batch_po_name"`
 	BatchPOID           string  `json:"batch_po_id"`
 	TotalRevenueEntered float64 `json:"total_revenue_entered"`
+	TotalQtyReceived    int64   `json:"total_qty_received"`
 	RemainingQuota      int64   `json:"remaining_quota"`
 }
 
@@ -37,7 +41,11 @@ type PastDueReceivable struct {
 }
 
 type ReportRepository interface {
-	GetDailyReport(ctx context.Context, date string) (*ReportResponse, error)
+	GetDailyRevenueAndQty(ctx context.Context, startOfDay, endOfDay time.Time) (float64, int64, error)
+	GetSalesPerformanceByActivePO(ctx context.Context) ([]SalesPerformanceToday, error)
+	GetActivePOStats(ctx context.Context) ([]ActivePO, error)
+	GetReceivablesStats(ctx context.Context) (float64, float64, error)
+	GetPastDueReceivables(ctx context.Context) ([]PastDueReceivable, error)
 }
 
 type ReportUsecase interface {
