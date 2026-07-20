@@ -45,6 +45,64 @@ type PastDueReceivable struct {
 	UnpaidBalance   float64 `json:"unpaid_balance"`
 }
 
+type DailyReport struct {
+	ReportDate       string
+	POInfo           POInfo
+	OrderSummary     OrderSummary
+	FinancialSummary FinancialSummary
+	SalesDetails     []SalesDetail
+}
+
+type POInfo struct {
+	POID           string
+	POName         string
+	Quota          int
+	RemainingQuota int64
+}
+
+type OrderSummary struct {
+	QtyToday   int64
+	QtyTotalPO int64
+}
+
+type FinancialSummary struct {
+	ActivePOBill    float64
+	PreviousPOBills float64
+	SubTotalBill    float64
+}
+
+type SalesDetail struct {
+	SalesName  string
+	Categories map[string]int64
+	TotalQty   int64
+}
+
+type POSummaryReport struct {
+	POID             string
+	POName           string
+	StartDate        time.Time
+	EndDate          time.Time
+	Status           BatchPOStatus
+	TotalQuota       int
+	TotalQtyOrdered  int64
+	TotalRevenue     float64
+	TotalPaid        float64
+	TotalOutstanding float64
+	ProductSummary   []POProductSummary
+	SalesSummary     []POSalesSummary
+}
+
+type POProductSummary struct {
+	CategoryName string
+	TotalQty     int64
+}
+
+type POSalesSummary struct {
+	SalesName    string
+	TotalQty     int64
+	TotalRevenue float64
+}
+
 // ReportRepository defines the interface for accessing report-related data from the data source.
 type ReportRepository interface {
 	GetDailyRevenueAndQty(ctx context.Context, startOfDay, endOfDay time.Time) (float64, int64, error)
@@ -52,9 +110,17 @@ type ReportRepository interface {
 	GetActivePOStats(ctx context.Context) ([]ActivePO, error)
 	GetReceivablesStats(ctx context.Context) (float64, float64, error)
 	GetPastDueReceivables(ctx context.Context) ([]PastDueReceivable, error)
+
+	// ---NEW---
+	GetDailyReportData(ctx context.Context, targetDate time.Time) (*DailyReport, error)
+	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
 }
 
 // ReportUsecase defines the interface for the report use case, which provides methods to generate reports based on the data retrieved from the repository.
 type ReportUsecase interface {
 	GetDailyReport(ctx context.Context, date string) (*ReportResponse, error)
+
+	// ---NEW---
+	GenerateDailyReport(ctx context.Context, dateStr string) (*DailyReport, error)
+	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
 }

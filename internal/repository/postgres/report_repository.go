@@ -196,3 +196,173 @@ func (r *reportRepository) GetPastDueReceivables(ctx context.Context) ([]domain.
 
 	return pastDue, nil
 }
+
+func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate time.Time) (*domain.DailyReport, error) {
+	report := &domain.DailyReport{
+		ReportDate: targetDate.Format("2006-01-02"),
+	}
+
+	// 1. Cari PO yang aktif pada tanggal target
+	// Asumsi: PO berjalan jika targetDate berada di antara start_date dan end_date
+	var activePO struct {
+		ID        string
+		Name      string
+		Quota     int
+		StartDate time.Time
+	}
+	err := r.db.WithContext(ctx).Table("batch_pos").
+		Select("id, name, quota, start_date").
+		Where("? BETWEEN start_date AND end_date", targetDate).
+		Where("deleted_at IS NULL").
+		First(&activePO).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Handle jika tidak ada PO di tanggal tersebut
+			return report, nil
+		}
+		return nil, TranslateError(err)
+	}
+
+	report.POInfo.POID = activePO.ID
+	report.POInfo.POName = activePO.Name
+	report.POInfo.Quota = activePO.Quota
+
+	// 2. Ambil Total Tagihan dari PO Sebelumnya (PO yang end_date-nya sebelum start_date PO aktif)
+	var prevPOBills float64
+	r.db.WithContext(ctx).Table("orders o").
+		Joins("JOIN batch_pos bp ON bp.id = o.batch_po_id").
+		Where("bp.end_date < ?", activePO.StartDate).
+		Where("o.deleted_at IS NULL AND bp.deleted_at IS NULL").
+		Select("COALESCE(SUM(o.total_amount), 0)").
+		Scan(&prevPOBills)
+	report.FinancialSummary.PreviousPOBills = prevPOBills
+
+	// 3. Kalkulasi Qty Hari Ini, Total Qty PO Aktif, dan Total Tagihan PO Aktif
+	startOfDay := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, targetDate.Location())
+	endOfDay := startOfDay.Add(24*time.Hour - time.Nanosecond)
+
+	var stats struct {
+		QtyToday     int64
+		QtyTotalPO   int64
+		ActivePOBill float64
+	}
+	r.db.WithContext(ctx).Table("orders o").
+		Joins("LEFT JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
+		Where("o.batch_po_id = ?", activePO.ID).
+		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Select(`
+			COALESCE(SUM(CASE WHEN o.created_at BETWEEN ? AND ? THEN oi.qty ELSE 0 END), 0) as qty_today,
+			COALESCE(SUM(oi.qty), 0) as qty_total_po,
+			COALESCE(SUM(DISTINCT o.total_amount), 0) as active_po_bill
+		`, startOfDay, endOfDay).
+		Scan(&stats)
+
+	report.OrderSummary.QtyToday = stats.QtyToday
+	report.OrderSummary.QtyTotalPO = stats.QtyTotalPO
+	report.POInfo.RemainingQuota = int64(activePO.Quota) - stats.QtyTotalPO
+	report.FinancialSummary.ActivePOBill = stats.ActivePOBill
+	report.FinancialSummary.SubTotalBill = stats.ActivePOBill + prevPOBills
+
+	// 4. Pivot Sales Detail
+	var salesRows []struct {
+		SalesName    string
+		CategoryName string
+		Qty          int64
+	}
+	r.db.WithContext(ctx).Table("orders o").
+		Select("u.name as sales_name, c.name as category_name, COALESCE(SUM(oi.qty), 0) as qty").
+		Joins("JOIN users u ON u.id = o.sales_id").
+		Joins("JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
+		Joins("JOIN products p ON p.id = oi.product_id").
+		Joins("JOIN categories c ON c.id = p.category_id").
+		Where("o.batch_po_id = ?", activePO.ID).
+		Where("o.deleted_at IS NULL").
+		Group("u.name, c.name").
+		Scan(&salesRows)
+
+	// Proses grouping per Sales (Pivot Data di level Golang agar lebih efisien dan dinamis)
+	salesMap := make(map[string]*domain.SalesDetail)
+	for _, row := range salesRows {
+		if _, exists := salesMap[row.SalesName]; !exists {
+			salesMap[row.SalesName] = &domain.SalesDetail{
+				SalesName:  row.SalesName,
+				Categories: make(map[string]int64),
+			}
+		}
+		salesMap[row.SalesName].Categories[row.CategoryName] += row.Qty
+		salesMap[row.SalesName].TotalQty += row.Qty
+	}
+
+	for _, sd := range salesMap {
+		report.SalesDetails = append(report.SalesDetails, *sd)
+	}
+
+	return report, nil
+}
+
+func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
+	summary := &domain.POSummaryReport{}
+
+	// 1. Ambil Data Dasar PO
+	var po domain.BatchPO
+	if err := r.db.WithContext(ctx).Table("batch_pos").Where("id = ? AND deleted_at IS NULL", poID).First(&po).Error; err != nil {
+		return nil, TranslateError(err)
+	}
+	summary.POID = po.ID
+	summary.POName = po.Name
+	summary.StartDate = po.StartDate
+	summary.EndDate = po.EndDate
+	summary.Status = po.Status
+	summary.TotalQuota = po.Quota
+
+	// 2. Kalkulasi Finansial (Revenue, Paid, Outstanding)
+	var financial struct {
+		TotalRevenue     float64
+		TotalPaid        float64
+		TotalOutstanding float64
+	}
+	r.db.WithContext(ctx).Table("orders o").
+		Select(`
+			COALESCE(SUM(o.total_amount), 0) as total_revenue,
+			COALESCE(SUM(p.total_paid), 0) as total_paid,
+			COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_outstanding
+		`).
+		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL", poID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Scan(&financial)
+
+	summary.TotalRevenue = financial.TotalRevenue
+	summary.TotalPaid = financial.TotalPaid
+	summary.TotalOutstanding = financial.TotalOutstanding
+
+	// 3. Rekap Produk untuk Produksi Konveksi
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("c.name as category_name, SUM(oi.qty) as total_qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Joins("JOIN products p ON p.id = oi.product_id").
+		Joins("JOIN categories c ON c.id = p.category_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", poID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("c.name").
+		Scan(&summary.ProductSummary)
+
+	// Hitung total keseluruhan QTY order
+	for _, p := range summary.ProductSummary {
+		summary.TotalQtyOrdered += p.TotalQty
+	}
+
+	// 4. Rekap Performa Sales
+	r.db.WithContext(ctx).Table("orders o").
+		Select("u.name as sales_name, SUM(oi.qty) as total_qty, SUM(DISTINCT o.total_amount) as total_revenue").
+		Joins("JOIN users u ON u.id = o.sales_id").
+		Joins("LEFT JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL", poID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("u.name").
+		Scan(&summary.SalesSummary)
+
+	return summary, nil
+}

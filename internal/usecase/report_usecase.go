@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
@@ -70,4 +71,41 @@ func (u *reportUsecase) GetDailyReport(c context.Context, date string) (*domain.
 		ActivePOReceivables:         activePOReceivables,
 		PastDueReceivables:          pastDue,
 	}, nil
+}
+
+func (u *reportUsecase) GenerateDailyReport(c context.Context, dateStr string) (*domain.DailyReport, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	targetDate := time.Now()
+	var err error
+	if dateStr != "" {
+		targetDate, err = time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return nil, errors.New("format tanggal tidak valid, gunakan YYYY-MM-DD")
+		}
+	}
+
+	report, err := u.reportRepo.GetDailyReportData(ctx, targetDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return report, nil
+}
+
+func (u *reportUsecase) GetPOSummaryReport(c context.Context, poID string) (*domain.POSummaryReport, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	if poID == "" {
+		return nil, errors.New("PO ID tidak boleh kosong")
+	}
+
+	summary, err := u.reportRepo.GetPOSummaryData(ctx, poID)
+	if err != nil {
+		return nil, err
+	}
+
+	return summary, nil
 }
