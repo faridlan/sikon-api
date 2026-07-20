@@ -10,6 +10,8 @@ import (
 
 type ReportHandler interface {
 	GetDailyReport(c *fiber.Ctx) error
+	GenerateDailyReport(c *fiber.Ctx) error
+	GetPOSummaryReport(c *fiber.Ctx) error
 }
 
 type reportHandler struct {
@@ -37,4 +39,45 @@ func (h *reportHandler) GetDailyReport(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data daily report", dto.ToReportResponse(report))
+}
+
+// @Summary Generate Daily Report (New)
+// @Description Mengambil laporan harian konveksi yang terstruktur. Mencakup informasi kuota PO yang aktif, ringkasan order, kalkulasi finansial, dan detail QTY per kategori produk untuk masing-masing sales.
+// @Tags Reports
+// @Produce json
+// @Security BearerAuth
+// @Param date query string false "Tanggal laporan (Format: YYYY-MM-DD). Jika kosong, akan menggunakan tanggal hari ini."
+// @Success 200 {object} utils.SuccessResponse[dto.DailyReportResponse]
+// @Failure 400,500 {object} utils.ErrorResponse
+// @Router /reports/daily/generate [get]
+func (h *reportHandler) GenerateDailyReport(c *fiber.Ctx) error {
+	date := c.Query("date")
+
+	// Memanggil method Usecase yang baru
+	report, err := h.reportUsecase.GenerateDailyReport(c.Context(), date)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data laporan harian", dto.ToDailyReportResponse(report)) // Pastikan menggunakan DTO yang baru
+}
+
+// @Summary Get PO Close / Summary Report
+// @Description Mengambil rekapitulasi data PO tertentu, termasuk total produk yang harus diproduksi dan tagihan finansial.
+// @Tags Reports
+// @Produce json
+// @Security BearerAuth
+// @Param po_id path string true "ID dari Batch PO"
+// @Success 200 {object} utils.SuccessResponse[dto.POSummaryResponse]
+// @Failure 400,404,500 {object} utils.ErrorResponse
+// @Router /reports/po/{po_id}/summary [get]
+func (h *reportHandler) GetPOSummaryReport(c *fiber.Ctx) error {
+	poID := c.Params("po_id")
+
+	report, err := h.reportUsecase.GetPOSummaryReport(c.Context(), poID)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil rekap laporan PO", dto.ToPOSummaryResponse(report))
 }

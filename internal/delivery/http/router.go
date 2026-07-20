@@ -126,6 +126,8 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 
 	reports := api.Group("/reports")
 	reports.Get("/daily", handlers.ReportHandler.GetDailyReport)
+	reports.Get("/daily/generate", handlers.ReportHandler.GenerateDailyReport) // Endpoint baru untuk Generate Daily Report
+	reports.Get("/po/:po_id/summary", handlers.ReportHandler.GetPOSummaryReport)
 
 	batchPos := api.Group("/batch-pos")
 	batchPos.Post("/", handlers.BatchPOHandler.CreateBatchPO)
@@ -137,5 +139,6 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	batchPos.Delete("/:id", handlers.BatchPOHandler.DeleteBatchPO)
 
 	uploads := api.Group("/uploads")
+
 	uploads.Post("/image", handlers.UploadHandler.UploadImage)
 }

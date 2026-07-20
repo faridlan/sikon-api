@@ -37,6 +37,64 @@ type PastDueReceivableResponse struct {
 	UnpaidBalance   float64 `json:"unpaid_balance"`
 }
 
+type DailyReportResponse struct {
+	ReportDate       string                   `json:"report_date"`
+	POInfo           POInfoResponse           `json:"po_info"`
+	OrderSummary     OrderSummaryResponse     `json:"order_summary"`
+	FinancialSummary FinancialSummaryResponse `json:"financial_summary"`
+	SalesDetails     []SalesDetailResponse    `json:"sales_details"`
+}
+
+type POInfoResponse struct {
+	POID           string `json:"po_id"`
+	POName         string `json:"po_name"`
+	Quota          int    `json:"quota"`
+	RemainingQuota int64  `json:"remaining_quota"`
+}
+
+type OrderSummaryResponse struct {
+	QtyToday   int64 `json:"qty_today"`
+	QtyTotalPO int64 `json:"qty_total_po"`
+}
+
+type FinancialSummaryResponse struct {
+	ActivePOBill    float64 `json:"active_po_bill"`
+	PreviousPOBills float64 `json:"previous_po_bills"`
+	SubTotalBill    float64 `json:"sub_total_bill"`
+}
+
+type SalesDetailResponse struct {
+	SalesName  string           `json:"sales_name"`
+	Categories map[string]int64 `json:"categories"`
+	TotalQty   int64            `json:"total_qty"`
+}
+
+type POSummaryResponse struct {
+	POID             string                     `json:"po_id"`
+	POName           string                     `json:"po_name"`
+	StartDate        string                     `json:"start_date"`
+	EndDate          string                     `json:"end_date"`
+	Status           string                     `json:"status"`
+	TotalQuota       int                        `json:"total_quota"`
+	TotalQtyOrdered  int64                      `json:"total_qty_ordered"`
+	TotalRevenue     float64                    `json:"total_revenue"`
+	TotalPaid        float64                    `json:"total_paid"`
+	TotalOutstanding float64                    `json:"total_outstanding"`
+	ProductSummary   []POProductSummaryResponse `json:"product_summary"`
+	SalesSummary     []POSalesSummaryResponse   `json:"sales_summary"`
+}
+
+type POProductSummaryResponse struct {
+	CategoryName string `json:"category_name"`
+	TotalQty     int64  `json:"total_qty"`
+}
+
+type POSalesSummaryResponse struct {
+	SalesName    string  `json:"sales_name"`
+	TotalQty     int64   `json:"total_qty"`
+	TotalRevenue float64 `json:"total_revenue"`
+}
+
 func ToReportResponse(src *domain.ReportResponse) ReportResponse {
 	if src == nil {
 		return ReportResponse{}
@@ -82,4 +140,77 @@ func ToReportResponse(src *domain.ReportResponse) ReportResponse {
 	}
 
 	return resp
+}
+
+func ToDailyReportResponse(src *domain.DailyReport) DailyReportResponse {
+	if src == nil {
+		return DailyReportResponse{}
+	}
+
+	salesDetails := make([]SalesDetailResponse, 0, len(src.SalesDetails))
+	for _, sd := range src.SalesDetails {
+		salesDetails = append(salesDetails, SalesDetailResponse{
+			SalesName:  sd.SalesName,
+			Categories: sd.Categories,
+			TotalQty:   sd.TotalQty,
+		})
+	}
+
+	return DailyReportResponse{
+		ReportDate: src.ReportDate,
+		POInfo: POInfoResponse{
+			POID:           src.POInfo.POID,
+			POName:         src.POInfo.POName,
+			Quota:          src.POInfo.Quota,
+			RemainingQuota: src.POInfo.RemainingQuota,
+		},
+		OrderSummary: OrderSummaryResponse{
+			QtyToday:   src.OrderSummary.QtyToday,
+			QtyTotalPO: src.OrderSummary.QtyTotalPO,
+		},
+		FinancialSummary: FinancialSummaryResponse{
+			ActivePOBill:    src.FinancialSummary.ActivePOBill,
+			PreviousPOBills: src.FinancialSummary.PreviousPOBills,
+			SubTotalBill:    src.FinancialSummary.SubTotalBill,
+		},
+		SalesDetails: salesDetails,
+	}
+}
+
+func ToPOSummaryResponse(src *domain.POSummaryReport) POSummaryResponse {
+	if src == nil {
+		return POSummaryResponse{}
+	}
+
+	prodSummary := make([]POProductSummaryResponse, 0, len(src.ProductSummary))
+	for _, p := range src.ProductSummary {
+		prodSummary = append(prodSummary, POProductSummaryResponse{
+			CategoryName: p.CategoryName,
+			TotalQty:     p.TotalQty,
+		})
+	}
+
+	salesSummary := make([]POSalesSummaryResponse, 0, len(src.SalesSummary))
+	for _, s := range src.SalesSummary {
+		salesSummary = append(salesSummary, POSalesSummaryResponse{
+			SalesName:    s.SalesName,
+			TotalQty:     s.TotalQty,
+			TotalRevenue: s.TotalRevenue,
+		})
+	}
+
+	return POSummaryResponse{
+		POID:             src.POID,
+		POName:           src.POName,
+		StartDate:        src.StartDate.Format("2006-01-02"),
+		EndDate:          src.EndDate.Format("2006-01-02"),
+		Status:           string(src.Status),
+		TotalQuota:       src.TotalQuota,
+		TotalQtyOrdered:  src.TotalQtyOrdered,
+		TotalRevenue:     src.TotalRevenue,
+		TotalPaid:        src.TotalPaid,
+		TotalOutstanding: src.TotalOutstanding,
+		ProductSummary:   prodSummary,
+		SalesSummary:     salesSummary,
+	}
 }

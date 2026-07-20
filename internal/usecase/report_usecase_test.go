@@ -21,7 +21,10 @@ type stubReportRepository struct {
 	totalOutstanding float64
 	activePO         float64
 	pastDue          []domain.PastDueReceivable
-	err              error
+
+	dailyReport *domain.DailyReport
+	poSummary   *domain.POSummaryReport
+	err         error
 }
 
 func (s stubReportRepository) GetDailyRevenueAndQty(_ context.Context, _, _ time.Time) (float64, int64, error) {
@@ -42,6 +45,14 @@ func (s stubReportRepository) GetReceivablesStats(_ context.Context) (float64, f
 
 func (s stubReportRepository) GetPastDueReceivables(_ context.Context) ([]domain.PastDueReceivable, error) {
 	return s.pastDue, s.err
+}
+
+func (s stubReportRepository) GetDailyReportData(ctx context.Context, targetDate time.Time) (*domain.DailyReport, error) {
+	return s.dailyReport, s.err
+}
+
+func (s stubReportRepository) GetPOSummaryData(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
+	return s.poSummary, s.err
 }
 
 func TestReportUsecase_GetDailyReport(t *testing.T) {
@@ -100,6 +111,119 @@ func TestReportUsecase_GetDailyReport(t *testing.T) {
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
 		result, err := uc.GetDailyReport(context.Background(), "2026-07-08")
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestReportUsecase_GenerateDailyReport(t *testing.T) {
+	t.Run("returns assembled daily report when repository succeeds", func(t *testing.T) {
+		mockReport := &domain.DailyReport{
+			ReportDate: "2026-07-15",
+			POInfo: domain.POInfo{
+				POID:           "po-123",
+				POName:         "PO 3 JULI 2026",
+				Quota:          400,
+				RemainingQuota: 360,
+			},
+			OrderSummary: domain.OrderSummary{
+				QtyToday:   20,
+				QtyTotalPO: 40,
+			},
+			FinancialSummary: domain.FinancialSummary{
+				ActivePOBill:    5000000,
+				PreviousPOBills: 15000000,
+				SubTotalBill:    20000000,
+			},
+		}
+
+		repo := stubReportRepository{dailyReport: mockReport}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GenerateDailyReport(context.Background(), "2026-07-15")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "2026-07-15", result.ReportDate)
+		assert.Equal(t, "PO 3 JULI 2026", result.POInfo.POName)
+		assert.Equal(t, int64(20), result.OrderSummary.QtyToday)
+		assert.Equal(t, float64(20000000), result.FinancialSummary.SubTotalBill)
+	})
+
+	t.Run("uses today when no date is provided", func(t *testing.T) {
+		repo := stubReportRepository{
+			dailyReport: &domain.DailyReport{ReportDate: time.Now().Format("2006-01-02")},
+		}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GenerateDailyReport(context.Background(), "")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, time.Now().Format("2006-01-02"), result.ReportDate)
+	})
+
+	t.Run("returns error when date format is invalid", func(t *testing.T) {
+		repo := stubReportRepository{}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GenerateDailyReport(context.Background(), "15-Juli-2026") // Format salah
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, "format tanggal tidak valid, gunakan YYYY-MM-DD", err.Error())
+	})
+
+	t.Run("returns error when repository fails", func(t *testing.T) {
+		repo := stubReportRepository{err: errors.New("db error")}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GenerateDailyReport(context.Background(), "2026-07-15")
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
+	t.Run("returns PO summary when repository succeeds", func(t *testing.T) {
+		mockSummary := &domain.POSummaryReport{
+			POID:            "po-123",
+			POName:          "PO 3 JULI 2026",
+			Status:          domain.BatchPOStatusActive,
+			TotalQuota:      400,
+			TotalQtyOrdered: 100,
+			TotalRevenue:    15000000,
+		}
+
+		repo := stubReportRepository{poSummary: mockSummary}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetPOSummaryReport(context.Background(), "po-123")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "po-123", result.POID)
+		assert.Equal(t, float64(15000000), result.TotalRevenue)
+	})
+
+	t.Run("returns error when poID is empty", func(t *testing.T) {
+		repo := stubReportRepository{}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetPOSummaryReport(context.Background(), "")
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, "PO ID tidak boleh kosong", err.Error())
+	})
+
+	t.Run("returns error when repository fails", func(t *testing.T) {
+		repo := stubReportRepository{err: errors.New("po not found")}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetPOSummaryReport(context.Background(), "po-invalid")
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
