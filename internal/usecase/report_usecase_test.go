@@ -130,11 +130,18 @@ func TestReportUsecase_GenerateDailyReport(t *testing.T) {
 			OrderSummary: domain.OrderSummary{
 				QtyToday:   20,
 				QtyTotalPO: 40,
+				// Tambahkan mock data untuk TrendData di sini
+				TrendData: []domain.DailyTrend{
+					{Date: "2026-07-14", Qty: 20},
+					{Date: "2026-07-15", Qty: 20},
+				},
 			},
 			FinancialSummary: domain.FinancialSummary{
-				ActivePOBill:    5000000,
-				PreviousPOBills: 15000000,
-				SubTotalBill:    20000000,
+				TotalRevenue:          10000000, // Misal total omset 10 juta
+				TotalPaid:             5000000,  // Sudah dibayar 5 juta
+				ActivePOOutstanding:   5000000,  // Sisa 5 juta
+				PreviousPOOutstanding: 15000000, // Sisa piutang PO lama 15 juta
+				TotalOutstanding:      20000000, // Total piutang 20 juta
 			},
 		}
 
@@ -148,7 +155,16 @@ func TestReportUsecase_GenerateDailyReport(t *testing.T) {
 		assert.Equal(t, "2026-07-15", result.ReportDate)
 		assert.Equal(t, "PO 3 JULI 2026", result.POInfo.POName)
 		assert.Equal(t, int64(20), result.OrderSummary.QtyToday)
-		assert.Equal(t, float64(20000000), result.FinancialSummary.SubTotalBill)
+
+		// Assertion untuk TrendData
+		assert.Len(t, result.OrderSummary.TrendData, 2)
+		assert.Equal(t, "2026-07-14", result.OrderSummary.TrendData[0].Date)
+		assert.Equal(t, int64(20), result.OrderSummary.TrendData[0].Qty)
+
+		// Assertion menyesuaikan skema FinancialSummary yang sudah di-update
+		assert.Equal(t, float64(10000000), result.FinancialSummary.TotalRevenue)
+		assert.Equal(t, float64(5000000), result.FinancialSummary.ActivePOOutstanding)
+		assert.Equal(t, float64(20000000), result.FinancialSummary.TotalOutstanding)
 	})
 
 	t.Run("uses today when no date is provided", func(t *testing.T) {
@@ -185,7 +201,6 @@ func TestReportUsecase_GenerateDailyReport(t *testing.T) {
 		assert.Nil(t, result)
 	})
 }
-
 func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
 	t.Run("returns PO summary when repository succeeds", func(t *testing.T) {
 		mockSummary := &domain.POSummaryReport{

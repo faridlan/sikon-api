@@ -52,15 +52,23 @@ type POInfoResponse struct {
 	RemainingQuota int64  `json:"remaining_quota"`
 }
 
+type DailyTrendResponse struct {
+	Date string `json:"date"`
+	Qty  int64  `json:"qty"`
+}
+
 type OrderSummaryResponse struct {
-	QtyToday   int64 `json:"qty_today"`
-	QtyTotalPO int64 `json:"qty_total_po"`
+	QtyToday   int64                `json:"qty_today"`
+	QtyTotalPO int64                `json:"qty_total_po"`
+	TrendData  []DailyTrendResponse `json:"trend_data"`
 }
 
 type FinancialSummaryResponse struct {
-	ActivePOBill    float64 `json:"active_po_bill"`
-	PreviousPOBills float64 `json:"previous_po_bills"`
-	SubTotalBill    float64 `json:"sub_total_bill"`
+	TotalRevenue          float64 `json:"total_revenue"`
+	TotalPaid             float64 `json:"total_paid"`
+	ActivePOOutstanding   float64 `json:"active_po_outstanding"`
+	PreviousPOOutstanding float64 `json:"previous_po_outstanding"`
+	TotalOutstanding      float64 `json:"total_outstanding"`
 }
 
 type SalesDetailResponse struct {
@@ -147,6 +155,14 @@ func ToDailyReportResponse(src *domain.DailyReport) DailyReportResponse {
 		return DailyReportResponse{}
 	}
 
+	trendData := make([]DailyTrendResponse, 0, len(src.OrderSummary.TrendData))
+	for _, t := range src.OrderSummary.TrendData {
+		trendData = append(trendData, DailyTrendResponse{
+			Date: t.Date,
+			Qty:  t.Qty,
+		})
+	}
+
 	salesDetails := make([]SalesDetailResponse, 0, len(src.SalesDetails))
 	for _, sd := range src.SalesDetails {
 		salesDetails = append(salesDetails, SalesDetailResponse{
@@ -167,11 +183,14 @@ func ToDailyReportResponse(src *domain.DailyReport) DailyReportResponse {
 		OrderSummary: OrderSummaryResponse{
 			QtyToday:   src.OrderSummary.QtyToday,
 			QtyTotalPO: src.OrderSummary.QtyTotalPO,
+			TrendData:  trendData,
 		},
 		FinancialSummary: FinancialSummaryResponse{
-			ActivePOBill:    src.FinancialSummary.ActivePOBill,
-			PreviousPOBills: src.FinancialSummary.PreviousPOBills,
-			SubTotalBill:    src.FinancialSummary.SubTotalBill,
+			TotalRevenue:          src.FinancialSummary.TotalRevenue,
+			TotalPaid:             src.FinancialSummary.TotalPaid,
+			ActivePOOutstanding:   src.FinancialSummary.ActivePOOutstanding,
+			PreviousPOOutstanding: src.FinancialSummary.PreviousPOOutstanding,
+			TotalOutstanding:      src.FinancialSummary.TotalOutstanding,
 		},
 		SalesDetails: salesDetails,
 	}
