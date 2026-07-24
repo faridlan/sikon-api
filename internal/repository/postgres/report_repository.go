@@ -202,8 +202,7 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 		ReportDate: targetDate.Format("2006-01-02"),
 	}
 
-	// 1. Cari PO yang aktif pada tanggal target
-	// Asumsi: PO berjalan jika targetDate berada di antara start_date dan end_date
+	// 1. Cari PO Aktif
 	var activePO struct {
 		ID        string
 		Name      string
@@ -213,12 +212,13 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 	err := r.db.WithContext(ctx).Table("batch_pos").
 		Select("id, name, quota, start_date").
 		Where("? BETWEEN start_date AND end_date", targetDate).
+		// Where("status = ?", domain.BatchPOStatusActive). // <- Sengaja di-comment untuk support time-travel
 		Where("deleted_at IS NULL").
+		Order("created_at DESC").
 		First(&activePO).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// Handle jika tidak ada PO di tanggal tersebut
 			return report, nil
 		}
 		return nil, TranslateError(err)
@@ -228,44 +228,100 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 	report.POInfo.POName = activePO.Name
 	report.POInfo.Quota = activePO.Quota
 
-	// 2. Ambil Total Tagihan dari PO Sebelumnya (PO yang end_date-nya sebelum start_date PO aktif)
-	var prevPOBills float64
-	r.db.WithContext(ctx).Table("orders o").
-		Joins("JOIN batch_pos bp ON bp.id = o.batch_po_id").
-		Where("bp.end_date < ?", activePO.StartDate).
-		Where("o.deleted_at IS NULL AND bp.deleted_at IS NULL").
-		Select("COALESCE(SUM(o.total_amount), 0)").
-		Scan(&prevPOBills)
-	report.FinancialSummary.PreviousPOBills = prevPOBills
-
-	// 3. Kalkulasi Qty Hari Ini, Total Qty PO Aktif, dan Total Tagihan PO Aktif
+	// Set waktu awal dan akhir hari untuk kalkulasi QTY harian
 	startOfDay := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, targetDate.Location())
 	endOfDay := startOfDay.Add(24*time.Hour - time.Nanosecond)
 
-	var stats struct {
-		QtyToday     int64
-		QtyTotalPO   int64
-		ActivePOBill float64
+	// 2. Kalkulasi Qty (Query terpisah agar tidak duplikasi dengan payment)
+	var qtyStats struct {
+		QtyToday   int64
+		QtyTotalPO int64
 	}
 	r.db.WithContext(ctx).Table("orders o").
-		Joins("LEFT JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
+		Select(`
+			COALESCE(SUM(CASE WHEN o.created_at BETWEEN ? AND ? THEN oi.qty ELSE 0 END), 0) as qty_today,
+			COALESCE(SUM(oi.qty), 0) as qty_total_po
+		`, startOfDay, endOfDay).
+		Joins("JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
 		Where("o.batch_po_id = ?", activePO.ID).
 		Where("o.deleted_at IS NULL").
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Scan(&qtyStats)
+
+	report.OrderSummary.QtyToday = qtyStats.QtyToday
+	report.OrderSummary.QtyTotalPO = qtyStats.QtyTotalPO
+	report.POInfo.RemainingQuota = int64(activePO.Quota) - qtyStats.QtyTotalPO
+
+	// =========================================================================
+	// 2B. KALKULASI GRAFIK TREND HARIAN (TAMBAHKAN DI SINI)
+	// =========================================================================
+	var trendRows []struct {
+		Date time.Time
+		Qty  int64
+	}
+	r.db.WithContext(ctx).Table("orders o").
+		Select("DATE(o.created_at) as date, COALESCE(SUM(oi.qty), 0) as qty").
+		Joins("JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
+		Where("o.batch_po_id = ?", activePO.ID).
+		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("o.created_at <= ?", endOfDay). // Jangan hitung orderan "besok" jika ada time-travel
+		Group("DATE(o.created_at)").
+		Order("date ASC").
+		Scan(&trendRows)
+
+	// Buat Map untuk mempercepat pencarian data per tanggal
+	qtyMap := make(map[string]int64)
+	for _, row := range trendRows {
+		qtyMap[row.Date.Format("2006-01-02")] = row.Qty
+	}
+
+	// Looping dari hari pertama PO sampai ke hari targetDate
+	for d := activePO.StartDate; !d.After(targetDate); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		report.OrderSummary.TrendData = append(report.OrderSummary.TrendData, domain.DailyTrend{
+			Date: dateStr,
+			Qty:  qtyMap[dateStr], // Jika tidak ada order di tanggal tersebut, otomatis jadi 0
+		})
+	}
+	// =========================================================================
+
+	// 3. Kalkulasi Finansial PO Aktif (Bug 2 Fixed: Join dengan Payments)
+	var finActive struct {
+		TotalRevenue float64
+		TotalPaid    float64
+	}
+	r.db.WithContext(ctx).Table("orders o").
 		Select(`
-			COALESCE(SUM(CASE WHEN o.created_at BETWEEN ? AND ? THEN oi.qty ELSE 0 END), 0) as qty_today,
-			COALESCE(SUM(oi.qty), 0) as qty_total_po,
-			COALESCE(SUM(DISTINCT o.total_amount), 0) as active_po_bill
-		`, startOfDay, endOfDay).
-		Scan(&stats)
+			COALESCE(SUM(o.total_amount), 0) as total_revenue,
+			COALESCE(SUM(p.total_paid), 0) as total_paid
+		`).
+		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
+		Where("o.batch_po_id = ?", activePO.ID).
+		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Scan(&finActive)
 
-	report.OrderSummary.QtyToday = stats.QtyToday
-	report.OrderSummary.QtyTotalPO = stats.QtyTotalPO
-	report.POInfo.RemainingQuota = int64(activePO.Quota) - stats.QtyTotalPO
-	report.FinancialSummary.ActivePOBill = stats.ActivePOBill
-	report.FinancialSummary.SubTotalBill = stats.ActivePOBill + prevPOBills
+	report.FinancialSummary.TotalRevenue = finActive.TotalRevenue
+	report.FinancialSummary.TotalPaid = finActive.TotalPaid
+	report.FinancialSummary.ActivePOOutstanding = finActive.TotalRevenue - finActive.TotalPaid
 
-	// 4. Pivot Sales Detail
+	// 4. Kalkulasi Sisa Piutang (Outstanding) dari PO Sebelumnya
+	var prevOutstanding float64
+	r.db.WithContext(ctx).Table("orders o").
+		Select("COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0)").
+		Joins("JOIN batch_pos bp ON bp.id = o.batch_po_id").
+		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
+		Where("bp.end_date < ?", activePO.StartDate).
+		Where("o.deleted_at IS NULL AND bp.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial). // Opsional untuk optimasi query
+		Scan(&prevOutstanding)
+
+	report.FinancialSummary.PreviousPOOutstanding = prevOutstanding
+	report.FinancialSummary.TotalOutstanding = report.FinancialSummary.ActivePOOutstanding + prevOutstanding
+
+	// 5. Pivot Sales Detail
 	var salesRows []struct {
 		SalesName    string
 		CategoryName string
@@ -279,10 +335,10 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 		Joins("JOIN categories c ON c.id = p.category_id").
 		Where("o.batch_po_id = ?", activePO.ID).
 		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
 		Group("u.name, c.name").
 		Scan(&salesRows)
 
-	// Proses grouping per Sales (Pivot Data di level Golang agar lebih efisien dan dinamis)
 	salesMap := make(map[string]*domain.SalesDetail)
 	for _, row := range salesRows {
 		if _, exists := salesMap[row.SalesName]; !exists {

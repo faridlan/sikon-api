@@ -185,12 +185,8 @@ func TestGenerateDailyReportEndpoint(t *testing.T) {
 	assert.NoError(t, db.Create(&orderItem).Error)
 
 	// --- 2. Hit Endpoint API ---
-	// Asumsi route-nya didaftarkan sebagai /api/reports/daily/generate
 	url := "/api/reports/daily/generate?date=" + time.Now().Format("2006-01-02")
 	req := httptest.NewRequest("GET", url, bytes.NewBuffer(nil))
-
-	// Jika menggunakan JWT middleware, jangan lupa inject token di sini:
-	// req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := app.Test(req, -1)
 	assert.NoError(t, err)
@@ -208,9 +204,14 @@ func TestGenerateDailyReportEndpoint(t *testing.T) {
 			OrderSummary struct {
 				QtyToday   int64 `json:"qty_today"`
 				QtyTotalPO int64 `json:"qty_total_po"`
+				TrendData  []struct {
+					Date string `json:"date"`
+					Qty  int64  `json:"qty"`
+				} `json:"trend_data"`
 			} `json:"order_summary"`
 			FinancialSummary struct {
-				SubTotalBill float64 `json:"sub_total_bill"`
+				TotalRevenue        float64 `json:"total_revenue"`
+				ActivePOOutstanding float64 `json:"active_po_outstanding"`
 			} `json:"financial_summary"`
 			SalesDetails []struct {
 				SalesName  string           `json:"sales_name"`
@@ -226,7 +227,14 @@ func TestGenerateDailyReportEndpoint(t *testing.T) {
 	assert.Equal(t, "PO-001", response.Data.POInfo.POName)
 	assert.Equal(t, int64(3), response.Data.OrderSummary.QtyToday)
 	assert.Equal(t, int64(3), response.Data.OrderSummary.QtyTotalPO)
-	assert.Equal(t, float64(300000), response.Data.FinancialSummary.SubTotalBill)
+
+	// Menyesuaikan dengan field financial_summary terbaru
+	assert.Equal(t, float64(300000), response.Data.FinancialSummary.TotalRevenue)
+	assert.Equal(t, float64(300000), response.Data.FinancialSummary.ActivePOOutstanding)
+
+	// Memastikan trend_data ter-generate dengan benar
+	assert.NotEmpty(t, response.Data.OrderSummary.TrendData)
+
 	assert.Len(t, response.Data.SalesDetails, 1)
 	assert.Equal(t, "Rina", response.Data.SalesDetails[0].SalesName)
 	assert.Equal(t, int64(3), response.Data.SalesDetails[0].Categories["Atasan"])

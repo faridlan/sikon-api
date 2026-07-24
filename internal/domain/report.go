@@ -60,15 +60,23 @@ type POInfo struct {
 	RemainingQuota int64
 }
 
+type DailyTrend struct {
+	Date string
+	Qty  int64
+}
+
 type OrderSummary struct {
 	QtyToday   int64
 	QtyTotalPO int64
+	TrendData  []DailyTrend
 }
 
 type FinancialSummary struct {
-	ActivePOBill    float64
-	PreviousPOBills float64
-	SubTotalBill    float64
+	TotalRevenue          float64 // Total keseluruhan tagihan order yang masuk
+	TotalPaid             float64 // Total uang yang sudah dibayar (DP/Lunas)
+	ActivePOOutstanding   float64 // Sisa yang belum dibayar HANYA untuk PO aktif ini
+	PreviousPOOutstanding float64 // Sisa yang belum dibayar dari PO-PO sebelumnya
+	TotalOutstanding      float64 // Keseluruhan sisa piutang (Active + Previous)
 }
 
 type SalesDetail struct {
