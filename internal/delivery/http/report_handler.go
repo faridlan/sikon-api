@@ -12,6 +12,7 @@ type ReportHandler interface {
 	GetDailyReport(c *fiber.Ctx) error
 	GenerateDailyReport(c *fiber.Ctx) error
 	GetPOSummaryReport(c *fiber.Ctx) error
+	GetReceivablesReport(c *fiber.Ctx) error
 }
 
 type reportHandler struct {
@@ -80,4 +81,26 @@ func (h *reportHandler) GetPOSummaryReport(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil rekap laporan PO", dto.ToPOSummaryResponse(report))
+}
+
+// @Summary Get Detailed Receivables Report
+// @Description Menampilkan daftar detail pelanggan dan sales yang masih memiliki piutang (Outstanding Amount > 0).
+// @Tags Reports
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.SuccessResponse[[]dto.ReceivableDetailResponse]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /reports/receivables [get]
+func (h *reportHandler) GetReceivablesReport(c *fiber.Ctx) error {
+	data, err := h.reportUsecase.GetReceivablesDetailReport(c.Context())
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(
+		c,
+		fiber.StatusOK,
+		"Successfully fetched detailed receivables report",
+		dto.ToReceivableDetailListResponse(data),
+	)
 }

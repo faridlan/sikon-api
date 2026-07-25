@@ -335,3 +335,95 @@ func TestPOSummaryReportEndpoint(t *testing.T) {
 	assert.Equal(t, int64(3), response.Data.SalesSummary[0].TotalQty)
 	assert.Equal(t, float64(450000), response.Data.SalesSummary[0].TotalRevenue)
 }
+
+func TestGetReceivablesReportEndpoint(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	// --- 1. Seeding Data ---
+	category := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Bawahan"}
+	assert.NoError(t, db.Create(&category).Error)
+
+	product := postgresRepo.ProductModel{ID: uuid.NewString(), CategoryID: category.ID, Name: "Celana", BasePrice: 150000}
+	assert.NoError(t, db.Create(&product).Error)
+
+	sales := postgresRepo.UserModel{ID: uuid.NewString(), Name: "Steven", Email: "steven@example.com", Role: "sales"}
+	assert.NoError(t, db.Create(&sales).Error)
+
+	customer := postgresRepo.CustomerModel{ID: uuid.NewString(), Name: "PT Sejahtera", CreatedBy: sales.ID, SalesID: &sales.ID}
+	assert.NoError(t, db.Create(&customer).Error)
+
+	batchPO := postgresRepo.BatchPOModel{
+		ID:        uuid.NewString(),
+		Name:      "PO AGUSTUS 2026",
+		Status:    string(domain.BatchPOStatusActive),
+		Quota:     100,
+		StartDate: time.Now().Add(-24 * time.Hour),
+		EndDate:   time.Now().Add(72 * time.Hour),
+	}
+	assert.NoError(t, db.Create(&batchPO).Error)
+
+	// Skenario: Order status production, payment_status unpaid (Sisa piutang utuh)
+	order := postgresRepo.OrderModel{
+		ID:            uuid.NewString(),
+		OrderNumber:   "ORD-TEST-REC-001",
+		BatchPoID:     &batchPO.ID,
+		CustomerID:    customer.ID,
+		SalesID:       sales.ID,
+		TotalAmount:   450000,
+		Subtotal:      450000,
+		OrderStatus:   string(domain.OrderStatusProduction),
+		PaymentStatus: string(domain.PaymentStatusUnpaid),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+	assert.NoError(t, db.Create(&order).Error)
+
+	orderItem := postgresRepo.OrderItemModel{
+		ID:        uuid.NewString(),
+		OrderID:   order.ID,
+		ProductID: product.ID,
+		Qty:       3,
+		Price:     150000,
+	}
+	assert.NoError(t, db.Create(&orderItem).Error)
+
+	// --- 2. Hit Endpoint API ---
+	req := httptest.NewRequest("GET", "/api/reports/receivables", bytes.NewBuffer(nil))
+	// req.Header.Set("Authorization", "Bearer "+token) // Aktifkan jika pakai JWT
+
+	resp, err := app.Test(req, -1)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	// --- 3. Decode & Assert Response ---
+	var response struct {
+		Data []struct {
+			OrderID           string  `json:"order_id"`
+			OrderNumber       string  `json:"order_number"`
+			POName            string  `json:"po_name"`
+			POStatus          string  `json:"po_status"`
+			CustomerName      string  `json:"customer_name"`
+			SalesName         string  `json:"sales_name"`
+			TotalAmount       float64 `json:"total_amount"`
+			TotalPaid         float64 `json:"total_paid"`
+			OutstandingAmount float64 `json:"outstanding_amount"`
+		} `json:"data"`
+	}
+
+	assert.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+
+	// Karena ada 1 order yang belum dibayar, array harus berisi minimal 1
+	assert.NotEmpty(t, response.Data)
+	assert.Len(t, response.Data, 1)
+
+	// Validasi nilainya
+	firstData := response.Data[0]
+	assert.Equal(t, "ORD-TEST-REC-001", firstData.OrderNumber)
+	assert.Equal(t, "PO AGUSTUS 2026", firstData.POName)
+	assert.Equal(t, "PT Sejahtera", firstData.CustomerName)
+	assert.Equal(t, "Steven", firstData.SalesName)
+	assert.Equal(t, float64(450000), firstData.TotalAmount)
+	assert.Equal(t, float64(0), firstData.TotalPaid) // Karena unpaid, total_paid = 0
+	assert.Equal(t, float64(450000), firstData.OutstandingAmount)
+}

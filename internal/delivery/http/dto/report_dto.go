@@ -103,6 +103,18 @@ type POSalesSummaryResponse struct {
 	TotalRevenue float64 `json:"total_revenue"`
 }
 
+type ReceivableDetailResponse struct {
+	OrderID           string  `json:"order_id"`
+	OrderNumber       string  `json:"order_number"`
+	POName            string  `json:"po_name"`
+	POStatus          string  `json:"po_status"`
+	CustomerName      string  `json:"customer_name"`
+	SalesName         string  `json:"sales_name"`
+	TotalAmount       float64 `json:"total_amount"`
+	TotalPaid         float64 `json:"total_paid"`
+	OutstandingAmount float64 `json:"outstanding_amount"`
+}
+
 func ToReportResponse(src *domain.ReportResponse) ReportResponse {
 	if src == nil {
 		return ReportResponse{}
@@ -232,4 +244,27 @@ func ToPOSummaryResponse(src *domain.POSummaryReport) POSummaryResponse {
 		ProductSummary:   prodSummary,
 		SalesSummary:     salesSummary,
 	}
+}
+
+func ToReceivableDetailListResponse(data []domain.ReceivableDetail) []ReceivableDetailResponse {
+	var responses []ReceivableDetailResponse
+	for _, v := range data {
+		responses = append(responses, ReceivableDetailResponse{
+			OrderID:           v.OrderID,
+			OrderNumber:       v.OrderNumber,
+			POName:            v.POName,
+			POStatus:          v.POStatus,
+			CustomerName:      v.CustomerName,
+			SalesName:         v.SalesName,
+			TotalAmount:       v.TotalAmount,
+			TotalPaid:         v.TotalPaid,
+			OutstandingAmount: v.OutstandingAmount,
+		})
+	}
+
+	if responses == nil {
+		return []ReceivableDetailResponse{}
+	}
+
+	return responses
 }

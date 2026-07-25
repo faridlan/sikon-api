@@ -269,6 +269,13 @@ definitions:
       total_revenue_today:
         type: number
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse:
+    properties:
+      date:
+        type: string
+      qty:
+        type: integer
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse:
     properties:
       total_active_orders:
@@ -286,11 +293,15 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.FinancialSummaryResponse:
     properties:
-      active_po_bill:
+      active_po_outstanding:
         type: number
-      previous_po_bills:
+      previous_po_outstanding:
         type: number
-      sub_total_bill:
+      total_outstanding:
+        type: number
+      total_paid:
+        type: number
+      total_revenue:
         type: number
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
@@ -473,6 +484,10 @@ definitions:
         type: integer
       qty_total_po:
         type: integer
+      trend_data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse'
+        type: array
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest:
     properties:
@@ -740,6 +755,27 @@ definitions:
       name:
         example: Kaos Polos Lengan Panjang
         type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse:
+    properties:
+      customer_name:
+        type: string
+      order_id:
+        type: string
+      order_number:
+        type: string
+      outstanding_amount:
+        type: number
+      po_name:
+        type: string
+      po_status:
+        type: string
+      sales_name:
+        type: string
+      total_amount:
+        type: number
+      total_paid:
+        type: number
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableReportItemResponse:
     properties:
@@ -1058,6 +1094,15 @@ definitions:
       data:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentResponse'
+        type: array
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableDetailResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse'
         type: array
       message:
         type: string
@@ -2874,6 +2919,26 @@ paths:
       security:
       - BearerAuth: []
       summary: Get PO Close / Summary Report
+      tags:
+      - Reports
+  /reports/receivables:
+    get:
+      description: Menampilkan daftar detail pelanggan dan sales yang masih memiliki
+        piutang (Outstanding Amount > 0).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableDetailResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Detailed Receivables Report
       tags:
       - Reports
   /spec-templates:

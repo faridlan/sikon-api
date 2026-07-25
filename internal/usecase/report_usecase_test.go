@@ -22,9 +22,10 @@ type stubReportRepository struct {
 	activePO         float64
 	pastDue          []domain.PastDueReceivable
 
-	dailyReport *domain.DailyReport
-	poSummary   *domain.POSummaryReport
-	err         error
+	dailyReport       *domain.DailyReport
+	poSummary         *domain.POSummaryReport
+	receivablesDetail []domain.ReceivableDetail
+	err               error
 }
 
 func (s stubReportRepository) GetDailyRevenueAndQty(_ context.Context, _, _ time.Time) (float64, int64, error) {
@@ -53,6 +54,11 @@ func (s stubReportRepository) GetDailyReportData(ctx context.Context, targetDate
 
 func (s stubReportRepository) GetPOSummaryData(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
 	return s.poSummary, s.err
+}
+
+func (s stubReportRepository) GetReceivablesDetailData(ctx context.Context) ([]domain.ReceivableDetail, error) {
+	// Pastikan me-return s.receivablesDetail
+	return s.receivablesDetail, s.err
 }
 
 func TestReportUsecase_GetDailyReport(t *testing.T) {
@@ -242,5 +248,47 @@ func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+}
+
+func TestReportUsecase_GetReceivablesDetailReport(t *testing.T) {
+	t.Run("returns list of receivables when repository succeeds", func(t *testing.T) {
+		mockData := []domain.ReceivableDetail{
+			{
+				OrderID:           "ord-123",
+				OrderNumber:       "ORD-001",
+				POName:            "PO 1 AGUSTUS 2026",
+				POStatus:          string(domain.BatchPOStatusActive),
+				CustomerName:      "PT Maju Jaya",
+				SalesName:         "John Doe",
+				TotalAmount:       5000000,
+				TotalPaid:         2000000,
+				OutstandingAmount: 3000000,
+			},
+		}
+
+		repo := stubReportRepository{receivablesDetail: mockData}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetReceivablesDetailReport(context.Background())
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result, 1)
+
+		assert.Equal(t, "ORD-001", result[0].OrderNumber)
+		assert.Equal(t, float64(5000000), result[0].TotalAmount)
+		assert.Equal(t, float64(3000000), result[0].OutstandingAmount)
+	})
+
+	t.Run("returns error when repository fails", func(t *testing.T) {
+		repo := stubReportRepository{err: errors.New("database timeout")}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetReceivablesDetailReport(context.Background())
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, "database timeout", err.Error())
 	})
 }

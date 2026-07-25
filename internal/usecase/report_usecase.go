@@ -109,3 +109,17 @@ func (u *reportUsecase) GetPOSummaryReport(c context.Context, poID string) (*dom
 
 	return summary, nil
 }
+
+func (u *reportUsecase) GetReceivablesDetailReport(c context.Context) ([]domain.ReceivableDetail, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// Pastikan kamu menangkap balikan dari reportRepo ke dalam variabel 'data'
+	data, err := u.reportRepo.GetReceivablesDetailData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pastikan yang di-return adalah 'data'
+	return data, nil
+}
