@@ -51,6 +51,7 @@ type OrderModel struct {
 	CreatedAt       time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt       gorm.DeletedAt `gorm:"index"`
+	ApprovedAt      *time.Time     `gorm:"column:approved_at"`
 
 	// Relasi
 	Items    []OrderItemModel `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
@@ -119,6 +120,7 @@ func (m *OrderModel) ToDomain() *domain.Order {
 		Notes:           m.Notes,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
+		ApprovedAt:      m.ApprovedAt,
 	}
 
 	// Map relasi Items
@@ -170,6 +172,7 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 		Notes:           d.Notes,
 		CreatedAt:       d.CreatedAt,
 		UpdatedAt:       d.UpdatedAt,
+		ApprovedAt:      d.ApprovedAt,
 	}
 
 	// Mapping detail items

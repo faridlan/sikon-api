@@ -46,9 +46,11 @@ func TestCreatePayment_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
+	// Pastikan di dalam fungsi ini, order yang di-seed berstatus "quotation"
+	// dan terdapat satu Batch PO yang sedang aktif di hari ini.
 	orderID, bankID := setupPaymentDependencies(db)
 
-	t.Run("Success_Create_DP", func(t *testing.T) {
+	t.Run("Success_Create_DP_And_Check_Auto_Reallocation", func(t *testing.T) {
 		reqBody := dto.PaymentCreateRequest{
 			OrderID:         orderID,
 			BankAccountID:   bankID,
@@ -65,6 +67,29 @@ func TestCreatePayment_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		// --- VERIFIKASI BUSINESS LOGIC BARU ---
+		type OrderModel struct {
+			ID            string
+			OrderStatus   string
+			PaymentStatus string
+			BatchPoID     *string
+			ApprovedAt    *time.Time
+		}
+		var updatedOrder OrderModel
+
+		// Tarik data order terbaru dari database setelah DP masuk
+		err = db.Table("orders").Where("id = ?", orderID).First(&updatedOrder).Error
+		assert.NoError(t, err)
+
+		// 1. Status harus otomatis pindah ke production
+		assert.Equal(t, "production", updatedOrder.OrderStatus)
+		// 2. Status bayar menjadi partial
+		assert.Equal(t, "partial", updatedOrder.PaymentStatus)
+		// 3. ApprovedAt harus terisi (tidak nil)
+		assert.NotNil(t, updatedOrder.ApprovedAt)
+		// 4. BatchPoID harus terisi (mengikat ke PO yang sedang aktif)
+		assert.NotNil(t, updatedOrder.BatchPoID)
 	})
 
 	// --- SKENARIO GAGAL (VALIDASI INPUT) ---
@@ -105,10 +130,9 @@ func TestCreatePayment_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
 
-	// --- SKENARIO BUSINESS RULES (BARU) ---
+	// --- SKENARIO BUSINESS RULES ---
 
 	t.Run("Failed_Overpayment", func(t *testing.T) {
-		// Kasir menginput nominal yang sangat besar melampaui sisa tagihan
 		reqBody := dto.PaymentCreateRequest{
 			OrderID:         orderID,
 			BankAccountID:   bankID,
@@ -123,13 +147,10 @@ func TestCreatePayment_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-		// Harus melempar error 400 Bad Request karena masuk validasi ErrBadParamInput
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
 
 	t.Run("Success_Create_Settlement_And_Check_Status", func(t *testing.T) {
-		// Di Integration Test, kita tidak tahu persis berapa TotalAmount di seeder Anda.
-		// Agar dinamis dan tidak mudah fail, kita ambil sisa tagihannya langsung dari DB DB Testing!
 		type OrderModel struct {
 			ID            string
 			TotalAmount   float64
@@ -146,7 +167,7 @@ func TestCreatePayment_Integration(t *testing.T) {
 		reqBody := dto.PaymentCreateRequest{
 			OrderID:         orderID,
 			BankAccountID:   bankID,
-			Amount:          sisaTagihan, // <-- Bayar LUNAS sesuai sisa tagihan
+			Amount:          sisaTagihan,
 			PaymentDate:     time.Now(),
 			ReferenceNumber: "TRX-LUNAS-001",
 			PaymentType:     "settlement",
@@ -160,14 +181,11 @@ func TestCreatePayment_Integration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
 
-		// VERIFIKASI PENTING: Apakah Status Order benar-benar berubah jadi "paid"?
 		db.Table("orders").Where("id = ?", orderID).First(&testOrder)
 		assert.Equal(t, "paid", testOrder.PaymentStatus)
 	})
 
 	t.Run("Failed_Already_Fully_Paid", func(t *testing.T) {
-		// Karena di test case sebelumnya ("Success_Create_Settlement...") tagihan sudah LUNAS,
-		// maka jika kita coba bayar lagi, harusnya ditolak oleh sistem.
 		reqBody := dto.PaymentCreateRequest{
 			OrderID:         orderID,
 			BankAccountID:   bankID,
@@ -182,7 +200,6 @@ func TestCreatePayment_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-		// Harus melempar 409 Conflict sesuai domain.ErrConflict "Pesanan sudah lunas sepenuhnya"
 		assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 	})
 }

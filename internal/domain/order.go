@@ -61,6 +61,7 @@ type Order struct {
 	Notes           string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	ApprovedAt      *time.Time
 
 	// Relasi
 	Items    []OrderItem

@@ -46,6 +46,7 @@ type BatchPORepository interface {
 	FetchActive(ctx context.Context) ([]BatchPO, error) // Khusus untuk dropdown Sales
 	Update(ctx context.Context, batchPO *BatchPO) error
 	Delete(ctx context.Context, id string) error
+	GetActivePOByDate(ctx context.Context, targetDate time.Time) (*BatchPO, error)
 }
 
 type BatchPOUsecase interface {

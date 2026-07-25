@@ -377,8 +377,18 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 	cust := tests.SeedCustomer(db, "C", "08", "Jkt")
 	cat := tests.SeedCategory(db, "Cat")
 	prod := tests.SeedProduct(db, cat.ID, "Prod", 100)
-	batchPo := tests.SeedBatchPO(db, "Batch PO Test", "active")
-	order := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID)
+
+	// --- SETUP PO UNTUK SKENARIO RE-ALOKASI ---
+	// 1. Buat PO Lama (Bulan lalu)
+	oldBatchPo := tests.SeedBatchPO(db, "PO Lama Bulan Lalu", "closed")
+	db.Exec("UPDATE batch_pos SET start_date = ?, end_date = ? WHERE id = ?", time.Now().Add(-720*time.Hour), time.Now().Add(-480*time.Hour), oldBatchPo.ID)
+
+	// 2. Buat PO Aktif (Hari Ini)
+	activeBatchPo := tests.SeedBatchPO(db, "PO Aktif Bulan Ini", "active")
+	db.Exec("UPDATE batch_pos SET start_date = ?, end_date = ? WHERE id = ?", time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), activeBatchPo.ID)
+
+	// 3. Buat order yang awalnya nyangkut di PO Lama
+	order := tests.SeedOrder(db, oldBatchPo.ID, cust.ID, sales.ID, prod.ID)
 
 	// =========================================================================
 	// 1. TAHAP QUOTATION -> PENDING
@@ -399,8 +409,8 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 	})
 
-	t.Run("Success_Update_Quotation_To_Pending_With_DP", func(t *testing.T) {
-		// SETUP: Customer sudah bayar DP (partial)
+	t.Run("Success_Update_Quotation_To_Pending_With_DP_And_Reallocate", func(t *testing.T) {
+		// SETUP: Customer sudah bayar DP (partial), siap di-approve
 		db.Exec("UPDATE orders SET order_status = ?, payment_status = ? WHERE id = ?", "quotation", "partial", order.ID)
 
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "pending"}
@@ -412,6 +422,26 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		// --- VERIFIKASI BUSINESS LOGIC BARU (AUTO RE-ALLOCATION) ---
+		type OrderModel struct {
+			OrderStatus string
+			BatchPoID   *string
+			ApprovedAt  *time.Time
+		}
+		var updatedOrder OrderModel
+		db.Table("orders").Where("id = ?", order.ID).First(&updatedOrder)
+
+		// 1. Status harus berubah jadi pending
+		assert.Equal(t, "pending", updatedOrder.OrderStatus)
+
+		// 2. ApprovedAt harus terisi otomatis
+		assert.NotNil(t, updatedOrder.ApprovedAt, "ApprovedAt harusnya terisi saat di-approve")
+
+		// 3. Batch PO ID harus berpindah ke PO yang aktif hari ini
+		assert.NotNil(t, updatedOrder.BatchPoID)
+		assert.Equal(t, activeBatchPo.ID, *updatedOrder.BatchPoID, "Order harusnya pindah ke PO yang aktif hari ini")
+		assert.NotEqual(t, oldBatchPo.ID, *updatedOrder.BatchPoID, "Order tidak boleh tetap di PO yang lama")
 	})
 
 	// =========================================================================

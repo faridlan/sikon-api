@@ -240,15 +240,11 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi input mentah
 	if !status.IsValid() {
 		return domain.NewError(domain.ErrBadParamInput, "Status order tidak valid")
 	}
 
-	// 🚨 MULAI PROSES TRANSAKSI (Gunakan Kertas Buram agar aman)
 	return u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
-
-		// 1. Ambil data Order SAAT INI (Gunakan GetByIDForUpdate untuk menggembok data)
 		order, err := u.orderRepo.GetByIDForUpdate(txCtx, id)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
@@ -257,14 +253,29 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 			return err
 		}
 
-		// 2. Panggil Satpam (State Machine) di Domain Layer
-		// Di sinilah keajaiban Clean Architecture terjadi. Usecase tidak perlu tahu aturan pabriknya.
+		// 🚨 SIMPAN STATUS LAMA SEBELUM SATPAM MENGUBAHNYA
+		oldStatus := order.OrderStatus
+
+		// 2. Panggil Satpam (State Machine)
 		if err := order.TransitionStatus(status); err != nil {
-			return err // Langsung lemparkan error dari satpam (misal: "Belum lunas!")
+			return err
 		}
 
-		// 3. Jika Satpam mengizinkan (err = nil), simpan status barunya ke Database
-		if err := u.orderRepo.UpdateStatus(txCtx, id, order.OrderStatus, ""); err != nil {
+		// 🚨 LOGIC RE-ALOKASI PO OTOMATIS
+		// Picu re-alokasi saat order di-approve (Quotation -> Pending)
+		if oldStatus == domain.OrderStatusQuotation && status == domain.OrderStatusPending {
+			now := time.Now()
+			order.ApprovedAt = &now
+
+			// Cari PO yang aktif hari ini
+			activePO, err := u.batchPoRepo.GetActivePOByDate(txCtx, now)
+			if err == nil && activePO != nil {
+				order.BatchPoID = activePO.ID
+			}
+		}
+
+		// 3. Simpan perubahan penuh ke Database
+		if err := u.orderRepo.Update(txCtx, order); err != nil {
 			return err
 		}
 

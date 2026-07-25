@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
 	"gorm.io/gorm"
@@ -81,4 +82,19 @@ func (r *batchPoRepository) Delete(ctx context.Context, id string) error {
 		return TranslateError(err)
 	}
 	return nil
+}
+
+func (r *batchPoRepository) GetActivePOByDate(ctx context.Context, targetDate time.Time) (*domain.BatchPO, error) {
+	var model BatchPOModel
+	err := r.db.WithContext(ctx).
+		Where("? BETWEEN start_date AND end_date", targetDate).
+		Where("deleted_at IS NULL").
+		Order("created_at DESC"). // Ambil yang paling baru dibuat jika ada overlap
+		First(&model).Error
+
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+
+	return model.ToDomain(), nil
 }
