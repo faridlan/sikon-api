@@ -2526,6 +2526,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/reports/receivables": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menampilkan daftar detail pelanggan dan sales yang masih memiliki piutang (Outstanding Amount \u003e 0).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get Detailed Receivables Report",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableDetailResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/spec-templates": {
             "get": {
                 "description": "Mengambil daftar seluruh template spesifikasi dengan pagination",
@@ -3427,6 +3458,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse": {
             "type": "object",
             "properties": {
@@ -3453,13 +3495,19 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.FinancialSummaryResponse": {
             "type": "object",
             "properties": {
-                "active_po_bill": {
+                "active_po_outstanding": {
                     "type": "number"
                 },
-                "previous_po_bills": {
+                "previous_po_outstanding": {
                     "type": "number"
                 },
-                "sub_total_bill": {
+                "total_outstanding": {
+                    "type": "number"
+                },
+                "total_paid": {
+                    "type": "number"
+                },
+                "total_revenue": {
                     "type": "number"
                 }
             }
@@ -3707,6 +3755,12 @@ const docTemplate = `{
                 },
                 "qty_total_po": {
                     "type": "integer"
+                },
+                "trend_data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse"
+                    }
                 }
             }
         },
@@ -4088,6 +4142,38 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Kaos Polos Lengan Panjang"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "outstanding_amount": {
+                    "type": "number"
+                },
+                "po_name": {
+                    "type": "string"
+                },
+                "po_status": {
+                    "type": "string"
+                },
+                "sales_name": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "total_paid": {
+                    "type": "number"
                 }
             }
         },
@@ -4562,6 +4648,20 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableDetailResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse"
                     }
                 },
                 "message": {

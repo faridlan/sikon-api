@@ -111,6 +111,18 @@ type POSalesSummary struct {
 	TotalRevenue float64
 }
 
+type ReceivableDetail struct {
+	OrderID           string
+	OrderNumber       string
+	POName            string
+	POStatus          string
+	CustomerName      string
+	SalesName         string
+	TotalAmount       float64
+	TotalPaid         float64
+	OutstandingAmount float64
+}
+
 // ReportRepository defines the interface for accessing report-related data from the data source.
 type ReportRepository interface {
 	GetDailyRevenueAndQty(ctx context.Context, startOfDay, endOfDay time.Time) (float64, int64, error)
@@ -122,6 +134,8 @@ type ReportRepository interface {
 	// ---NEW---
 	GetDailyReportData(ctx context.Context, targetDate time.Time) (*DailyReport, error)
 	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
+
+	GetReceivablesDetailData(ctx context.Context) ([]ReceivableDetail, error)
 }
 
 // ReportUsecase defines the interface for the report use case, which provides methods to generate reports based on the data retrieved from the repository.
@@ -131,4 +145,6 @@ type ReportUsecase interface {
 	// ---NEW---
 	GenerateDailyReport(ctx context.Context, dateStr string) (*DailyReport, error)
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
+
+	GetReceivablesDetailReport(ctx context.Context) ([]ReceivableDetail, error)
 }

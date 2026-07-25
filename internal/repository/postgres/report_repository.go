@@ -422,3 +422,36 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 
 	return summary, nil
 }
+
+func (r *reportRepository) GetReceivablesDetailData(ctx context.Context) ([]domain.ReceivableDetail, error) {
+	var details []domain.ReceivableDetail
+
+	err := r.db.WithContext(ctx).Table("orders o").
+		Select(`
+			o.id as order_id,
+			o.order_number,
+			bp.name as po_name,
+			bp.status as po_status,
+			c.name as customer_name,
+			u.name as sales_name,
+			o.total_amount,
+			COALESCE(p.total_paid, 0) as total_paid,
+			(o.total_amount - COALESCE(p.total_paid, 0)) as outstanding_amount
+		`).
+		Joins("LEFT JOIN batch_pos bp ON bp.id = o.batch_po_id AND bp.deleted_at IS NULL").
+		Joins("LEFT JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL").
+		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
+		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
+		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial).
+		Where("(o.total_amount - COALESCE(p.total_paid, 0)) > 0"). // Filter utama: hanya yang masih punya piutang
+		Order("outstanding_amount DESC").                          // Tampilkan dari piutang terbesar
+		Scan(&details).Error
+
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+
+	return details, nil
+}
