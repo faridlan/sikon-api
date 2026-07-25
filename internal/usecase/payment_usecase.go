@@ -15,15 +15,17 @@ type paymentUsecase struct {
 	orderRepo       domain.OrderRepository // Butuh ini untuk mengecek & update status pesanan
 	bankAccountRepo domain.BankAccountRepository
 	txManager       domain.TransactionManager
+	batchPoRepo     domain.BatchPORepository
 	contextTimeout  time.Duration
 }
 
-func NewPaymentUsecase(pr domain.PaymentRepository, or domain.OrderRepository, br domain.BankAccountRepository, tx domain.TransactionManager, timeout time.Duration) domain.PaymentUsecase {
+func NewPaymentUsecase(pr domain.PaymentRepository, or domain.OrderRepository, br domain.BankAccountRepository, tx domain.TransactionManager, bpr domain.BatchPORepository, timeout time.Duration) domain.PaymentUsecase {
 	return &paymentUsecase{
 		paymentRepo:     pr,
 		orderRepo:       or,
 		bankAccountRepo: br,
 		txManager:       tx,
+		batchPoRepo:     bpr,
 		contextTimeout:  timeout,
 	}
 }
@@ -95,7 +97,7 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 			return err
 		}
 
-		// 5. Update Status Order
+		// 5. Update Status Order & Re-alokasi PO (Jika masih Quotation)
 		totalPaidSetelahMasuk := totalPaid + payment.Amount
 		newPaymentStatus := domain.PaymentStatusPartial
 
@@ -103,7 +105,25 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 			newPaymentStatus = domain.PaymentStatusPaid
 		}
 
-		if err := u.orderRepo.UpdateStatus(txCtx, order.ID, "", newPaymentStatus); err != nil {
+		// 🚨 LOGIC RE-ALOKASI PO OTOMATIS 🚨
+		// Jika ini adalah pembayaran pertama, status berubah menjadi Production
+		if order.OrderStatus == domain.OrderStatusQuotation {
+			order.OrderStatus = domain.OrderStatusProduction
+			now := time.Now()
+			order.ApprovedAt = &now
+
+			// Cari PO yang aktif hari ini
+			activePO, err := u.batchPoRepo.GetActivePOByDate(txCtx, now)
+			if err == nil && activePO != nil {
+				// Pindahkan order ini ke PO yang sedang aktif saat DP dibayar
+				order.BatchPoID = activePO.ID
+			}
+		}
+
+		order.PaymentStatus = newPaymentStatus
+
+		// Gunakan Update penuh karena kita mengubah banyak field (bukan cuma status)
+		if err := u.orderRepo.Update(txCtx, order); err != nil {
 			return err
 		}
 
