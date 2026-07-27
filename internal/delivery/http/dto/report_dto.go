@@ -115,6 +115,36 @@ type ReceivableDetailResponse struct {
 	OutstandingAmount float64 `json:"outstanding_amount"`
 }
 
+type MonthlyReportResponse struct {
+	Month             int                         `json:"month"`
+	Year              int                         `json:"year"`
+	PeriodName        string                      `json:"period_name"`
+	Summary           MonthlySummaryResponse      `json:"summary"`
+	DailyTrends       []MonthlyDailyTrendResponse `json:"daily_trends"`
+	SalesPerformances []SalesPerformanceResponse  `json:"sales_performances"`
+}
+
+type MonthlySummaryResponse struct {
+	TotalOmset      float64 `json:"total_omset"`
+	TotalCashIn     float64 `json:"total_cash_in"`
+	TotalReceivable float64 `json:"total_receivable"`
+	TotalOrderCount int     `json:"total_order_count"`
+	TotalItemQty    int     `json:"total_item_qty"`
+}
+
+type MonthlyDailyTrendResponse struct {
+	Date        string  `json:"date"`
+	OmsetAmount float64 `json:"omset_amount"`
+	CashIn      float64 `json:"cash_in"`
+}
+
+type SalesPerformanceResponse struct {
+	SalesID     string  `json:"sales_id"`
+	SalesName   string  `json:"sales_name"`
+	TotalOmset  float64 `json:"total_omset"`
+	TotalOrders int     `json:"total_orders"`
+}
+
 func ToReportResponse(src *domain.ReportResponse) ReportResponse {
 	if src == nil {
 		return ReportResponse{}
@@ -267,4 +297,35 @@ func ToReceivableDetailListResponse(data []domain.ReceivableDetail) []Receivable
 	}
 
 	return responses
+}
+
+func ToMonthlyReportResponse(data *domain.MonthlyReport) *MonthlyReportResponse {
+	if data == nil {
+		return nil
+	}
+
+	resp := &MonthlyReportResponse{
+		Month:      data.Month,
+		Year:       data.Year,
+		PeriodName: data.PeriodName,
+		Summary: MonthlySummaryResponse{
+			TotalOmset:      data.Summary.TotalOmset,
+			TotalCashIn:     data.Summary.TotalCashIn,
+			TotalReceivable: data.Summary.TotalReceivable,
+			TotalOrderCount: data.Summary.TotalOrderCount,
+			TotalItemQty:    data.Summary.TotalItemQty,
+		},
+		DailyTrends:       make([]MonthlyDailyTrendResponse, 0),
+		SalesPerformances: make([]SalesPerformanceResponse, 0),
+	}
+
+	for _, v := range data.DailyTrends {
+		resp.DailyTrends = append(resp.DailyTrends, MonthlyDailyTrendResponse(v))
+	}
+
+	for _, v := range data.SalesPerformances {
+		resp.SalesPerformances = append(resp.SalesPerformances, SalesPerformanceResponse(v))
+	}
+
+	return resp
 }

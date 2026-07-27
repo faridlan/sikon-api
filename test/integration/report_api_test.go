@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
 	"github.com/faridlan/sikon-api/internal/domain"
 	postgresRepo "github.com/faridlan/sikon-api/internal/repository/postgres"
 	tests "github.com/faridlan/sikon-api/test"
@@ -426,4 +428,116 @@ func TestGetReceivablesReportEndpoint(t *testing.T) {
 	assert.Equal(t, float64(450000), firstData.TotalAmount)
 	assert.Equal(t, float64(0), firstData.TotalPaid) // Karena unpaid, total_paid = 0
 	assert.Equal(t, float64(450000), firstData.OutstandingAmount)
+}
+
+// Tambahkan di bagian paling bawah file integration/report_api_test.go
+func TestGetMonthlyReportEndpoint(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	// --- 1. Seeding Data Master ---
+	category := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Jaket"}
+	assert.NoError(t, db.Create(&category).Error)
+
+	product := postgresRepo.ProductModel{ID: uuid.NewString(), CategoryID: category.ID, Name: "Jaket Outdoor", BasePrice: 100000}
+	assert.NoError(t, db.Create(&product).Error)
+
+	sales := postgresRepo.UserModel{ID: uuid.NewString(), Name: "Sales Juli", Email: "salesjuli@example.com", Role: "sales"}
+	assert.NoError(t, db.Create(&sales).Error)
+
+	customer := postgresRepo.CustomerModel{ID: uuid.NewString(), Name: "PT Bulan Ini", CreatedBy: sales.ID, SalesID: &sales.ID}
+	assert.NoError(t, db.Create(&customer).Error)
+
+	batchPO := postgresRepo.BatchPOModel{
+		ID:        uuid.NewString(),
+		Name:      "PO JULI 2026",
+		Status:    string(domain.BatchPOStatusActive),
+		Quota:     100,
+		StartDate: time.Now().Add(-72 * time.Hour),
+		EndDate:   time.Now().Add(72 * time.Hour),
+	}
+	assert.NoError(t, db.Create(&batchPO).Error)
+
+	bank := postgresRepo.BankAccountModel{ID: uuid.NewString(), BankName: "BCA", AccountNumber: "123", AccountName: "Bos"}
+	assert.NoError(t, db.Create(&bank).Error)
+
+	// --- 2. Setup Data Transaksi (Modifikasi Tanggal Langsung di DB agar simulasi bulan JULI 2026) ---
+
+	// Gunakan waktu statis Juli 2026
+	juliTime := time.Date(2026, 7, 10, 10, 0, 0, 0, time.Local)
+
+	// Order 1: Total 1.000.000, Approved di Juli 2026
+	order1 := postgresRepo.OrderModel{
+		ID:            uuid.NewString(),
+		OrderNumber:   "ORD-JULI-001",
+		BatchPoID:     &batchPO.ID,
+		CustomerID:    customer.ID,
+		SalesID:       sales.ID,
+		TotalAmount:   1000000,
+		OrderStatus:   string(domain.OrderStatusProduction),
+		PaymentStatus: string(domain.PaymentStatusPartial),
+		CreatedAt:     juliTime,
+		UpdatedAt:     juliTime,
+	}
+	// Paksa ApprovedAt terisi agar masuk ke query Monthly Report
+	db.Create(&order1)
+	db.Exec("UPDATE orders SET approved_at = ? WHERE id = ?", "2026-07-10 10:00:00", order1.ID)
+
+	// Order Item 1 (10 pcs)
+	orderItem1 := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order1.ID, ProductID: product.ID, Qty: 10, Price: 100000}
+	db.Create(&orderItem1)
+
+	// Pembayaran 1: DP 500.000 di Juli 2026
+	payment1 := postgresRepo.PaymentModel{
+		ID:              uuid.NewString(),
+		OrderID:         order1.ID,
+		BankAccountID:   bank.ID,
+		Amount:          500000,
+		PaymentDate:     juliTime, // 10 Juli 2026
+		ReferenceNumber: "DP-001",
+	}
+	db.Create(&payment1)
+
+	// --- 3. Hit Endpoint API & Assert ---
+	t.Run("Success_Get_Monthly_Report_July_2026", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/reports/monthly?month=7&year=2026", bytes.NewBuffer(nil))
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data dto.MonthlyReportResponse `json:"data"`
+		}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		report := response.Data
+		assert.Equal(t, 7, report.Month)
+		assert.Equal(t, 2026, report.Year)
+
+		// Validasi Kalkulasi Keuangan
+		assert.Equal(t, float64(1000000), report.Summary.TotalOmset)
+		assert.Equal(t, float64(500000), report.Summary.TotalCashIn)
+
+		// Piutang = Omset (1jt) - Cash In (500rb) = 500.000
+		assert.Equal(t, float64(500000), report.Summary.TotalReceivable)
+
+		assert.Equal(t, 1, report.Summary.TotalOrderCount)
+		assert.Equal(t, 10, report.Summary.TotalItemQty)
+
+		// Validasi Leaderboard Sales
+		assert.NotEmpty(t, report.SalesPerformances)
+		assert.Equal(t, "Sales Juli", report.SalesPerformances[0].SalesName)
+
+		// Validasi trend harian (tanggal 1-31) ter-generate tanpa bolong
+		assert.Equal(t, 31, len(report.DailyTrends))
+	})
+
+	t.Run("Failed_Invalid_Month_Param", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/reports/monthly?month=13", bytes.NewBuffer(nil))
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	})
 }

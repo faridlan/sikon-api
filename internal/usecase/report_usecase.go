@@ -123,3 +123,18 @@ func (u *reportUsecase) GetReceivablesDetailReport(c context.Context) ([]domain.
 	// Pastikan yang di-return adalah 'data'
 	return data, nil
 }
+
+func (u *reportUsecase) GetMonthlyReport(c context.Context, month, year int) (*domain.MonthlyReport, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// Validasi input
+	if month < 1 || month > 12 {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Bulan tidak valid (1-12)")
+	}
+	if year < 2000 {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Tahun tidak valid")
+	}
+
+	return u.reportRepo.GetMonthlyReportData(ctx, month, year)
+}

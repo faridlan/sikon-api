@@ -1,6 +1,8 @@
 package http
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
@@ -13,6 +15,7 @@ type ReportHandler interface {
 	GenerateDailyReport(c *fiber.Ctx) error
 	GetPOSummaryReport(c *fiber.Ctx) error
 	GetReceivablesReport(c *fiber.Ctx) error
+	GetMonthlyReport(c *fiber.Ctx) error
 }
 
 type reportHandler struct {
@@ -102,5 +105,33 @@ func (h *reportHandler) GetReceivablesReport(c *fiber.Ctx) error {
 		fiber.StatusOK,
 		"Successfully fetched detailed receivables report",
 		dto.ToReceivableDetailListResponse(data),
+	)
+}
+
+// @Summary Get Monthly Dashboard Report
+// @Description Mengambil laporan performa penjualan, omset, arus kas, dan kinerja sales per bulan.
+// @Tags Reports
+// @Produce json
+// @Security BearerAuth
+// @Param month query int false "Bulan (1-12) - Default: Bulan saat ini"
+// @Param year query int false "Tahun - Default: Tahun saat ini"
+// @Success 200 {object} utils.SuccessResponse[dto.MonthlyReportResponse]
+// @Router /reports/monthly [get]
+func (h *reportHandler) GetMonthlyReport(c *fiber.Ctx) error {
+	// Default ke bulan & tahun sekarang jika query tidak diisi
+	now := time.Now()
+	month := c.QueryInt("month", int(now.Month()))
+	year := c.QueryInt("year", now.Year())
+
+	data, err := h.reportUsecase.GetMonthlyReport(c.Context(), month, year)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(
+		c,
+		fiber.StatusOK,
+		"Successfully fetched monthly report",
+		dto.ToMonthlyReportResponse(data),
 	)
 }

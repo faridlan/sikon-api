@@ -455,3 +455,104 @@ func (r *reportRepository) GetReceivablesDetailData(ctx context.Context) ([]doma
 
 	return details, nil
 }
+
+func (r *reportRepository) GetMonthlyReportData(ctx context.Context, month, year int) (*domain.MonthlyReport, error) {
+	// Tentukan rentang waktu: Awal bulan ini sampai awal bulan depan
+	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	endDate := startDate.AddDate(0, 1, 0)
+
+	var report domain.MonthlyReport
+	report.Month = month
+	report.Year = year
+	report.PeriodName = startDate.Format("January 2006")
+
+	// 1. Ambil Summary Orders (Berdasarkan approved_at)
+	var totalOrders int64
+	var totalOmset float64
+	r.db.WithContext(ctx).Table("orders").
+		Where("approved_at >= ? AND approved_at < ? AND deleted_at IS NULL", startDate, endDate).
+		Count(&totalOrders)
+
+	r.db.WithContext(ctx).Table("orders").
+		Where("approved_at >= ? AND approved_at < ? AND deleted_at IS NULL", startDate, endDate).
+		Select("COALESCE(SUM(total_amount), 0)").Scan(&totalOmset)
+
+	// 2. Ambil Summary Total Qty Barang
+	var totalQty int64
+	r.db.WithContext(ctx).Table("order_items").
+		Joins("JOIN orders ON orders.id = order_items.order_id").
+		Where("orders.approved_at >= ? AND orders.approved_at < ? AND orders.deleted_at IS NULL AND order_items.deleted_at IS NULL", startDate, endDate).
+		Select("COALESCE(SUM(order_items.qty), 0)").Scan(&totalQty)
+
+	// 3. Ambil Summary Cash In (Berdasarkan payment_date)
+	var totalCashIn float64
+	r.db.WithContext(ctx).Table("payments").
+		Where("payment_date >= ? AND payment_date < ? AND deleted_at IS NULL", startDate, endDate).
+		Select("COALESCE(SUM(amount), 0)").Scan(&totalCashIn)
+
+	// 4. Hitung Piutang Baru (Sisa tagihan DARI order yang masuk bulan ini)
+	var piutangBaru float64
+	r.db.WithContext(ctx).Table("orders").
+		Select("COALESCE(SUM(orders.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.order_id = orders.id AND payments.deleted_at IS NULL)), 0)").
+		Where("approved_at >= ? AND approved_at < ? AND deleted_at IS NULL", startDate, endDate).
+		Scan(&piutangBaru)
+
+	report.Summary = domain.MonthlySummary{
+		TotalOmset:      totalOmset,
+		TotalCashIn:     totalCashIn,
+		TotalReceivable: piutangBaru,
+		TotalOrderCount: int(totalOrders),
+		TotalItemQty:    int(totalQty),
+	}
+
+	// 5. Leaderboard Sales
+	r.db.WithContext(ctx).Table("orders").
+		Select("users.id as sales_id, users.name as sales_name, COUNT(orders.id) as total_orders, SUM(orders.total_amount) as total_omset").
+		Joins("JOIN users ON users.id = orders.sales_id").
+		Where("orders.approved_at >= ? AND orders.approved_at < ? AND orders.deleted_at IS NULL", startDate, endDate).
+		Group("users.id, users.name").
+		Order("total_omset DESC").
+		Scan(&report.SalesPerformances)
+
+	// 6. Menyusun Daily Trends (Grafik Harian)
+	type dailyResult struct {
+		Date   string
+		Amount float64
+	}
+	var omsetResults []dailyResult
+	var cashInResults []dailyResult
+
+	r.db.WithContext(ctx).Table("orders").
+		Select("TO_CHAR(approved_at, 'YYYY-MM-DD') as date, SUM(total_amount) as amount").
+		Where("approved_at >= ? AND approved_at < ? AND deleted_at IS NULL", startDate, endDate).
+		Group("TO_CHAR(approved_at, 'YYYY-MM-DD')").Scan(&omsetResults)
+
+	r.db.WithContext(ctx).Table("payments").
+		Select("TO_CHAR(payment_date, 'YYYY-MM-DD') as date, SUM(amount) as amount").
+		Where("payment_date >= ? AND payment_date < ? AND deleted_at IS NULL", startDate, endDate).
+		Group("TO_CHAR(payment_date, 'YYYY-MM-DD')").Scan(&cashInResults)
+
+	// Petakan hasil ke kalender bulan penuh agar grafik FE tidak bolong
+	daysInMonth := endDate.AddDate(0, 0, -1).Day()
+	omsetMap := make(map[string]float64)
+	for _, r := range omsetResults {
+		omsetMap[r.Date] = r.Amount
+	}
+	cashInMap := make(map[string]float64)
+	for _, r := range cashInResults {
+		cashInMap[r.Date] = r.Amount
+	}
+
+	for i := 1; i <= daysInMonth; i++ {
+		dateStr := time.Date(year, time.Month(month), i, 0, 0, 0, 0, time.Local).Format("2006-01-02")
+
+		// <-- Pastikan struct di sini menggunakan MonthlyDailyTrend
+		report.DailyTrends = append(report.DailyTrends, domain.MonthlyDailyTrend{
+			Date:        dateStr,
+			OmsetAmount: omsetMap[dateStr],
+			CashIn:      cashInMap[dateStr],
+		})
+	}
+
+	return &report, nil
+}

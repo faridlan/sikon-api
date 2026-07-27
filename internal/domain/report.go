@@ -123,6 +123,36 @@ type ReceivableDetail struct {
 	OutstandingAmount float64
 }
 
+type MonthlyReport struct {
+	Month             int
+	Year              int
+	PeriodName        string
+	Summary           MonthlySummary
+	DailyTrends       []MonthlyDailyTrend
+	SalesPerformances []SalesPerformance
+}
+
+type MonthlySummary struct {
+	TotalOmset      float64
+	TotalCashIn     float64
+	TotalReceivable float64
+	TotalOrderCount int
+	TotalItemQty    int
+}
+
+type MonthlyDailyTrend struct {
+	Date        string
+	OmsetAmount float64
+	CashIn      float64
+}
+
+type SalesPerformance struct {
+	SalesID     string
+	SalesName   string
+	TotalOmset  float64
+	TotalOrders int
+}
+
 // ReportRepository defines the interface for accessing report-related data from the data source.
 type ReportRepository interface {
 	GetDailyRevenueAndQty(ctx context.Context, startOfDay, endOfDay time.Time) (float64, int64, error)
@@ -136,6 +166,8 @@ type ReportRepository interface {
 	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
 
 	GetReceivablesDetailData(ctx context.Context) ([]ReceivableDetail, error)
+
+	GetMonthlyReportData(ctx context.Context, month, year int) (*MonthlyReport, error)
 }
 
 // ReportUsecase defines the interface for the report use case, which provides methods to generate reports based on the data retrieved from the repository.
@@ -147,4 +179,6 @@ type ReportUsecase interface {
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
 
 	GetReceivablesDetailReport(ctx context.Context) ([]ReceivableDetail, error)
+
+	GetMonthlyReport(ctx context.Context, month, year int) (*MonthlyReport, error)
 }
