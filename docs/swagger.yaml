@@ -304,6 +304,47 @@ definitions:
       total_revenue:
         type: number
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyDailyTrendResponse:
+    properties:
+      cash_in:
+        type: number
+      date:
+        type: string
+      omset_amount:
+        type: number
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyReportResponse:
+    properties:
+      daily_trends:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyDailyTrendResponse'
+        type: array
+      month:
+        type: integer
+      period_name:
+        type: string
+      sales_performances:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceResponse'
+        type: array
+      summary:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlySummaryResponse'
+      year:
+        type: integer
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlySummaryResponse:
+    properties:
+      total_cash_in:
+        type: number
+      total_item_qty:
+        type: integer
+      total_omset:
+        type: number
+      total_order_count:
+        type: integer
+      total_receivable:
+        type: number
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
     properties:
       batch_po_id:
@@ -827,6 +868,17 @@ definitions:
       total_qty:
         type: integer
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceResponse:
+    properties:
+      sales_id:
+        type: string
+      sales_name:
+        type: string
+      total_omset:
+        type: number
+      total_orders:
+        type: integer
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceTodayResponse:
     properties:
       product_category:
@@ -1164,6 +1216,13 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse'
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MonthlyReportResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyReportResponse'
       message:
         type: string
     type: object
@@ -2885,6 +2944,31 @@ paths:
       security:
       - BearerAuth: []
       summary: Generate Daily Report (New)
+      tags:
+      - Reports
+  /reports/monthly:
+    get:
+      description: Mengambil laporan performa penjualan, omset, arus kas, dan kinerja
+        sales per bulan.
+      parameters:
+      - description: 'Bulan (1-12) - Default: Bulan saat ini'
+        in: query
+        name: month
+        type: integer
+      - description: 'Tahun - Default: Tahun saat ini'
+        in: query
+        name: year
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MonthlyReportResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Monthly Dashboard Report
       tags:
       - Reports
   /reports/po/{po_id}/summary:

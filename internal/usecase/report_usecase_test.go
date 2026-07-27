@@ -25,6 +25,7 @@ type stubReportRepository struct {
 	dailyReport       *domain.DailyReport
 	poSummary         *domain.POSummaryReport
 	receivablesDetail []domain.ReceivableDetail
+	monthlyReport     *domain.MonthlyReport
 	err               error
 }
 
@@ -59,6 +60,10 @@ func (s stubReportRepository) GetPOSummaryData(ctx context.Context, poID string)
 func (s stubReportRepository) GetReceivablesDetailData(ctx context.Context) ([]domain.ReceivableDetail, error) {
 	// Pastikan me-return s.receivablesDetail
 	return s.receivablesDetail, s.err
+}
+
+func (s stubReportRepository) GetMonthlyReportData(ctx context.Context, month, year int) (*domain.MonthlyReport, error) {
+	return s.monthlyReport, s.err
 }
 
 func TestReportUsecase_GetDailyReport(t *testing.T) {
@@ -290,5 +295,82 @@ func TestReportUsecase_GetReceivablesDetailReport(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Equal(t, "database timeout", err.Error())
+	})
+}
+
+func TestReportUsecase_GetMonthlyReport(t *testing.T) {
+	t.Run("returns monthly report when repository succeeds", func(t *testing.T) {
+		month := 7
+		year := 2026
+
+		mockResponse := &domain.MonthlyReport{
+			Month:      month,
+			Year:       year,
+			PeriodName: "July 2026",
+			Summary: domain.MonthlySummary{
+				TotalOmset:      5000000,
+				TotalCashIn:     3000000,
+				TotalReceivable: 2000000,
+				TotalOrderCount: 10,
+				TotalItemQty:    50,
+			},
+			DailyTrends: []domain.MonthlyDailyTrend{
+				{Date: "2026-07-01", OmsetAmount: 1000000, CashIn: 500000},
+			},
+			SalesPerformances: []domain.SalesPerformance{
+				{SalesID: "sales-1", SalesName: "Sales A", TotalOmset: 5000000, TotalOrders: 10},
+			},
+		}
+
+		repo := stubReportRepository{monthlyReport: mockResponse}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetMonthlyReport(context.Background(), month, year)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(5000000), result.Summary.TotalOmset)
+		assert.Equal(t, float64(3000000), result.Summary.TotalCashIn)
+		assert.Equal(t, float64(2000000), result.Summary.TotalReceivable)
+		assert.Len(t, result.DailyTrends, 1)
+		assert.Len(t, result.SalesPerformances, 1)
+	})
+
+	t.Run("returns error when month is invalid", func(t *testing.T) {
+		repo := stubReportRepository{}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		// Bulan 13 tidak valid
+		result, err := uc.GetMonthlyReport(context.Background(), 13, 2026)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
+	})
+
+	t.Run("returns error when year is invalid", func(t *testing.T) {
+		repo := stubReportRepository{}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		// Tahun di bawah 2000 tidak valid
+		result, err := uc.GetMonthlyReport(context.Background(), 7, 1999)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
+	})
+
+	t.Run("returns error when repository fails", func(t *testing.T) {
+		repo := stubReportRepository{err: errors.New("db error")}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetMonthlyReport(context.Background(), 7, 2026)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
 	})
 }

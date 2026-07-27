@@ -74,6 +74,36 @@ func (_m *ReportUsecase) GetDailyReport(ctx context.Context, date string) (*doma
 	return r0, r1
 }
 
+// GetMonthlyReport provides a mock function with given fields: ctx, month, year
+func (_m *ReportUsecase) GetMonthlyReport(ctx context.Context, month int, year int) (*domain.MonthlyReport, error) {
+	ret := _m.Called(ctx, month, year)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMonthlyReport")
+	}
+
+	var r0 *domain.MonthlyReport
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) (*domain.MonthlyReport, error)); ok {
+		return rf(ctx, month, year)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) *domain.MonthlyReport); ok {
+		r0 = rf(ctx, month, year)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.MonthlyReport)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
+		r1 = rf(ctx, month, year)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPOSummaryReport provides a mock function with given fields: ctx, poID
 func (_m *ReportUsecase) GetPOSummaryReport(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
 	ret := _m.Called(ctx, poID)
