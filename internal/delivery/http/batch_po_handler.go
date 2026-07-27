@@ -45,10 +45,12 @@ func (h *batchPoHandler) CreateBatchPO(c *fiber.Ctx) error {
 	}
 
 	input := domain.BatchPOCreateInput{
-		Name:      req.Name,
-		StartDate: req.StartDate,
-		EndDate:   req.EndDate,
-		Quota:     req.Quota,
+		Name:        req.Name,
+		TargetMonth: req.TargetMonth, // <-- Meneruskan TargetMonth dari JSON
+		TargetYear:  req.TargetYear,  // <-- Meneruskan TargetYear dari JSON
+		StartDate:   req.StartDate,
+		EndDate:     req.EndDate,
+		Quota:       req.Quota,
 	}
 
 	batchPO, err := h.batchPoUsecase.CreateBatchPO(c.Context(), input)
@@ -141,10 +143,12 @@ func (h *batchPoHandler) UpdateBatchPO(c *fiber.Ctx) error {
 	}
 
 	input := domain.BatchPOUpdateInput{
-		Name:      req.Name,
-		StartDate: req.StartDate,
-		EndDate:   req.EndDate,
-		Quota:     req.Quota,
+		Name:        req.Name,
+		TargetMonth: req.TargetMonth, // <-- Meneruskan TargetMonth dari JSON
+		TargetYear:  req.TargetYear,  // <-- Meneruskan TargetYear dari JSON
+		StartDate:   req.StartDate,
+		EndDate:     req.EndDate,
+		Quota:       req.Quota,
 	}
 
 	batchPO, err := h.batchPoUsecase.UpdateBatchPO(c.Context(), id, input)
