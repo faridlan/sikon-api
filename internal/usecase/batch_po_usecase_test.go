@@ -24,14 +24,20 @@ func TestBatchPOUsecase_CreateBatchPO(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockRepo, uc := setupBatchPOTest()
 		input := domain.BatchPOCreateInput{
-			Name:      "PO Juni 2026",
-			StartDate: time.Now(),
-			EndDate:   time.Now().AddDate(0, 0, 7),
-			Quota:     100,
+			Name:        "PO Juni 2026",
+			TargetMonth: 6,    // <-- TAMBAHAN
+			TargetYear:  2026, // <-- TAMBAHAN
+			StartDate:   time.Now(),
+			EndDate:     time.Now().AddDate(0, 0, 7),
+			Quota:       100,
 		}
 
 		mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(b *domain.BatchPO) bool {
-			return b.Name == input.Name && b.Status == domain.BatchPOStatusDraft
+			// <-- PASTIKAN MOCK MENGECEK FIELD BARU INI
+			return b.Name == input.Name &&
+				b.TargetMonth == 6 &&
+				b.TargetYear == 2026 &&
+				b.Status == domain.BatchPOStatusDraft
 		})).Return(nil).Once()
 
 		result, err := uc.CreateBatchPO(context.Background(), input)
@@ -39,12 +45,14 @@ func TestBatchPOUsecase_CreateBatchPO(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, domain.BatchPOStatusDraft, result.Status)
+		assert.Equal(t, 6, result.TargetMonth)
+		assert.Equal(t, 2026, result.TargetYear)
 		mockRepo.AssertExpectations(t)
 	})
 
 	t.Run("Error - Repo Failed", func(t *testing.T) {
 		mockRepo, uc := setupBatchPOTest()
-		input := domain.BatchPOCreateInput{Name: "PO Error"}
+		input := domain.BatchPOCreateInput{Name: "PO Error", TargetMonth: 6, TargetYear: 2026}
 
 		expectedErr := errors.New("database error")
 		mockRepo.On("Create", mock.Anything, mock.Anything).Return(expectedErr).Once()
@@ -128,17 +136,23 @@ func TestBatchPOUsecase_UpdateBatchPO(t *testing.T) {
 	t.Run("Success - Partial Update", func(t *testing.T) {
 		mockRepo, uc := setupBatchPOTest()
 		id := "batch-123"
-		existingData := &domain.BatchPO{ID: id, Name: "PO Lama", Quota: 50}
+		existingData := &domain.BatchPO{ID: id, Name: "PO Lama", Quota: 50, TargetMonth: 5, TargetYear: 2026}
 
+		newName := "PO Baru"
 		newQuota := 200
+		newMonth := 7
+		newYear := 2026
+
 		input := domain.BatchPOUpdateInput{
-			Name:  "PO Baru",
-			Quota: &newQuota,
+			Name:        newName,
+			Quota:       &newQuota,
+			TargetMonth: &newMonth, // <-- UJI UPDATE BULAN
+			TargetYear:  &newYear,
 		}
 
 		mockRepo.On("GetByID", mock.Anything, id).Return(existingData, nil).Once()
 		mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(b *domain.BatchPO) bool {
-			return b.Name == "PO Baru" && b.Quota == 200
+			return b.Name == "PO Baru" && b.Quota == 200 && b.TargetMonth == 7 && b.TargetYear == 2026
 		})).Return(nil).Once()
 
 		result, err := uc.UpdateBatchPO(context.Background(), id, input)
@@ -146,13 +160,15 @@ func TestBatchPOUsecase_UpdateBatchPO(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "PO Baru", result.Name)
 		assert.Equal(t, 200, result.Quota)
+		assert.Equal(t, 7, result.TargetMonth)
 		mockRepo.AssertExpectations(t)
 	})
 
 	t.Run("Error - Not Found", func(t *testing.T) {
 		mockRepo, uc := setupBatchPOTest()
 		id := "batch-404"
-		input := domain.BatchPOUpdateInput{Name: "PO Baru"}
+		newName := "PO Baru"
+		input := domain.BatchPOUpdateInput{Name: newName}
 
 		mockRepo.On("GetByID", mock.Anything, id).Return(nil, domain.ErrNotFound).Once()
 

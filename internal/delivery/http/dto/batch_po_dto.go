@@ -9,17 +9,21 @@ import (
 // --- REQUEST ---
 
 type BatchPOCreateRequest struct {
-	Name      string    `json:"name" validate:"required" example:"PO 1 Juni 2026"`
-	StartDate time.Time `json:"start_date" validate:"required" example:"2026-05-30T00:00:00Z"`
-	EndDate   time.Time `json:"end_date" validate:"required" example:"2026-06-06T00:00:00Z"`
-	Quota     int       `json:"quota" validate:"gte=0" example:"100"` // 0 berarti unlimited
+	Name        string    `json:"name" validate:"required" example:"PO 1 Juni 2026"`
+	TargetMonth int       `json:"target_month" validate:"required,min=1,max=12" example:"6"`
+	TargetYear  int       `json:"target_year" validate:"required,min=2000" example:"2026"`
+	StartDate   time.Time `json:"start_date" validate:"required" example:"2026-05-30T00:00:00Z"`
+	EndDate     time.Time `json:"end_date" validate:"required" example:"2026-06-06T00:00:00Z"`
+	Quota       int       `json:"quota" validate:"gte=0" example:"100"` // 0 berarti unlimited
 }
 
 type BatchPOUpdateRequest struct {
-	Name      string     `json:"name" validate:"omitempty" example:"PO 1 Juni 2026 Revisi"`
-	StartDate *time.Time `json:"start_date" validate:"omitempty"`
-	EndDate   *time.Time `json:"end_date" validate:"omitempty"`
-	Quota     *int       `json:"quota" validate:"omitempty,gte=0"`
+	Name        string     `json:"name" validate:"omitempty" example:"PO 1 Juni 2026 Revisi"`
+	TargetMonth *int       `json:"target_month,omitempty" validate:"omitempty,min=1,max=12" example:"6"`
+	TargetYear  *int       `json:"target_year,omitempty" validate:"omitempty,min=2000" example:"2026"`
+	StartDate   *time.Time `json:"start_date" validate:"omitempty" example:"2026-05-30T00:00:00Z"`
+	EndDate     *time.Time `json:"end_date" validate:"omitempty" example:"2026-06-06T00:00:00Z"`
+	Quota       *int       `json:"quota" validate:"omitempty,gte=0"`
 }
 
 type BatchPOStatusUpdateRequest struct {
@@ -29,26 +33,30 @@ type BatchPOStatusUpdateRequest struct {
 // --- RESPONSE ---
 
 type BatchPOResponse struct {
-	ID        string    `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Name      string    `json:"name" example:"PO 1 Juni 2026"`
-	StartDate time.Time `json:"start_date" example:"2026-05-30T00:00:00Z"`
-	EndDate   time.Time `json:"end_date" example:"2026-06-06T00:00:00Z"`
-	Status    string    `json:"status" example:"draft"`
-	Quota     int       `json:"quota" example:"100"`
-	CreatedAt time.Time `json:"created_at" example:"2026-05-25T10:00:00Z"`
-	UpdatedAt time.Time `json:"updated_at" example:"2026-05-25T10:00:00Z"`
+	ID          string    `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Name        string    `json:"name" example:"PO 1 Juni 2026"`
+	TargetMonth int       `json:"target_month" example:"6"`
+	TargetYear  int       `json:"target_year" example:"2026"`
+	StartDate   time.Time `json:"start_date" example:"2026-05-30T00:00:00Z"`
+	EndDate     time.Time `json:"end_date" example:"2026-06-06T00:00:00Z"`
+	Status      string    `json:"status" example:"draft"`
+	Quota       int       `json:"quota" example:"100"`
+	CreatedAt   time.Time `json:"created_at" example:"2026-05-25T10:00:00Z"`
+	UpdatedAt   time.Time `json:"updated_at" example:"2026-05-25T10:00:00Z"`
 }
 
 func ToBatchPOResponse(b *domain.BatchPO) BatchPOResponse {
 	return BatchPOResponse{
-		ID:        b.ID,
-		Name:      b.Name,
-		StartDate: b.StartDate,
-		EndDate:   b.EndDate,
-		Status:    string(b.Status),
-		Quota:     b.Quota,
-		CreatedAt: b.CreatedAt,
-		UpdatedAt: b.UpdatedAt,
+		ID:          b.ID,
+		Name:        b.Name,
+		TargetMonth: b.TargetMonth,
+		TargetYear:  b.TargetYear,
+		StartDate:   b.StartDate,
+		EndDate:     b.EndDate,
+		Status:      string(b.Status),
+		Quota:       b.Quota,
+		CreatedAt:   b.CreatedAt,
+		UpdatedAt:   b.UpdatedAt,
 	}
 }
 

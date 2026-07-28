@@ -14,29 +14,35 @@ const (
 )
 
 type BatchPO struct {
-	ID        string
-	Name      string
-	StartDate time.Time
-	EndDate   time.Time
-	Status    BatchPOStatus
-	Quota     int // 0 berarti tidak terbatas (unlimited)
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID          string
+	Name        string
+	TargetMonth int
+	TargetYear  int
+	StartDate   time.Time
+	EndDate     time.Time
+	Status      BatchPOStatus
+	Quota       int // 0 berarti tidak terbatas (unlimited)
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type BatchPOCreateInput struct {
-	Name      string
-	StartDate time.Time
-	EndDate   time.Time
-	Quota     int
+	Name        string
+	TargetMonth int
+	TargetYear  int
+	StartDate   time.Time
+	EndDate     time.Time
+	Quota       int
 }
 
 type BatchPOUpdateInput struct {
-	Name      string
-	StartDate *time.Time
-	EndDate   *time.Time
-	Status    BatchPOStatus
-	Quota     *int
+	Name        string
+	TargetMonth *int
+	TargetYear  *int
+	StartDate   *time.Time
+	EndDate     *time.Time
+	Status      BatchPOStatus
+	Quota       *int
 }
 
 type BatchPORepository interface {

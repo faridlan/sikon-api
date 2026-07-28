@@ -26,11 +26,13 @@ func (u *batchPoUsecase) CreateBatchPO(c context.Context, input domain.BatchPOCr
 	defer cancel()
 
 	batchPO := &domain.BatchPO{
-		Name:      input.Name,
-		StartDate: input.StartDate,
-		EndDate:   input.EndDate,
-		Quota:     input.Quota,
-		Status:    domain.BatchPOStatusDraft, // Otomatis berstatus draft saat pertama kali dibuat
+		Name:        input.Name,
+		TargetMonth: input.TargetMonth, // <-- TAMBAHAN: Mapping TargetMonth
+		TargetYear:  input.TargetYear,  // <-- TAMBAHAN: Mapping TargetYear
+		StartDate:   input.StartDate,
+		EndDate:     input.EndDate,
+		Quota:       input.Quota,
+		Status:      domain.BatchPOStatusDraft, // Otomatis berstatus draft saat pertama kali dibuat
 	}
 
 	if err := u.batchPoRepo.Create(ctx, batchPO); err != nil {
@@ -98,6 +100,12 @@ func (u *batchPoUsecase) UpdateBatchPO(c context.Context, id string, input domai
 
 	if input.Name != "" {
 		batchPO.Name = input.Name
+	}
+	if input.TargetMonth != nil { // <-- TAMBAHAN
+		batchPO.TargetMonth = *input.TargetMonth
+	}
+	if input.TargetYear != nil { // <-- TAMBAHAN
+		batchPO.TargetYear = *input.TargetYear
 	}
 	if input.StartDate != nil {
 		batchPO.StartDate = *input.StartDate

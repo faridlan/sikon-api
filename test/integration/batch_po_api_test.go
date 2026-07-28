@@ -24,10 +24,12 @@ func TestBatchPO_Integration(t *testing.T) {
 		tests.ClearTables(db)
 
 		reqBody := dto.BatchPOCreateRequest{
-			Name:      "PO Lebaran 2026",
-			StartDate: time.Now(),
-			EndDate:   time.Now().AddDate(0, 0, 14),
-			Quota:     500,
+			Name:        "PO Lebaran 2026",
+			TargetMonth: 3,    // <-- TAMBAHAN: Maret
+			TargetYear:  2026, // <-- TAMBAHAN: 2026
+			StartDate:   time.Now(),
+			EndDate:     time.Now().AddDate(0, 0, 14),
+			Quota:       500,
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -44,15 +46,39 @@ func TestBatchPO_Integration(t *testing.T) {
 
 		assert.NotEmpty(t, response.Data.ID)
 		assert.Equal(t, "PO Lebaran 2026", response.Data.Name)
-		assert.Equal(t, "draft", response.Data.Status) // Memastikan default status bekerja
+		assert.Equal(t, 3, response.Data.TargetMonth)   // <-- ASSERTION BARU
+		assert.Equal(t, 2026, response.Data.TargetYear) // <-- ASSERTION BARU
+		assert.Equal(t, "draft", response.Data.Status)
 		assert.Equal(t, 500, response.Data.Quota)
 	})
 
-	t.Run("Create Batch PO - Validation Error", func(t *testing.T) {
+	t.Run("Create Batch PO - Validation Error (Nama Kosong)", func(t *testing.T) {
 		tests.ClearTables(db)
 
 		reqBody := dto.BatchPOCreateRequest{
-			Name: "", // Dikosongkan agar gagal validasi
+			Name:        "", // Dikosongkan agar gagal validasi
+			TargetMonth: 3,
+			TargetYear:  2026,
+		}
+		bodyJson, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest("POST", "/api/batch-pos", bytes.NewBuffer(bodyJson))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	})
+
+	// --- SKENARIO BARU: VALIDASI BULAN TIDAK MASUK AKAL ---
+	t.Run("Create Batch PO - Validation Error (Bulan Invalid)", func(t *testing.T) {
+		tests.ClearTables(db)
+
+		reqBody := dto.BatchPOCreateRequest{
+			Name:        "PO Error",
+			TargetMonth: 13, // <-- Gagal: Maksimal 12
+			TargetYear:  2026,
+			Quota:       100,
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
