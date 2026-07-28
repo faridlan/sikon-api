@@ -1,16 +1,55 @@
 basePath: /api
 definitions:
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.ActivePOResponse:
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingDailyTrendResponse:
     properties:
-      batch_po_id:
+      cash_in:
+        type: number
+      date:
         type: string
-      batch_po_name:
+      omset_amount:
+        type: number
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingReportResponse:
+    properties:
+      daily_trends:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingDailyTrendResponse'
+        type: array
+      end_date:
         type: string
-      remaining_quota:
+      period_name:
+        type: string
+      sales_performances:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSalesPerformanceResponse'
+        type: array
+      start_date:
+        type: string
+      summary:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSummaryResponse'
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSalesPerformanceResponse:
+    properties:
+      sales_id:
+        type: string
+      sales_name:
+        type: string
+      total_omset:
+        type: number
+      total_orders:
         type: integer
-      total_qty_received:
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSummaryResponse:
+    properties:
+      total_cash_in:
+        type: number
+      total_item_qty:
         type: integer
-      total_revenue_entered:
+      total_omset:
+        type: number
+      total_order_count:
+        type: integer
+      total_receivable:
         type: number
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.BankAccountCreateRequest:
@@ -88,10 +127,21 @@ definitions:
       start_date:
         example: "2026-05-30T00:00:00Z"
         type: string
+      target_month:
+        example: 6
+        maximum: 12
+        minimum: 1
+        type: integer
+      target_year:
+        example: 2026
+        minimum: 2000
+        type: integer
     required:
     - end_date
     - name
     - start_date
+    - target_month
+    - target_year
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse:
     properties:
@@ -116,6 +166,12 @@ definitions:
       status:
         example: draft
         type: string
+      target_month:
+        example: 6
+        type: integer
+      target_year:
+        example: 2026
+        type: integer
       updated_at:
         example: "2026-05-25T10:00:00Z"
         type: string
@@ -135,6 +191,7 @@ definitions:
   github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOUpdateRequest:
     properties:
       end_date:
+        example: "2026-06-06T00:00:00Z"
         type: string
       name:
         example: PO 1 Juni 2026 Revisi
@@ -143,7 +200,17 @@ definitions:
         minimum: 0
         type: integer
       start_date:
+        example: "2026-05-30T00:00:00Z"
         type: string
+      target_month:
+        example: 6
+        maximum: 12
+        minimum: 1
+        type: integer
+      target_year:
+        example: 2026
+        minimum: 2000
+        type: integer
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryRequest:
     properties:
@@ -243,39 +310,6 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
     type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyReportResponse:
-    properties:
-      financial_summary:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FinancialSummaryResponse'
-      order_summary:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderSummaryResponse'
-      po_info:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POInfoResponse'
-      report_date:
-        type: string
-      sales_details:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesDetailResponse'
-        type: array
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySnapshotResponse:
-    properties:
-      sales_performance_today:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceTodayResponse'
-        type: array
-      total_qty_today:
-        type: integer
-      total_revenue_today:
-        type: number
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse:
-    properties:
-      date:
-        type: string
-      qty:
-        type: integer
-    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse:
     properties:
       total_active_orders:
@@ -291,59 +325,109 @@ definitions:
       total_revenue:
         type: number
     type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.FinancialSummaryResponse:
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryCreateRequest:
     properties:
-      active_po_outstanding:
-        type: number
-      previous_po_outstanding:
-        type: number
-      total_outstanding:
-        type: number
-      total_paid:
-        type: number
-      total_revenue:
-        type: number
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyDailyTrendResponse:
-    properties:
-      cash_in:
-        type: number
-      date:
+      description:
+        example: Pembelian kain, resleting, dll
         type: string
-      omset_amount:
-        type: number
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyReportResponse:
-    properties:
-      daily_trends:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyDailyTrendResponse'
-        type: array
-      month:
-        type: integer
-      period_name:
+      name:
+        example: Bahan Baku
         type: string
-      sales_performances:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceResponse'
-        type: array
-      summary:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlySummaryResponse'
-      year:
-        type: integer
+      type:
+        enum:
+        - HPP
+        - OPEX
+        example: HPP
+        type: string
+    required:
+    - name
+    - type
     type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlySummaryResponse:
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryResponse:
     properties:
-      total_cash_in:
+      description:
+        example: Pembelian kain, resleting, dll
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      name:
+        example: Bahan Baku
+        type: string
+      type:
+        example: HPP
+        type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCreateRequest:
+    properties:
+      amount:
+        example: 1500000
         type: number
-      total_item_qty:
-        type: integer
-      total_omset:
+      batch_po_id:
+        example: 123e4567-e89b-12d3-a456-426614174001
+        type: string
+      created_by_id:
+        example: 123e4567-e89b-12d3-a456-426614174003
+        type: string
+      expense_category_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      expense_date:
+        example: "2026-07-28T00:00:00Z"
+        type: string
+      notes:
+        example: Beli di Toko Maju Jaya
+        type: string
+      title:
+        example: Beli Kain Ripstop 1 Roll
+        type: string
+    required:
+    - amount
+    - expense_category_id
+    - expense_date
+    - title
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse:
+    properties:
+      amount:
+        example: 1500000
         type: number
-      total_order_count:
-        type: integer
-      total_receivable:
-        type: number
+      batch_po_id:
+        example: 123e4567-e89b-12d3-a456-426614174001
+        type: string
+      batch_po_name:
+        example: PO Edisi Juli 2026
+        type: string
+      category_name:
+        example: Bahan Baku
+        type: string
+      category_type:
+        example: HPP
+        type: string
+      created_at:
+        example: "2026-07-28T10:16:10Z"
+        type: string
+      created_by_id:
+        example: 123e4567-e89b-12d3-a456-426614174003
+        type: string
+      creator_name:
+        example: Admin Keuangan
+        type: string
+      expense_category_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      expense_date:
+        example: "2026-07-28T00:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174002
+        type: string
+      notes:
+        example: Beli di Toko Maju Jaya
+        type: string
+      title:
+        example: Beli Kain Ripstop 1 Roll
+        type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
     properties:
@@ -519,17 +603,6 @@ definitions:
     required:
     - order_status
     type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderSummaryResponse:
-    properties:
-      qty_today:
-        type: integer
-      qty_total_po:
-        type: integer
-      trend_data:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse'
-        type: array
-    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest:
     properties:
       courier_name:
@@ -551,17 +624,6 @@ definitions:
       valid_until:
         example: "2026-06-15T00:00:00Z"
         type: string
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.POInfoResponse:
-    properties:
-      po_id:
-        type: string
-      po_name:
-        type: string
-      quota:
-        type: integer
-      remaining_quota:
-        type: integer
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.POProductSummaryResponse:
     properties:
@@ -608,17 +670,6 @@ definitions:
       total_quota:
         type: integer
       total_revenue:
-        type: number
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.PastDueReceivableResponse:
-    properties:
-      customer_name:
-        type: string
-      product_category:
-        type: string
-      sales_name:
-        type: string
-      unpaid_balance:
         type: number
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentCreateRequest:
@@ -797,6 +848,50 @@ definitions:
         example: Kaos Polos Lengan Panjang
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionBatchPOResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      quota:
+        type: integer
+      status:
+        type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionReportResponse:
+    properties:
+      active_batch_pos:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionBatchPOResponse'
+        type: array
+      period_name:
+        type: string
+      product_summary:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POProductSummaryResponse'
+        type: array
+      remaining_quota:
+        type: integer
+      sales_summary:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POSalesSummaryResponse'
+        type: array
+      target_month:
+        type: integer
+      target_year:
+        type: integer
+      total_outstanding:
+        type: number
+      total_paid:
+        type: number
+      total_qty_ordered:
+        type: integer
+      total_quota:
+        type: integer
+      total_revenue:
+        type: number
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse:
     properties:
       customer_name:
@@ -838,55 +933,6 @@ definitions:
         type: number
       total_paid:
         type: number
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.ReportResponse:
-    properties:
-      active_po_receivables:
-        type: number
-      active_pos:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ActivePOResponse'
-        type: array
-      daily_snapshot:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySnapshotResponse'
-      past_due_receivables:
-        items:
-          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PastDueReceivableResponse'
-        type: array
-      total_outstanding_receivables:
-        type: number
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesDetailResponse:
-    properties:
-      categories:
-        additionalProperties:
-          format: int64
-          type: integer
-        type: object
-      sales_name:
-        type: string
-      total_qty:
-        type: integer
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceResponse:
-    properties:
-      sales_id:
-        type: string
-      sales_name:
-        type: string
-      total_omset:
-        type: number
-      total_orders:
-        type: integer
-    type: object
-  github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceTodayResponse:
-    properties:
-      product_category:
-        type: string
-      sales_name:
-        type: string
-      total_qty:
-        type: integer
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse:
     properties:
@@ -1062,6 +1108,17 @@ definitions:
       meta:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse'
+        type: array
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse
   : properties:
       data:
@@ -1141,6 +1198,15 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryResponse'
+        type: array
+      message:
+        type: string
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse
   : properties:
       data:
@@ -1177,6 +1243,13 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AccountingReportResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingReportResponse'
+      message:
+        type: string
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse
   : properties:
       data:
@@ -1205,13 +1278,6 @@ definitions:
       message:
         type: string
     type: object
-  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DailyReportResponse
-  : properties:
-      data:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyReportResponse'
-      message:
-        type: string
-    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardSummaryResponse
   : properties:
       data:
@@ -1219,10 +1285,17 @@ definitions:
       message:
         type: string
     type: object
-  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MonthlyReportResponse
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse
   : properties:
       data:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyReportResponse'
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryResponse'
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse'
       message:
         type: string
     type: object
@@ -1254,10 +1327,10 @@ definitions:
       message:
         type: string
     type: object
-  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ReportResponse
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductionReportResponse
   : properties:
       data:
-        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ReportResponse'
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionReportResponse'
       message:
         type: string
     type: object
@@ -2089,6 +2162,176 @@ paths:
       summary: Get Dashboard Summary
       tags:
       - Dashboard
+  /expenses:
+    get:
+      parameters:
+      - default: 1
+        description: Halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Filter berdasarkan Batch PO ID (UUID)
+        in: query
+        name: po_id
+        type: string
+      - description: Filter Tanggal Awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter Tanggal Akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: List All Expenses
+      tags:
+      - Expenses
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data Pengeluaran Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Create Expense
+      tags:
+      - Expenses
+  /expenses/{id}:
+    delete:
+      parameters:
+      - description: Expense ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Delete Expense
+      tags:
+      - Expenses
+    get:
+      parameters:
+      - description: Expense ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Expense Detail
+      tags:
+      - Expenses
+  /expenses/categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: List All Expense Categories
+      tags:
+      - Expense Categories
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data Kategori Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Create Expense Category
+      tags:
+      - Expense Categories
   /orders:
     get:
       description: Mengambil daftar seluruh pesanan dengan fitur pagination dan multiple
@@ -2890,14 +3133,18 @@ paths:
       summary: Update Product
       tags:
       - Products
-  /reports/daily:
+  /reports/accounting:
     get:
-      description: Mengambil snapshot harian, status PO aktif, dan piutang tertunggak
-        untuk laporan harian.
+      description: Mengambil laporan keuangan (omset, kas masuk, piutang) berdasarkan
+        rentang tanggal.
       parameters:
-      - description: 'Tanggal laporan (Format: YYYY-MM-DD)'
+      - description: 'Tanggal Awal (Format: YYYY-MM-DD)'
         in: query
-        name: date
+        name: start_date
+        type: string
+      - description: 'Tanggal Akhir (Format: YYYY-MM-DD)'
+        in: query
+        name: end_date
         type: string
       produces:
       - application/json
@@ -2905,70 +3152,10 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ReportResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AccountingReportResponse'
       security:
       - BearerAuth: []
-      summary: Get Daily Report
-      tags:
-      - Reports
-  /reports/daily/generate:
-    get:
-      description: Mengambil laporan harian konveksi yang terstruktur. Mencakup informasi
-        kuota PO yang aktif, ringkasan order, kalkulasi finansial, dan detail QTY
-        per kategori produk untuk masing-masing sales.
-      parameters:
-      - description: 'Tanggal laporan (Format: YYYY-MM-DD). Jika kosong, akan menggunakan
-          tanggal hari ini.'
-        in: query
-        name: date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DailyReportResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Generate Daily Report (New)
-      tags:
-      - Reports
-  /reports/monthly:
-    get:
-      description: Mengambil laporan performa penjualan, omset, arus kas, dan kinerja
-        sales per bulan.
-      parameters:
-      - description: 'Bulan (1-12) - Default: Bulan saat ini'
-        in: query
-        name: month
-        type: integer
-      - description: 'Tahun - Default: Tahun saat ini'
-        in: query
-        name: year
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MonthlyReportResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Monthly Dashboard Report
+      summary: Get Accounting Report
       tags:
       - Reports
   /reports/po/{po_id}/summary:
@@ -3003,6 +3190,31 @@ paths:
       security:
       - BearerAuth: []
       summary: Get PO Close / Summary Report
+      tags:
+      - Reports
+  /reports/production:
+    get:
+      description: Mengambil laporan produksi dan performa sales berdasarkan Edisi
+        PO (Bulan & Tahun).
+      parameters:
+      - description: 'Bulan Target PO (1-12) - Default: Bulan saat ini'
+        in: query
+        name: month
+        type: integer
+      - description: 'Tahun Target PO - Default: Tahun saat ini'
+        in: query
+        name: year
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductionReportResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Production Report
       tags:
       - Reports
   /reports/receivables:

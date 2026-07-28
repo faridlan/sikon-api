@@ -200,3 +200,29 @@ func SeedSpecTemplate(db *gorm.DB, name, spec string) postgres.SpecTemplateModel
 	db.Create(&specTemplate)
 	return specTemplate
 }
+
+func SeedExpenseCategory(db *gorm.DB, name, expenseType, description string) postgres.ExpenseCategoryModel {
+	category := postgres.ExpenseCategoryModel{
+		ID:          uuid.New().String(),
+		Name:        name,
+		Type:        expenseType,
+		Description: description,
+	}
+	db.Create(&category)
+	return category
+}
+
+func SeedExpense(db *gorm.DB, categoryID, createdByID string, batchPoID *string, title string, amount float64, expenseDate time.Time) postgres.ExpenseModel {
+	expense := postgres.ExpenseModel{
+		ID:                uuid.New().String(),
+		ExpenseCategoryID: categoryID,
+		BatchPoID:         batchPoID,
+		Title:             title,
+		Amount:            amount,
+		ExpenseDate:       expenseDate,
+		Notes:             "catatan test",
+		CreatedByID:       createdByID,
+	}
+	db.Create(&expense)
+	return expense
+}

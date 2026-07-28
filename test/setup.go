@@ -62,6 +62,8 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.SpecTemplateModel{},
 		&postgres.BatchPOModel{},
 		&postgres.ProductImageModel{},
+		&postgres.ExpenseCategoryModel{},
+		&postgres.ExpenseModel{},
 	)
 
 	timeout := 5 * time.Second
@@ -81,6 +83,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	dashboardRepo := postgres.NewDashboardRepository(db)
 	reportRepo := postgres.NewReportRepository(db)
 	batchPORepo := postgres.NewBatchPORepository(db) // <-- Tambahkan ini
+	expenseRepo := postgres.NewExpenseRepository(db)
 
 	// 2. Usecase (Perhatikan bahwa productUsecase juga butuh categoryRepo)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
@@ -95,6 +98,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	reportUsecase := usecase.NewReportUsecase(reportRepo, timeout)
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, timeout) // <-- Tambahkan ini
 	uploadUsecase := usecase.NewUploadUsecase(storageService, timeout)
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, timeout)
 
 	// 3. Masukkan ke struct Handlers
 	handlers := myHttp.Handlers{
@@ -110,6 +114,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		ReportHandler:       myHttp.NewReportHandler(reportUsecase),
 		BatchPOHandler:      myHttp.NewBatchPOHandler(batchPOUsecase),
 		UploadHandler:       myHttp.NewUploadHandler(uploadUsecase),
+		ExpenseHandler:      myHttp.NewExpenseHandler(expenseUsecase),
 	}
 
 	app := fiber.New()
@@ -131,4 +136,6 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;") // <-- Tambahkan ini
 	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")      // <-- Tambahkan ini
+	db.Exec("TRUNCATE TABLE expense_categories RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE expenses RESTART IDENTITY CASCADE;")
 }
