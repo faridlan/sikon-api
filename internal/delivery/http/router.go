@@ -125,11 +125,10 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	dashboard.Get("/receivables-report", handlers.DashboardHandler.GetReceivablesReport)
 
 	reports := api.Group("/reports")
-	reports.Get("/daily", handlers.ReportHandler.GetDailyReport)
-	reports.Get("/daily/generate", handlers.ReportHandler.GenerateDailyReport) // Endpoint baru untuk Generate Daily Report
+	reports.Get("/accounting", handlers.ReportHandler.GetAccountingReport) // <-- Endpoint Baru
+	reports.Get("/production", handlers.ReportHandler.GetProductionReport) // <-- Endpoint Baru
 	reports.Get("/po/:po_id/summary", handlers.ReportHandler.GetPOSummaryReport)
 	reports.Get("/receivables", handlers.ReportHandler.GetReceivablesReport)
-	reports.Get("/monthly", handlers.ReportHandler.GetMonthlyReport)
 
 	batchPos := api.Group("/batch-pos")
 	batchPos.Post("/", handlers.BatchPOHandler.CreateBatchPO)

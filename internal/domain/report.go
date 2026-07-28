@@ -5,85 +5,71 @@ import (
 	"time"
 )
 
-// ReportResponse represents the aggregated report data for a specific date.
-type ReportResponse struct {
-	DailySnapshot               DailySnapshot       `json:"daily_snapshot"`
-	ActivePOs                   []ActivePO          `json:"active_pos"`
-	TotalOutstandingReceivables float64             `json:"total_outstanding_receivables"`
-	ActivePOReceivables         float64             `json:"active_po_receivables"`
-	PastDueReceivables          []PastDueReceivable `json:"past_due_receivables"`
+// ============================================================================
+// 1. JALUR AKUNTANSI (FINANCIAL / CALENDAR BASED)
+// Menggantikan fungsi lama Laporan Harian & Bulanan yang redundan
+// ============================================================================
+
+type AccountingReport struct {
+	StartDate         time.Time
+	EndDate           time.Time
+	PeriodName        string // Contoh: "01 Juli 2026 - 31 Juli 2026"
+	Summary           AccountingSummary
+	DailyTrends       []AccountingDailyTrend
+	SalesPerformances []AccountingSalesPerformance
 }
 
-// DailySnapshot represents the daily revenue and quantity snapshot.
-type DailySnapshot struct {
-	TotalRevenueToday     float64                 `json:"total_revenue_today"`
-	TotalQtyToday         int64                   `json:"total_qty_today"`
-	SalesPerformanceToday []SalesPerformanceToday `json:"sales_performance_today"`
+type AccountingSummary struct {
+	TotalOmset      float64
+	TotalCashIn     float64
+	TotalReceivable float64
+	TotalOrderCount int
+	TotalItemQty    int
 }
 
-// SalesPerformanceToday represents the sales performance for a specific sales person and product category.
-type SalesPerformanceToday struct {
-	SalesName       string `json:"sales_name"`
-	ProductCategory string `json:"product_category"`
-	TotalQty        int64  `json:"total_qty"`
+type AccountingDailyTrend struct {
+	Date        string
+	OmsetAmount float64
+	CashIn      float64
 }
 
-// ActivePO represents the active purchase order details along with revenue and quantity information.
-type ActivePO struct {
-	BatchPOName         string  `json:"batch_po_name"`
-	BatchPOID           string  `json:"batch_po_id"`
-	TotalRevenueEntered float64 `json:"total_revenue_entered"`
-	TotalQtyReceived    int64   `json:"total_qty_received"`
-	RemainingQuota      int64   `json:"remaining_quota"`
+type AccountingSalesPerformance struct {
+	SalesID     string
+	SalesName   string
+	TotalOmset  float64
+	TotalOrders int
 }
 
-// PastDueReceivable represents the details of past due receivables for a specific sales person, product category, and customer.
-type PastDueReceivable struct {
-	SalesName       string  `json:"sales_name"`
-	ProductCategory string  `json:"product_category"`
-	CustomerName    string  `json:"customer_name"`
-	UnpaidBalance   float64 `json:"unpaid_balance"`
+// ============================================================================
+// 2. JALUR PRODUKSI (PO EDITION BASED)
+// Fokus pada performa produksi berdasarkan Target Month & Target Year PO
+// ============================================================================
+
+type ProductionReport struct {
+	TargetMonth      int
+	TargetYear       int
+	PeriodName       string // Contoh: "Edisi Juli 2026"
+	TotalQuota       int
+	TotalQtyOrdered  int64
+	RemainingQuota   int64
+	TotalRevenue     float64
+	TotalPaid        float64
+	TotalOutstanding float64
+	ActiveBatchPOs   []ProductionBatchPO // Daftar PO apa saja yang masuk di edisi ini
+	SalesSummary     []POSalesSummary
+	ProductSummary   []POProductSummary
 }
 
-type DailyReport struct {
-	ReportDate       string
-	POInfo           POInfo
-	OrderSummary     OrderSummary
-	FinancialSummary FinancialSummary
-	SalesDetails     []SalesDetail
+type ProductionBatchPO struct {
+	ID     string
+	Name   string
+	Status BatchPOStatus
+	Quota  int
 }
 
-type POInfo struct {
-	POID           string
-	POName         string
-	Quota          int
-	RemainingQuota int64
-}
-
-type DailyTrend struct {
-	Date string
-	Qty  int64
-}
-
-type OrderSummary struct {
-	QtyToday   int64
-	QtyTotalPO int64
-	TrendData  []DailyTrend
-}
-
-type FinancialSummary struct {
-	TotalRevenue          float64 // Total keseluruhan tagihan order yang masuk
-	TotalPaid             float64 // Total uang yang sudah dibayar (DP/Lunas)
-	ActivePOOutstanding   float64 // Sisa yang belum dibayar HANYA untuk PO aktif ini
-	PreviousPOOutstanding float64 // Sisa yang belum dibayar dari PO-PO sebelumnya
-	TotalOutstanding      float64 // Keseluruhan sisa piutang (Active + Previous)
-}
-
-type SalesDetail struct {
-	SalesName  string
-	Categories map[string]int64
-	TotalQty   int64
-}
+// ============================================================================
+// 3. JALUR SPESIFIK (TETAP DIPERTAHANKAN KARENA DIBUTUHKAN)
+// ============================================================================
 
 type POSummaryReport struct {
 	POID             string
@@ -123,62 +109,30 @@ type ReceivableDetail struct {
 	OutstandingAmount float64
 }
 
-type MonthlyReport struct {
-	Month             int
-	Year              int
-	PeriodName        string
-	Summary           MonthlySummary
-	DailyTrends       []MonthlyDailyTrend
-	SalesPerformances []SalesPerformance
-}
+// ============================================================================
+// 4. INTERFACE KONTRAK (REPOSITORIES & USECASES)
+// ============================================================================
 
-type MonthlySummary struct {
-	TotalOmset      float64
-	TotalCashIn     float64
-	TotalReceivable float64
-	TotalOrderCount int
-	TotalItemQty    int
-}
-
-type MonthlyDailyTrend struct {
-	Date        string
-	OmsetAmount float64
-	CashIn      float64
-}
-
-type SalesPerformance struct {
-	SalesID     string
-	SalesName   string
-	TotalOmset  float64
-	TotalOrders int
-}
-
-// ReportRepository defines the interface for accessing report-related data from the data source.
 type ReportRepository interface {
-	GetDailyRevenueAndQty(ctx context.Context, startOfDay, endOfDay time.Time) (float64, int64, error)
-	GetSalesPerformanceByActivePO(ctx context.Context) ([]SalesPerformanceToday, error)
-	GetActivePOStats(ctx context.Context) ([]ActivePO, error)
-	GetReceivablesStats(ctx context.Context) (float64, float64, error)
-	GetPastDueReceivables(ctx context.Context) ([]PastDueReceivable, error)
+	// 1 Fungsi dinamis untuk semua laporan Akuntansi (Harian/Bulanan/Tahunan)
+	GetAccountingReportData(ctx context.Context, startDate, endDate time.Time) (*AccountingReport, error)
 
-	// ---NEW---
-	GetDailyReportData(ctx context.Context, targetDate time.Time) (*DailyReport, error)
+	// 1 Fungsi untuk laporan Produksi per Edisi
+	GetProductionReportData(ctx context.Context, targetMonth, targetYear int) (*ProductionReport, error)
+
+	// Fungsi spesifik yang dipertahankan
 	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
-
 	GetReceivablesDetailData(ctx context.Context) ([]ReceivableDetail, error)
-
-	GetMonthlyReportData(ctx context.Context, month, year int) (*MonthlyReport, error)
 }
 
-// ReportUsecase defines the interface for the report use case, which provides methods to generate reports based on the data retrieved from the repository.
 type ReportUsecase interface {
-	GetDailyReport(ctx context.Context, date string) (*ReportResponse, error)
+	// Usecase untuk Akuntansi. Kita bisa melempar startDate & endDate dari handler
+	GetAccountingReport(ctx context.Context, startDate, endDate time.Time) (*AccountingReport, error)
 
-	// ---NEW---
-	GenerateDailyReport(ctx context.Context, dateStr string) (*DailyReport, error)
+	// Usecase untuk Laporan Produksi
+	GetProductionReport(ctx context.Context, targetMonth, targetYear int) (*ProductionReport, error)
+
+	// Usecase spesifik yang dipertahankan
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
-
 	GetReceivablesDetailReport(ctx context.Context) ([]ReceivableDetail, error)
-
-	GetMonthlyReport(ctx context.Context, month, year int) (*MonthlyReport, error)
 }

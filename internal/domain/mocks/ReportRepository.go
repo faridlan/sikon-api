@@ -16,124 +16,29 @@ type ReportRepository struct {
 	mock.Mock
 }
 
-// GetActivePOStats provides a mock function with given fields: ctx
-func (_m *ReportRepository) GetActivePOStats(ctx context.Context) ([]domain.ActivePO, error) {
-	ret := _m.Called(ctx)
+// GetAccountingReportData provides a mock function with given fields: ctx, startDate, endDate
+func (_m *ReportRepository) GetAccountingReportData(ctx context.Context, startDate time.Time, endDate time.Time) (*domain.AccountingReport, error) {
+	ret := _m.Called(ctx, startDate, endDate)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetActivePOStats")
+		panic("no return value specified for GetAccountingReportData")
 	}
 
-	var r0 []domain.ActivePO
+	var r0 *domain.AccountingReport
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]domain.ActivePO, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) (*domain.AccountingReport, error)); ok {
+		return rf(ctx, startDate, endDate)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []domain.ActivePO); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) *domain.AccountingReport); ok {
+		r0 = rf(ctx, startDate, endDate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]domain.ActivePO)
+			r0 = ret.Get(0).(*domain.AccountingReport)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetDailyReportData provides a mock function with given fields: ctx, targetDate
-func (_m *ReportRepository) GetDailyReportData(ctx context.Context, targetDate time.Time) (*domain.DailyReport, error) {
-	ret := _m.Called(ctx, targetDate)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetDailyReportData")
-	}
-
-	var r0 *domain.DailyReport
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time) (*domain.DailyReport, error)); ok {
-		return rf(ctx, targetDate)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time) *domain.DailyReport); ok {
-		r0 = rf(ctx, targetDate)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.DailyReport)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
-		r1 = rf(ctx, targetDate)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetDailyRevenueAndQty provides a mock function with given fields: ctx, startOfDay, endOfDay
-func (_m *ReportRepository) GetDailyRevenueAndQty(ctx context.Context, startOfDay time.Time, endOfDay time.Time) (float64, int64, error) {
-	ret := _m.Called(ctx, startOfDay, endOfDay)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetDailyRevenueAndQty")
-	}
-
-	var r0 float64
-	var r1 int64
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) (float64, int64, error)); ok {
-		return rf(ctx, startOfDay, endOfDay)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) float64); ok {
-		r0 = rf(ctx, startOfDay, endOfDay)
-	} else {
-		r0 = ret.Get(0).(float64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) int64); ok {
-		r1 = rf(ctx, startOfDay, endOfDay)
-	} else {
-		r1 = ret.Get(1).(int64)
-	}
-
-	if rf, ok := ret.Get(2).(func(context.Context, time.Time, time.Time) error); ok {
-		r2 = rf(ctx, startOfDay, endOfDay)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
-}
-
-// GetMonthlyReportData provides a mock function with given fields: ctx, month, year
-func (_m *ReportRepository) GetMonthlyReportData(ctx context.Context, month int, year int) (*domain.MonthlyReport, error) {
-	ret := _m.Called(ctx, month, year)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetMonthlyReportData")
-	}
-
-	var r0 *domain.MonthlyReport
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) (*domain.MonthlyReport, error)); ok {
-		return rf(ctx, month, year)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) *domain.MonthlyReport); ok {
-		r0 = rf(ctx, month, year)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.MonthlyReport)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
-		r1 = rf(ctx, month, year)
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = rf(ctx, startDate, endDate)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -171,29 +76,29 @@ func (_m *ReportRepository) GetPOSummaryData(ctx context.Context, poID string) (
 	return r0, r1
 }
 
-// GetPastDueReceivables provides a mock function with given fields: ctx
-func (_m *ReportRepository) GetPastDueReceivables(ctx context.Context) ([]domain.PastDueReceivable, error) {
-	ret := _m.Called(ctx)
+// GetProductionReportData provides a mock function with given fields: ctx, targetMonth, targetYear
+func (_m *ReportRepository) GetProductionReportData(ctx context.Context, targetMonth int, targetYear int) (*domain.ProductionReport, error) {
+	ret := _m.Called(ctx, targetMonth, targetYear)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetPastDueReceivables")
+		panic("no return value specified for GetProductionReportData")
 	}
 
-	var r0 []domain.PastDueReceivable
+	var r0 *domain.ProductionReport
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]domain.PastDueReceivable, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) (*domain.ProductionReport, error)); ok {
+		return rf(ctx, targetMonth, targetYear)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []domain.PastDueReceivable); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) *domain.ProductionReport); ok {
+		r0 = rf(ctx, targetMonth, targetYear)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]domain.PastDueReceivable)
+			r0 = ret.Get(0).(*domain.ProductionReport)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
+		r1 = rf(ctx, targetMonth, targetYear)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -219,71 +124,6 @@ func (_m *ReportRepository) GetReceivablesDetailData(ctx context.Context) ([]dom
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.ReceivableDetail)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetReceivablesStats provides a mock function with given fields: ctx
-func (_m *ReportRepository) GetReceivablesStats(ctx context.Context) (float64, float64, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetReceivablesStats")
-	}
-
-	var r0 float64
-	var r1 float64
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context) (float64, float64, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) float64); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Get(0).(float64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) float64); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Get(1).(float64)
-	}
-
-	if rf, ok := ret.Get(2).(func(context.Context) error); ok {
-		r2 = rf(ctx)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
-}
-
-// GetSalesPerformanceByActivePO provides a mock function with given fields: ctx
-func (_m *ReportRepository) GetSalesPerformanceByActivePO(ctx context.Context) ([]domain.SalesPerformanceToday, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetSalesPerformanceByActivePO")
-	}
-
-	var r0 []domain.SalesPerformanceToday
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]domain.SalesPerformanceToday, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) []domain.SalesPerformanceToday); ok {
-		r0 = rf(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]domain.SalesPerformanceToday)
 		}
 	}
 
