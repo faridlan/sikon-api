@@ -90,6 +90,7 @@ func main() {
 	dashboardRepo := postgres.NewDashboardRepository(db) // Inisialisasi repository dashboard
 	reportRepo := postgres.NewReportRepository(db)
 	batchPORepo := postgres.NewBatchPORepository(db) // Inisialisasi repository Batch PO
+	expenseRepo := postgres.NewExpenseRepository(db) // Inisialisasi repository Expense
 
 	// ==========================================
 	// 2. INISIASI USECASE (Layer Logika Bisnis)
@@ -103,6 +104,7 @@ func main() {
 	reportUsecase := usecase.NewReportUsecase(reportRepo, contextTimeout)
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, contextTimeout)
 	uploadUsecase := usecase.NewUploadUsecase(storageService, contextTimeout)
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, contextTimeout) // Inisialisasi usecase Expense
 
 	// Order butuh banyak dependensi untuk validasi bisnis
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
@@ -126,6 +128,7 @@ func main() {
 	reportHandler := myHttp.NewReportHandler(reportUsecase)
 	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase) // Inisialisasi handler Batch PO
 	uploadHandler := myHttp.NewUploadHandler(uploadUsecase)
+	expenseHandler := myHttp.NewExpenseHandler(expenseUsecase) // Inisialisasi handler Expense
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
@@ -143,6 +146,7 @@ func main() {
 		ReportHandler:       reportHandler,
 		BatchPOHandler:      batchPOHandler, // Tambahkan handler Batch PO ke registry
 		UploadHandler:       uploadHandler,
+		ExpenseHandler:      expenseHandler, // Tambahkan handler Expense ke registry
 	}
 
 	// ==========================================

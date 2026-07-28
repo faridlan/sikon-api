@@ -1203,6 +1203,266 @@
                 }
             }
         },
+        "/expenses": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Expenses"
+                ],
+                "summary": "List All Expenses",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Halaman",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan Batch PO ID (UUID)",
+                        "name": "po_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Tanggal Awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Tanggal Akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Expenses"
+                ],
+                "summary": "Create Expense",
+                "parameters": [
+                    {
+                        "description": "Data Pengeluaran Baru",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/expenses/categories": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Expense Categories"
+                ],
+                "summary": "List All Expense Categories",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Expense Categories"
+                ],
+                "summary": "Create Expense Category",
+                "parameters": [
+                    {
+                        "description": "Data Kategori Baru",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/expenses/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Expenses"
+                ],
+                "summary": "Get Expense Detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Expense ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Expenses"
+                ],
+                "summary": "Delete Expense",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Expense ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/orders": {
             "get": {
                 "security": [
@@ -2384,65 +2644,32 @@
                 }
             }
         },
-        "/reports/daily": {
+        "/reports/accounting": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil snapshot harian, status PO aktif, dan piutang tertunggak untuk laporan harian.",
+                "description": "Mengambil laporan keuangan (omset, kas masuk, piutang) berdasarkan rentang tanggal.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Reports"
                 ],
-                "summary": "Get Daily Report",
+                "summary": "Get Accounting Report",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Tanggal laporan (Format: YYYY-MM-DD)",
-                        "name": "date",
+                        "description": "Tanggal Awal (Format: YYYY-MM-DD)",
+                        "name": "start_date",
                         "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ReportResponse"
-                        }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/reports/daily/generate": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Mengambil laporan harian konveksi yang terstruktur. Mencakup informasi kuota PO yang aktif, ringkasan order, kalkulasi finansial, dan detail QTY per kategori produk untuk masing-masing sales.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reports"
-                ],
-                "summary": "Generate Daily Report (New)",
-                "parameters": [
                     {
                         "type": "string",
-                        "description": "Tanggal laporan (Format: YYYY-MM-DD). Jika kosong, akan menggunakan tanggal hari ini.",
-                        "name": "date",
+                        "description": "Tanggal Akhir (Format: YYYY-MM-DD)",
+                        "name": "end_date",
                         "in": "query"
                     }
                 ],
@@ -2450,58 +2677,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DailyReportResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/reports/monthly": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Mengambil laporan performa penjualan, omset, arus kas, dan kinerja sales per bulan.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reports"
-                ],
-                "summary": "Get Monthly Dashboard Report",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Bulan (1-12) - Default: Bulan saat ini",
-                        "name": "month",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Tahun - Default: Tahun saat ini",
-                        "name": "year",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MonthlyReportResponse"
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AccountingReportResponse"
                         }
                     }
                 }
@@ -2554,6 +2730,45 @@
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/production": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil laporan produksi dan performa sales berdasarkan Edisi PO (Bulan \u0026 Tahun).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get Production Report",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Bulan Target PO (1-12) - Default: Bulan saat ini",
+                        "name": "month",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tahun Target PO - Default: Tahun saat ini",
+                        "name": "year",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductionReportResponse"
                         }
                     }
                 }
@@ -3108,22 +3323,82 @@
         }
     },
     "definitions": {
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ActivePOResponse": {
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingDailyTrendResponse": {
             "type": "object",
             "properties": {
-                "batch_po_id": {
+                "cash_in": {
+                    "type": "number"
+                },
+                "date": {
                     "type": "string"
                 },
-                "batch_po_name": {
+                "omset_amount": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingReportResponse": {
+            "type": "object",
+            "properties": {
+                "daily_trends": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingDailyTrendResponse"
+                    }
+                },
+                "end_date": {
                     "type": "string"
                 },
-                "remaining_quota": {
+                "period_name": {
+                    "type": "string"
+                },
+                "sales_performances": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSalesPerformanceResponse"
+                    }
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "summary": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSummaryResponse"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSalesPerformanceResponse": {
+            "type": "object",
+            "properties": {
+                "sales_id": {
+                    "type": "string"
+                },
+                "sales_name": {
+                    "type": "string"
+                },
+                "total_omset": {
+                    "type": "number"
+                },
+                "total_orders": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "total_cash_in": {
+                    "type": "number"
+                },
+                "total_item_qty": {
                     "type": "integer"
                 },
-                "total_qty_received": {
+                "total_omset": {
+                    "type": "number"
+                },
+                "total_order_count": {
                     "type": "integer"
                 },
-                "total_revenue_entered": {
+                "total_receivable": {
                     "type": "number"
                 }
             }
@@ -3217,7 +3492,9 @@
             "required": [
                 "end_date",
                 "name",
-                "start_date"
+                "start_date",
+                "target_month",
+                "target_year"
             ],
             "properties": {
                 "end_date": {
@@ -3237,6 +3514,17 @@
                 "start_date": {
                     "type": "string",
                     "example": "2026-05-30T00:00:00Z"
+                },
+                "target_month": {
+                    "type": "integer",
+                    "maximum": 12,
+                    "minimum": 1,
+                    "example": 6
+                },
+                "target_year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "example": 2026
                 }
             }
         },
@@ -3271,6 +3559,14 @@
                     "type": "string",
                     "example": "draft"
                 },
+                "target_month": {
+                    "type": "integer",
+                    "example": 6
+                },
+                "target_year": {
+                    "type": "integer",
+                    "example": 2026
+                },
                 "updated_at": {
                     "type": "string",
                     "example": "2026-05-25T10:00:00Z"
@@ -3298,7 +3594,8 @@
             "type": "object",
             "properties": {
                 "end_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-06-06T00:00:00Z"
                 },
                 "name": {
                     "type": "string",
@@ -3309,7 +3606,19 @@
                     "minimum": 0
                 },
                 "start_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2026-05-30T00:00:00Z"
+                },
+                "target_month": {
+                    "type": "integer",
+                    "maximum": 12,
+                    "minimum": 1,
+                    "example": 6
+                },
+                "target_year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "example": 2026
                 }
             }
         },
@@ -3451,57 +3760,6 @@
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyReportResponse": {
-            "type": "object",
-            "properties": {
-                "financial_summary": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FinancialSummaryResponse"
-                },
-                "order_summary": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderSummaryResponse"
-                },
-                "po_info": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POInfoResponse"
-                },
-                "report_date": {
-                    "type": "string"
-                },
-                "sales_details": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesDetailResponse"
-                    }
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySnapshotResponse": {
-            "type": "object",
-            "properties": {
-                "sales_performance_today": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceTodayResponse"
-                    }
-                },
-                "total_qty_today": {
-                    "type": "integer"
-                },
-                "total_revenue_today": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse": {
-            "type": "object",
-            "properties": {
-                "date": {
-                    "type": "string"
-                },
-                "qty": {
-                    "type": "integer"
-                }
-            }
-        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse": {
             "type": "object",
             "properties": {
@@ -3525,86 +3783,145 @@
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.FinancialSummaryResponse": {
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryCreateRequest": {
             "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
             "properties": {
-                "active_po_outstanding": {
-                    "type": "number"
+                "description": {
+                    "type": "string",
+                    "example": "Pembelian kain, resleting, dll"
                 },
-                "previous_po_outstanding": {
-                    "type": "number"
+                "name": {
+                    "type": "string",
+                    "example": "Bahan Baku"
                 },
-                "total_outstanding": {
-                    "type": "number"
-                },
-                "total_paid": {
-                    "type": "number"
-                },
-                "total_revenue": {
-                    "type": "number"
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "HPP",
+                        "OPEX"
+                    ],
+                    "example": "HPP"
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyDailyTrendResponse": {
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryResponse": {
             "type": "object",
             "properties": {
-                "cash_in": {
-                    "type": "number"
+                "description": {
+                    "type": "string",
+                    "example": "Pembelian kain, resleting, dll"
                 },
-                "date": {
-                    "type": "string"
+                "id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
                 },
-                "omset_amount": {
-                    "type": "number"
+                "name": {
+                    "type": "string",
+                    "example": "Bahan Baku"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "HPP"
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyReportResponse": {
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCreateRequest": {
             "type": "object",
+            "required": [
+                "amount",
+                "expense_category_id",
+                "expense_date",
+                "title"
+            ],
             "properties": {
-                "daily_trends": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyDailyTrendResponse"
-                    }
+                "amount": {
+                    "type": "number",
+                    "example": 1500000
                 },
-                "month": {
-                    "type": "integer"
+                "batch_po_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174001"
                 },
-                "period_name": {
-                    "type": "string"
+                "created_by_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174003"
                 },
-                "sales_performances": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceResponse"
-                    }
+                "expense_category_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
                 },
-                "summary": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlySummaryResponse"
+                "expense_date": {
+                    "type": "string",
+                    "example": "2026-07-28T00:00:00Z"
                 },
-                "year": {
-                    "type": "integer"
+                "notes": {
+                    "type": "string",
+                    "example": "Beli di Toko Maju Jaya"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Beli Kain Ripstop 1 Roll"
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlySummaryResponse": {
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse": {
             "type": "object",
             "properties": {
-                "total_cash_in": {
-                    "type": "number"
+                "amount": {
+                    "type": "number",
+                    "example": 1500000
                 },
-                "total_item_qty": {
-                    "type": "integer"
+                "batch_po_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174001"
                 },
-                "total_omset": {
-                    "type": "number"
+                "batch_po_name": {
+                    "type": "string",
+                    "example": "PO Edisi Juli 2026"
                 },
-                "total_order_count": {
-                    "type": "integer"
+                "category_name": {
+                    "type": "string",
+                    "example": "Bahan Baku"
                 },
-                "total_receivable": {
-                    "type": "number"
+                "category_type": {
+                    "type": "string",
+                    "example": "HPP"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-07-28T10:16:10Z"
+                },
+                "created_by_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174003"
+                },
+                "creator_name": {
+                    "type": "string",
+                    "example": "Admin Keuangan"
+                },
+                "expense_category_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                },
+                "expense_date": {
+                    "type": "string",
+                    "example": "2026-07-28T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174002"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Beli di Toko Maju Jaya"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Beli Kain Ripstop 1 Roll"
                 }
             }
         },
@@ -3843,23 +4160,6 @@
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderSummaryResponse": {
-            "type": "object",
-            "properties": {
-                "qty_today": {
-                    "type": "integer"
-                },
-                "qty_total_po": {
-                    "type": "integer"
-                },
-                "trend_data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse"
-                    }
-                }
-            }
-        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderUpdateRequest": {
             "type": "object",
             "properties": {
@@ -3887,23 +4187,6 @@
                 "valid_until": {
                     "type": "string",
                     "example": "2026-06-15T00:00:00Z"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.POInfoResponse": {
-            "type": "object",
-            "properties": {
-                "po_id": {
-                    "type": "string"
-                },
-                "po_name": {
-                    "type": "string"
-                },
-                "quota": {
-                    "type": "integer"
-                },
-                "remaining_quota": {
-                    "type": "integer"
                 }
             }
         },
@@ -3975,23 +4258,6 @@
                     "type": "integer"
                 },
                 "total_revenue": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.PastDueReceivableResponse": {
-            "type": "object",
-            "properties": {
-                "customer_name": {
-                    "type": "string"
-                },
-                "product_category": {
-                    "type": "string"
-                },
-                "sales_name": {
-                    "type": "string"
-                },
-                "unpaid_balance": {
                     "type": "number"
                 }
             }
@@ -4241,6 +4507,73 @@
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionBatchPOResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "quota": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionReportResponse": {
+            "type": "object",
+            "properties": {
+                "active_batch_pos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionBatchPOResponse"
+                    }
+                },
+                "period_name": {
+                    "type": "string"
+                },
+                "product_summary": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POProductSummaryResponse"
+                    }
+                },
+                "remaining_quota": {
+                    "type": "integer"
+                },
+                "sales_summary": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POSalesSummaryResponse"
+                    }
+                },
+                "target_month": {
+                    "type": "integer"
+                },
+                "target_year": {
+                    "type": "integer"
+                },
+                "total_outstanding": {
+                    "type": "number"
+                },
+                "total_paid": {
+                    "type": "number"
+                },
+                "total_qty_ordered": {
+                    "type": "integer"
+                },
+                "total_quota": {
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse": {
             "type": "object",
             "properties": {
@@ -4302,81 +4635,6 @@
                 },
                 "total_paid": {
                     "type": "number"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ReportResponse": {
-            "type": "object",
-            "properties": {
-                "active_po_receivables": {
-                    "type": "number"
-                },
-                "active_pos": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ActivePOResponse"
-                    }
-                },
-                "daily_snapshot": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySnapshotResponse"
-                },
-                "past_due_receivables": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PastDueReceivableResponse"
-                    }
-                },
-                "total_outstanding_receivables": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesDetailResponse": {
-            "type": "object",
-            "properties": {
-                "categories": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
-                    }
-                },
-                "sales_name": {
-                    "type": "string"
-                },
-                "total_qty": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceResponse": {
-            "type": "object",
-            "properties": {
-                "sales_id": {
-                    "type": "string"
-                },
-                "sales_name": {
-                    "type": "string"
-                },
-                "total_omset": {
-                    "type": "number"
-                },
-                "total_orders": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesPerformanceTodayResponse": {
-            "type": "object",
-            "properties": {
-                "product_category": {
-                    "type": "string"
-                },
-                "sales_name": {
-                    "type": "string"
-                },
-                "total_qty": {
-                    "type": "integer"
                 }
             }
         },
@@ -4632,6 +4890,23 @@
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse": {
             "type": "object",
             "properties": {
@@ -4754,6 +5029,20 @@
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse": {
             "type": "object",
             "properties": {
@@ -4810,6 +5099,17 @@
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AccountingReportResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingReportResponse"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse": {
             "type": "object",
             "properties": {
@@ -4854,17 +5154,6 @@
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DailyReportResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyReportResponse"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
         "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardSummaryResponse": {
             "type": "object",
             "properties": {
@@ -4876,11 +5165,22 @@
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MonthlyReportResponse": {
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MonthlyReportResponse"
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseCategoryResponse"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse"
                 },
                 "message": {
                     "type": "string"
@@ -4931,11 +5231,11 @@
                 }
             }
         },
-        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ReportResponse": {
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductionReportResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ReportResponse"
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionReportResponse"
                 },
                 "message": {
                     "type": "string"
