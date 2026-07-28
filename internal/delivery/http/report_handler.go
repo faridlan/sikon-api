@@ -11,11 +11,10 @@ import (
 )
 
 type ReportHandler interface {
-	GetDailyReport(c *fiber.Ctx) error
-	GenerateDailyReport(c *fiber.Ctx) error
+	GetAccountingReport(c *fiber.Ctx) error
+	GetProductionReport(c *fiber.Ctx) error
 	GetPOSummaryReport(c *fiber.Ctx) error
 	GetReceivablesReport(c *fiber.Ctx) error
-	GetMonthlyReport(c *fiber.Ctx) error
 }
 
 type reportHandler struct {
@@ -26,44 +25,72 @@ func NewReportHandler(ru domain.ReportUsecase) ReportHandler {
 	return &reportHandler{reportUsecase: ru}
 }
 
-// @Summary Get Daily Report
-// @Description Mengambil snapshot harian, status PO aktif, dan piutang tertunggak untuk laporan harian.
+// @Summary Get Accounting Report
+// @Description Mengambil laporan keuangan (omset, kas masuk, piutang) berdasarkan rentang tanggal.
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth
-// @Param date query string false "Tanggal laporan (Format: YYYY-MM-DD)"
-// @Success 200 {object} utils.SuccessResponse[dto.ReportResponse]
-// @Failure 500 {object} utils.ErrorResponse
-// @Router /reports/daily [get]
-func (h *reportHandler) GetDailyReport(c *fiber.Ctx) error {
-	date := c.Query("date")
-	report, err := h.reportUsecase.GetDailyReport(c.Context(), date)
+// @Param start_date query string false "Tanggal Awal (Format: YYYY-MM-DD)"
+// @Param end_date query string false "Tanggal Akhir (Format: YYYY-MM-DD)"
+// @Success 200 {object} utils.SuccessResponse[dto.AccountingReportResponse]
+// @Router /reports/accounting [get]
+func (h *reportHandler) GetAccountingReport(c *fiber.Ctx) error {
+	now := time.Now()
+
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	// Default ke tanggal 1 bulan ini jika tidak dikirim
+	startDate := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	if startDateStr != "" {
+		parsedStart, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			return utils.SendError(c, fiber.StatusBadRequest, "Format start_date tidak valid (Gunakan YYYY-MM-DD)")
+		}
+		startDate = parsedStart
+	}
+
+	// Default ke akhir hari ini jika tidak dikirim
+	endDate := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+	if endDateStr != "" {
+		parsedEnd, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			return utils.SendError(c, fiber.StatusBadRequest, "Format end_date tidak valid (Gunakan YYYY-MM-DD)")
+		}
+		// Set ke detik terakhir di hari tersebut
+		endDate = time.Date(parsedEnd.Year(), parsedEnd.Month(), parsedEnd.Day(), 23, 59, 59, 0, parsedEnd.Location())
+	}
+
+	report, err := h.reportUsecase.GetAccountingReport(c.Context(), startDate, endDate)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data daily report", dto.ToReportResponse(report))
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil laporan akuntansi", dto.ToAccountingReportResponse(report))
 }
 
-// @Summary Generate Daily Report (New)
-// @Description Mengambil laporan harian konveksi yang terstruktur. Mencakup informasi kuota PO yang aktif, ringkasan order, kalkulasi finansial, dan detail QTY per kategori produk untuk masing-masing sales.
+// @Summary Get Production Report
+// @Description Mengambil laporan produksi dan performa sales berdasarkan Edisi PO (Bulan & Tahun).
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth
-// @Param date query string false "Tanggal laporan (Format: YYYY-MM-DD). Jika kosong, akan menggunakan tanggal hari ini."
-// @Success 200 {object} utils.SuccessResponse[dto.DailyReportResponse]
-// @Failure 400,500 {object} utils.ErrorResponse
-// @Router /reports/daily/generate [get]
-func (h *reportHandler) GenerateDailyReport(c *fiber.Ctx) error {
-	date := c.Query("date")
+// @Param month query int false "Bulan Target PO (1-12) - Default: Bulan saat ini"
+// @Param year query int false "Tahun Target PO - Default: Tahun saat ini"
+// @Success 200 {object} utils.SuccessResponse[dto.ProductionReportResponse]
+// @Router /reports/production [get]
+func (h *reportHandler) GetProductionReport(c *fiber.Ctx) error {
+	now := time.Now()
 
-	// Memanggil method Usecase yang baru
-	report, err := h.reportUsecase.GenerateDailyReport(c.Context(), date)
+	// Default ke bulan & tahun sekarang jika query tidak diisi
+	month := c.QueryInt("month", int(now.Month()))
+	year := c.QueryInt("year", now.Year())
+
+	report, err := h.reportUsecase.GetProductionReport(c.Context(), month, year)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data laporan harian", dto.ToDailyReportResponse(report)) // Pastikan menggunakan DTO yang baru
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil laporan produksi", dto.ToProductionReportResponse(report))
 }
 
 // @Summary Get PO Close / Summary Report
@@ -105,33 +132,5 @@ func (h *reportHandler) GetReceivablesReport(c *fiber.Ctx) error {
 		fiber.StatusOK,
 		"Successfully fetched detailed receivables report",
 		dto.ToReceivableDetailListResponse(data),
-	)
-}
-
-// @Summary Get Monthly Dashboard Report
-// @Description Mengambil laporan performa penjualan, omset, arus kas, dan kinerja sales per bulan.
-// @Tags Reports
-// @Produce json
-// @Security BearerAuth
-// @Param month query int false "Bulan (1-12) - Default: Bulan saat ini"
-// @Param year query int false "Tahun - Default: Tahun saat ini"
-// @Success 200 {object} utils.SuccessResponse[dto.MonthlyReportResponse]
-// @Router /reports/monthly [get]
-func (h *reportHandler) GetMonthlyReport(c *fiber.Ctx) error {
-	// Default ke bulan & tahun sekarang jika query tidak diisi
-	now := time.Now()
-	month := c.QueryInt("month", int(now.Month()))
-	year := c.QueryInt("year", now.Year())
-
-	data, err := h.reportUsecase.GetMonthlyReport(c.Context(), month, year)
-	if err != nil {
-		return utils.HandleDomainError(c, err)
-	}
-
-	return utils.SendSuccess(
-		c,
-		fiber.StatusOK,
-		"Successfully fetched monthly report",
-		dto.ToMonthlyReportResponse(data),
 	)
 }
