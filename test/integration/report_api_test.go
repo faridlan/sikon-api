@@ -81,6 +81,20 @@ func TestAccountingReportEndpoint(t *testing.T) {
 	}
 	db.Create(&payment1)
 
+	// TAMBAHAN: Seed Data Pengeluaran (Expense) di rentang Juli 2026
+	expenseCategory := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "Operasional", Type: "OPEX"}
+	db.Create(&expenseCategory)
+
+	expense := postgresRepo.ExpenseModel{
+		ID:                uuid.NewString(),
+		ExpenseCategoryID: expenseCategory.ID,
+		Title:             "Bayar Listrik",
+		Amount:            200000,
+		ExpenseDate:       juliTime, // Masuk dalam query 01 - 31 Juli
+		CreatedByID:       sales.ID,
+	}
+	db.Create(&expense)
+
 	t.Run("Success Get Accounting Report", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/reports/accounting?start_date=2026-07-01&end_date=2026-07-31", bytes.NewBuffer(nil))
 		resp, err := app.Test(req, -1)
@@ -102,6 +116,11 @@ func TestAccountingReportEndpoint(t *testing.T) {
 		assert.Equal(t, float64(1000000), report.Summary.TotalOmset)
 		assert.Equal(t, float64(500000), report.Summary.TotalCashIn)
 		assert.Equal(t, float64(500000), report.Summary.TotalReceivable)
+
+		// Validasi Kalkulasi Pengeluaran & Profit
+		assert.Equal(t, float64(200000), report.Summary.TotalExpense)
+		assert.Equal(t, float64(800000), report.Summary.NetProfit)   // Omset (1jt) - Expense (200rb)
+		assert.Equal(t, float64(300000), report.Summary.NetCashflow) // CashIn (500rb) - Expense (200rb)
 
 		assert.Equal(t, 1, report.Summary.TotalOrderCount)
 		assert.Equal(t, 10, report.Summary.TotalItemQty)
@@ -155,6 +174,21 @@ func TestProductionReportEndpoint(t *testing.T) {
 	orderItem := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 3, Price: 150000}
 	db.Create(&orderItem)
 
+	// TAMBAHAN: Seed Data Pengeluaran (HPP) yang di-attach ke Batch PO ini
+	expenseCategory := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "Bahan Baku", Type: "HPP"}
+	db.Create(&expenseCategory)
+
+	expense := postgresRepo.ExpenseModel{
+		ID:                uuid.NewString(),
+		ExpenseCategoryID: expenseCategory.ID,
+		BatchPoID:         &batchPO.ID, // Di-attach langsung ke PO Edisi Juli
+		Title:             "Beli Kain Tactical",
+		Amount:            150000,
+		ExpenseDate:       time.Now(),
+		CreatedByID:       sales.ID,
+	}
+	db.Create(&expense)
+
 	t.Run("Success Get Production Report", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/reports/production?month=7&year=2026", bytes.NewBuffer(nil))
 		resp, err := app.Test(req, -1)
@@ -175,6 +209,10 @@ func TestProductionReportEndpoint(t *testing.T) {
 		assert.Equal(t, int64(3), report.TotalQtyOrdered)
 		assert.Equal(t, int64(97), report.RemainingQuota)
 		assert.Equal(t, float64(450000), report.TotalRevenue)
+
+		// Validasi Kalkulasi Pengeluaran & Profit Produksi
+		assert.Equal(t, float64(150000), report.TotalHPP)
+		assert.Equal(t, float64(300000), report.NetProfit) // Revenue (450rb) - HPP (150rb)
 
 		assert.Len(t, report.ActiveBatchPOs, 1)
 		assert.Equal(t, "PO Edisi Juli", report.ActiveBatchPOs[0].Name)

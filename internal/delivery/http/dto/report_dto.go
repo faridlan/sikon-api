@@ -23,6 +23,11 @@ type AccountingSummaryResponse struct {
 	TotalReceivable float64 `json:"total_receivable"`
 	TotalOrderCount int     `json:"total_order_count"`
 	TotalItemQty    int     `json:"total_item_qty"`
+
+	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
+	TotalExpense float64 `json:"total_expense"`
+	NetProfit    float64 `json:"net_profit"`
+	NetCashflow  float64 `json:"net_cashflow"`
 }
 
 type AccountingDailyTrendResponse struct {
@@ -54,6 +59,10 @@ func ToAccountingReportResponse(src *domain.AccountingReport) *AccountingReportR
 			TotalReceivable: src.Summary.TotalReceivable,
 			TotalOrderCount: src.Summary.TotalOrderCount,
 			TotalItemQty:    src.Summary.TotalItemQty,
+			// MAPPING METRIK FINANSIAL
+			TotalExpense: src.Summary.TotalExpense,
+			NetProfit:    src.Summary.NetProfit,
+			NetCashflow:  src.Summary.NetCashflow,
 		},
 		DailyTrends:       make([]AccountingDailyTrendResponse, 0),
 		SalesPerformances: make([]AccountingSalesPerformanceResponse, 0),
@@ -75,18 +84,23 @@ func ToAccountingReportResponse(src *domain.AccountingReport) *AccountingReportR
 // ============================================================================
 
 type ProductionReportResponse struct {
-	TargetMonth      int                         `json:"target_month"`
-	TargetYear       int                         `json:"target_year"`
-	PeriodName       string                      `json:"period_name"`
-	TotalQuota       int                         `json:"total_quota"`
-	TotalQtyOrdered  int64                       `json:"total_qty_ordered"`
-	RemainingQuota   int64                       `json:"remaining_quota"`
-	TotalRevenue     float64                     `json:"total_revenue"`
-	TotalPaid        float64                     `json:"total_paid"`
-	TotalOutstanding float64                     `json:"total_outstanding"`
-	ActiveBatchPOs   []ProductionBatchPOResponse `json:"active_batch_pos"`
-	ProductSummary   []POProductSummaryResponse  `json:"product_summary"`
-	SalesSummary     []POSalesSummaryResponse    `json:"sales_summary"`
+	TargetMonth      int     `json:"target_month"`
+	TargetYear       int     `json:"target_year"`
+	PeriodName       string  `json:"period_name"`
+	TotalQuota       int     `json:"total_quota"`
+	TotalQtyOrdered  int64   `json:"total_qty_ordered"`
+	RemainingQuota   int64   `json:"remaining_quota"`
+	TotalRevenue     float64 `json:"total_revenue"`
+	TotalPaid        float64 `json:"total_paid"`
+	TotalOutstanding float64 `json:"total_outstanding"`
+
+	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
+	TotalHPP  float64 `json:"total_hpp"`
+	NetProfit float64 `json:"net_profit"`
+
+	ActiveBatchPOs []ProductionBatchPOResponse `json:"active_batch_pos"`
+	ProductSummary []POProductSummaryResponse  `json:"product_summary"`
+	SalesSummary   []POSalesSummaryResponse    `json:"sales_summary"`
 }
 
 type ProductionBatchPOResponse struct {
@@ -112,9 +126,13 @@ func ToProductionReportResponse(src *domain.ProductionReport) *ProductionReportR
 		TotalRevenue:     src.TotalRevenue,
 		TotalPaid:        src.TotalPaid,
 		TotalOutstanding: src.TotalOutstanding,
-		ActiveBatchPOs:   make([]ProductionBatchPOResponse, 0),
-		ProductSummary:   make([]POProductSummaryResponse, 0),
-		SalesSummary:     make([]POSalesSummaryResponse, 0),
+		// MAPPING METRIK FINANSIAL
+		TotalHPP:  src.TotalHPP,
+		NetProfit: src.NetProfit,
+
+		ActiveBatchPOs: make([]ProductionBatchPOResponse, 0),
+		ProductSummary: make([]POProductSummaryResponse, 0),
+		SalesSummary:   make([]POSalesSummaryResponse, 0),
 	}
 
 	for _, bp := range src.ActiveBatchPOs {

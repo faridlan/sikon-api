@@ -63,7 +63,7 @@ func (r *reportRepository) GetAccountingReportData(ctx context.Context, startDat
 		TotalCashIn:     totalCashIn,
 		TotalReceivable: piutangBaru,
 		TotalOrderCount: int(totalOrders),
-		TotalItemQty:    int(totalQty),
+		TotalItemQty:    int(totalQty), // TETAP int
 	}
 
 	// 5. Leaderboard Sales (Siapa penyumbang omset di periode ini)
@@ -156,10 +156,10 @@ func (r *reportRepository) GetProductionReportData(ctx context.Context, targetMo
 	}
 	r.db.WithContext(ctx).Table("orders o").
 		Select(`
-			COALESCE(SUM(o.total_amount), 0) as total_revenue,
-			COALESCE(SUM(p.total_paid), 0) as total_paid,
-			COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_outstanding
-		`).
+      COALESCE(SUM(o.total_amount), 0) as total_revenue,
+      COALESCE(SUM(p.total_paid), 0) as total_paid,
+      COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_outstanding
+    `).
 		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
 		Where("o.batch_po_id IN (?) AND o.deleted_at IS NULL", poIDs).
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
@@ -231,10 +231,10 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 	}
 	r.db.WithContext(ctx).Table("orders o").
 		Select(`
-			COALESCE(SUM(o.total_amount), 0) as total_revenue,
-			COALESCE(SUM(p.total_paid), 0) as total_paid,
-			COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_outstanding
-		`).
+      COALESCE(SUM(o.total_amount), 0) as total_revenue,
+      COALESCE(SUM(p.total_paid), 0) as total_paid,
+      COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_outstanding
+    `).
 		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
 		Where("o.batch_po_id = ? AND o.deleted_at IS NULL", poID).
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
@@ -278,16 +278,16 @@ func (r *reportRepository) GetReceivablesDetailData(ctx context.Context) ([]doma
 
 	err := r.db.WithContext(ctx).Table("orders o").
 		Select(`
-			o.id as order_id,
-			o.order_number,
-			bp.name as po_name,
-			bp.status as po_status,
-			c.name as customer_name,
-			u.name as sales_name,
-			o.total_amount,
-			COALESCE(p.total_paid, 0) as total_paid,
-			(o.total_amount - COALESCE(p.total_paid, 0)) as outstanding_amount
-		`).
+      o.id as order_id,
+      o.order_number,
+      bp.name as po_name,
+      bp.status as po_status,
+      c.name as customer_name,
+      u.name as sales_name,
+      o.total_amount,
+      COALESCE(p.total_paid, 0) as total_paid,
+      (o.total_amount - COALESCE(p.total_paid, 0)) as outstanding_amount
+    `).
 		Joins("LEFT JOIN batch_pos bp ON bp.id = o.batch_po_id AND bp.deleted_at IS NULL").
 		Joins("LEFT JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL").
 		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
@@ -304,4 +304,42 @@ func (r *reportRepository) GetReceivablesDetailData(ctx context.Context) ([]doma
 	}
 
 	return details, nil
+}
+
+// ============================================================================
+// HELPER FINANSIAL (EXPENSES)
+// ============================================================================
+
+func (r *reportRepository) GetTotalExpenseByDateRange(ctx context.Context, startDate, endDate time.Time) (float64, error) {
+	var total float64
+
+	err := r.db.WithContext(ctx).Table("expenses").
+		Where("expense_date >= ? AND expense_date <= ? AND deleted_at IS NULL", startDate, endDate).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&total).Error
+
+	if err != nil {
+		return 0, TranslateError(err)
+	}
+
+	return total, nil
+}
+
+func (r *reportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error) {
+	if len(poIDs) == 0 {
+		return 0, nil
+	}
+
+	var total float64
+
+	err := r.db.WithContext(ctx).Table("expenses").
+		Where("batch_po_id IN ? AND deleted_at IS NULL", poIDs).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&total).Error
+
+	if err != nil {
+		return 0, TranslateError(err)
+	}
+
+	return total, nil
 }
