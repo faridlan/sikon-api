@@ -25,6 +25,11 @@ type AccountingSummary struct {
 	TotalReceivable float64
 	TotalOrderCount int
 	TotalItemQty    int
+
+	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
+	TotalExpense float64
+	NetProfit    float64
+	NetCashflow  float64
 }
 
 type AccountingDailyTrend struct {
@@ -55,9 +60,14 @@ type ProductionReport struct {
 	TotalRevenue     float64
 	TotalPaid        float64
 	TotalOutstanding float64
-	ActiveBatchPOs   []ProductionBatchPO // Daftar PO apa saja yang masuk di edisi ini
-	SalesSummary     []POSalesSummary
-	ProductSummary   []POProductSummary
+
+	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
+	TotalHPP  float64
+	NetProfit float64
+
+	ActiveBatchPOs []ProductionBatchPO // Daftar PO apa saja yang masuk di edisi ini
+	SalesSummary   []POSalesSummary
+	ProductSummary []POProductSummary
 }
 
 type ProductionBatchPO struct {
@@ -114,25 +124,22 @@ type ReceivableDetail struct {
 // ============================================================================
 
 type ReportRepository interface {
-	// 1 Fungsi dinamis untuk semua laporan Akuntansi (Harian/Bulanan/Tahunan)
+	// Laporan Utama
 	GetAccountingReportData(ctx context.Context, startDate, endDate time.Time) (*AccountingReport, error)
-
-	// 1 Fungsi untuk laporan Produksi per Edisi
 	GetProductionReportData(ctx context.Context, targetMonth, targetYear int) (*ProductionReport, error)
 
-	// Fungsi spesifik yang dipertahankan
+	// Laporan Spesifik
 	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
 	GetReceivablesDetailData(ctx context.Context) ([]ReceivableDetail, error)
+
+	// TAMBAHAN: Helper untuk mengambil total Pengeluaran (Expenses)
+	GetTotalExpenseByDateRange(ctx context.Context, startDate, endDate time.Time) (float64, error)
+	GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error)
 }
 
 type ReportUsecase interface {
-	// Usecase untuk Akuntansi. Kita bisa melempar startDate & endDate dari handler
 	GetAccountingReport(ctx context.Context, startDate, endDate time.Time) (*AccountingReport, error)
-
-	// Usecase untuk Laporan Produksi
 	GetProductionReport(ctx context.Context, targetMonth, targetYear int) (*ProductionReport, error)
-
-	// Usecase spesifik yang dipertahankan
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
 	GetReceivablesDetailReport(ctx context.Context) ([]ReceivableDetail, error)
 }

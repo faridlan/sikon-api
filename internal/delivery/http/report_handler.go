@@ -26,7 +26,7 @@ func NewReportHandler(ru domain.ReportUsecase) ReportHandler {
 }
 
 // @Summary Get Accounting Report
-// @Description Mengambil laporan keuangan (omset, kas masuk, piutang) berdasarkan rentang tanggal.
+// @Description Mengambil laporan keuangan (Omset, Kas Masuk, Piutang, Pengeluaran, Laba Bersih, dan Arus Kas) berdasarkan rentang tanggal.
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth
@@ -70,7 +70,7 @@ func (h *reportHandler) GetAccountingReport(c *fiber.Ctx) error {
 }
 
 // @Summary Get Production Report
-// @Description Mengambil laporan produksi dan performa sales berdasarkan Edisi PO (Bulan & Tahun).
+// @Description Mengambil laporan produksi, tagihan, HPP (Pengeluaran), Laba Produksi, dan performa sales berdasarkan Edisi PO (Bulan & Tahun).
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth

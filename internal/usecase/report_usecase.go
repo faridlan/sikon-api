@@ -29,7 +29,24 @@ func (u *reportUsecase) GetAccountingReport(c context.Context, startDate, endDat
 		return nil, domain.NewError(domain.ErrBadParamInput, "Tanggal akhir tidak boleh lebih kecil dari tanggal awal")
 	}
 
-	return u.reportRepo.GetAccountingReportData(ctx, startDate, endDate)
+	// 1. Ambil data dasar laporan akuntansi
+	report, err := u.reportRepo.GetAccountingReportData(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Ambil total pengeluaran di rentang tanggal yang sama
+	totalExpense, err := u.reportRepo.GetTotalExpenseByDateRange(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Kalkulasi Net Profit & Net Cashflow
+	report.Summary.TotalExpense = totalExpense
+	report.Summary.NetProfit = report.Summary.TotalOmset - totalExpense
+	report.Summary.NetCashflow = report.Summary.TotalCashIn - totalExpense
+
+	return report, nil
 }
 
 // ============================================================================
@@ -47,7 +64,29 @@ func (u *reportUsecase) GetProductionReport(c context.Context, targetMonth, targ
 		return nil, domain.NewError(domain.ErrBadParamInput, "Tahun tidak valid")
 	}
 
-	return u.reportRepo.GetProductionReportData(ctx, targetMonth, targetYear)
+	// 1. Ambil data dasar laporan produksi
+	report, err := u.reportRepo.GetProductionReportData(ctx, targetMonth, targetYear)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Kumpulkan ID PO aktif untuk mencari pengeluaran spesifik
+	var poIDs []string
+	for _, po := range report.ActiveBatchPOs {
+		poIDs = append(poIDs, po.ID)
+	}
+
+	// 3. Ambil total pengeluaran (HPP) khusus untuk PO-PO tersebut
+	totalHPP, err := u.reportRepo.GetTotalExpenseByBatchPOs(ctx, poIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Kalkulasi Profit Produksi (Hanya dari pesanan yang masuk edisi ini)
+	report.TotalHPP = totalHPP
+	report.NetProfit = report.TotalRevenue - totalHPP
+
+	return report, nil
 }
 
 // ============================================================================
