@@ -49,7 +49,6 @@ func TestAccountingReportEndpoint(t *testing.T) {
 	bank := postgresRepo.BankAccountModel{ID: uuid.NewString(), BankName: "BCA", AccountNumber: "123", AccountName: "Bos"}
 	db.Create(&bank)
 
-	// Gunakan waktu statis (Misal: 15 Juli 2026)
 	juliTime := time.Date(2026, 7, 15, 10, 0, 0, 0, time.Local)
 
 	order1 := postgresRepo.OrderModel{
@@ -65,7 +64,6 @@ func TestAccountingReportEndpoint(t *testing.T) {
 		UpdatedAt:     juliTime,
 	}
 	db.Create(&order1)
-	// Paksa ApprovedAt terisi agar masuk ke query Accounting
 	db.Exec("UPDATE orders SET approved_at = ? WHERE id = ?", "2026-07-15 10:00:00", order1.ID)
 
 	orderItem1 := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order1.ID, ProductID: product.ID, Qty: 10, Price: 100000}
@@ -81,7 +79,6 @@ func TestAccountingReportEndpoint(t *testing.T) {
 	}
 	db.Create(&payment1)
 
-	// TAMBAHAN: Seed Data Pengeluaran (Expense) di rentang Juli 2026
 	expenseCategory := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "Operasional", Type: "OPEX"}
 	db.Create(&expenseCategory)
 
@@ -90,7 +87,7 @@ func TestAccountingReportEndpoint(t *testing.T) {
 		ExpenseCategoryID: expenseCategory.ID,
 		Title:             "Bayar Listrik",
 		Amount:            200000,
-		ExpenseDate:       juliTime, // Masuk dalam query 01 - 31 Juli
+		ExpenseDate:       juliTime,
 		CreatedByID:       sales.ID,
 	}
 	db.Create(&expense)
@@ -112,15 +109,13 @@ func TestAccountingReportEndpoint(t *testing.T) {
 		assert.Equal(t, "2026-07-01", report.StartDate)
 		assert.Equal(t, "2026-07-31", report.EndDate)
 
-		// Validasi Kalkulasi Keuangan
 		assert.Equal(t, float64(1000000), report.Summary.TotalOmset)
 		assert.Equal(t, float64(500000), report.Summary.TotalCashIn)
 		assert.Equal(t, float64(500000), report.Summary.TotalReceivable)
 
-		// Validasi Kalkulasi Pengeluaran & Profit
 		assert.Equal(t, float64(200000), report.Summary.TotalExpense)
-		assert.Equal(t, float64(800000), report.Summary.NetProfit)   // Omset (1jt) - Expense (200rb)
-		assert.Equal(t, float64(300000), report.Summary.NetCashflow) // CashIn (500rb) - Expense (200rb)
+		assert.Equal(t, float64(800000), report.Summary.NetProfit)
+		assert.Equal(t, float64(300000), report.Summary.NetCashflow)
 
 		assert.Equal(t, 1, report.Summary.TotalOrderCount)
 		assert.Equal(t, 10, report.Summary.TotalItemQty)
@@ -146,7 +141,6 @@ func TestProductionReportEndpoint(t *testing.T) {
 	customer := postgresRepo.CustomerModel{ID: uuid.NewString(), Name: "PT Produksi", CreatedBy: sales.ID, SalesID: &sales.ID}
 	db.Create(&customer)
 
-	// Seed Batch PO dengan Edisi Juli 2026 (TargetMonth: 7, TargetYear: 2026)
 	batchPO := postgresRepo.BatchPOModel{
 		ID:          uuid.NewString(),
 		Name:        "PO Edisi Juli",
@@ -174,14 +168,13 @@ func TestProductionReportEndpoint(t *testing.T) {
 	orderItem := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 3, Price: 150000}
 	db.Create(&orderItem)
 
-	// TAMBAHAN: Seed Data Pengeluaran (HPP) yang di-attach ke Batch PO ini
 	expenseCategory := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "Bahan Baku", Type: "HPP"}
 	db.Create(&expenseCategory)
 
 	expense := postgresRepo.ExpenseModel{
 		ID:                uuid.NewString(),
 		ExpenseCategoryID: expenseCategory.ID,
-		BatchPoID:         &batchPO.ID, // Di-attach langsung ke PO Edisi Juli
+		BatchPoID:         &batchPO.ID,
 		Title:             "Beli Kain Tactical",
 		Amount:            150000,
 		ExpenseDate:       time.Now(),
@@ -210,9 +203,8 @@ func TestProductionReportEndpoint(t *testing.T) {
 		assert.Equal(t, int64(97), report.RemainingQuota)
 		assert.Equal(t, float64(450000), report.TotalRevenue)
 
-		// Validasi Kalkulasi Pengeluaran & Profit Produksi
 		assert.Equal(t, float64(150000), report.TotalHPP)
-		assert.Equal(t, float64(300000), report.NetProfit) // Revenue (450rb) - HPP (150rb)
+		assert.Equal(t, float64(300000), report.NetProfit)
 
 		assert.Len(t, report.ActiveBatchPOs, 1)
 		assert.Equal(t, "PO Edisi Juli", report.ActiveBatchPOs[0].Name)
@@ -220,7 +212,7 @@ func TestProductionReportEndpoint(t *testing.T) {
 }
 
 // ============================================================================
-// 3. TEST PO SUMMARY ENDPOINT
+// 3. TEST PO SUMMARY ENDPOINT (Termasuk HPP, Net Profit, & Piutang Customer)
 // ============================================================================
 func TestPOSummaryReportEndpoint(t *testing.T) {
 	app, db := tests.SetupTestApp()
@@ -263,6 +255,20 @@ func TestPOSummaryReportEndpoint(t *testing.T) {
 	orderItem := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 3, Price: 150000}
 	db.Create(&orderItem)
 
+	// Seed HPP untuk PO ini
+	expCat := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "HPP Kain", Type: "HPP"}
+	db.Create(&expCat)
+	expense := postgresRepo.ExpenseModel{
+		ID:                uuid.NewString(),
+		ExpenseCategoryID: expCat.ID,
+		BatchPoID:         &batchPO.ID,
+		Title:             "Kain Celana",
+		Amount:            100000,
+		ExpenseDate:       time.Now(),
+		CreatedByID:       sales.ID,
+	}
+	db.Create(&expense)
+
 	req := httptest.NewRequest("GET", "/api/reports/po/"+batchPO.ID+"/summary", bytes.NewBuffer(nil))
 	resp, err := app.Test(req, -1)
 	assert.NoError(t, err)
@@ -277,6 +283,14 @@ func TestPOSummaryReportEndpoint(t *testing.T) {
 	assert.Equal(t, "PO-SUMMARY", response.Data.POName)
 	assert.Equal(t, int64(3), response.Data.TotalQtyOrdered)
 	assert.Equal(t, float64(450000), response.Data.TotalRevenue)
+	assert.Equal(t, float64(100000), response.Data.TotalHPP)
+	assert.Equal(t, float64(350000), response.Data.NetProfit) // 450k - 100k
+
+	// Validasi Piutang Customer spesifik di PO ini
+	assert.Len(t, response.Data.CustomerReceivables, 1)
+	assert.Equal(t, "PT Mundur", response.Data.CustomerReceivables[0].CustomerName)
+	assert.Equal(t, float64(450000), response.Data.CustomerReceivables[0].OutstandingAmount)
+
 	assert.Len(t, response.Data.ProductSummary, 1)
 }
 
@@ -343,4 +357,76 @@ func TestGetReceivablesReportEndpoint(t *testing.T) {
 	assert.Equal(t, float64(450000), firstData.TotalAmount)
 	assert.Equal(t, float64(0), firstData.TotalPaid)
 	assert.Equal(t, float64(450000), firstData.OutstandingAmount)
+}
+
+// ============================================================================
+// 5. TEST DAILY REPORT ENDPOINT (BARU)
+// ============================================================================
+func TestDailyReportEndpoint(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	category := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Kemeja"}
+	db.Create(&category)
+
+	product := postgresRepo.ProductModel{ID: uuid.NewString(), CategoryID: category.ID, Name: "Kemeja Dinas", BasePrice: 120000}
+	db.Create(&product)
+
+	sales := postgresRepo.UserModel{ID: uuid.NewString(), Name: "John Doe", Email: "john@example.com", Role: "sales"}
+	db.Create(&sales)
+
+	customer := postgresRepo.CustomerModel{ID: uuid.NewString(), Name: "PT Harian", CreatedBy: sales.ID, SalesID: &sales.ID}
+	db.Create(&customer)
+
+	// Buat PO dengan status ACTIVE
+	batchPO := postgresRepo.BatchPOModel{
+		ID:        uuid.NewString(),
+		Name:      "PO 2 JULI 2026",
+		Status:    string(domain.BatchPOStatusActive),
+		Quota:     400,
+		StartDate: time.Now().Add(-24 * time.Hour),
+		EndDate:   time.Now().Add(72 * time.Hour),
+	}
+	db.Create(&batchPO)
+
+	todayStr := time.Now().Format("2006-01-02")
+	todayTime := time.Now()
+
+	order := postgresRepo.OrderModel{
+		ID:            uuid.NewString(),
+		OrderNumber:   "ORD-DAILY-001",
+		BatchPoID:     &batchPO.ID,
+		CustomerID:    customer.ID,
+		SalesID:       sales.ID,
+		TotalAmount:   240000,
+		OrderStatus:   string(domain.OrderStatusProduction),
+		PaymentStatus: string(domain.PaymentStatusUnpaid),
+		CreatedAt:     todayTime,
+		UpdatedAt:     todayTime,
+	}
+	db.Create(&order)
+	db.Exec("UPDATE orders SET approved_at = ? WHERE id = ?", todayTime.Format("2006-01-02 15:00:00"), order.ID)
+
+	orderItem := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 2, Price: 120000}
+	db.Create(&orderItem)
+
+	req := httptest.NewRequest("GET", "/api/reports/daily?date="+todayStr, bytes.NewBuffer(nil))
+	resp, err := app.Test(req, -1)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var response struct {
+		Data dto.DailyReportResponse `json:"data"`
+	}
+	assert.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+
+	assert.Equal(t, todayStr, response.Data.ReportDate)
+	assert.Equal(t, batchPO.ID, response.Data.POInfo.POID)
+	assert.Equal(t, "PO 2 JULI 2026", response.Data.POInfo.POName)
+	assert.Equal(t, int64(2), response.Data.OrderSummary.QtyToday)
+	assert.Equal(t, int64(2), response.Data.OrderSummary.QtyTotalPO)
+	assert.Equal(t, float64(240000), response.Data.FinancialSummary.TotalRevenue)
+	assert.NotEmpty(t, response.Data.SalesDetails)
+	assert.Equal(t, "John Doe", response.Data.SalesDetails[0].SalesName)
+	assert.Equal(t, int64(2), response.Data.SalesDetails[0].TotalQty)
 }

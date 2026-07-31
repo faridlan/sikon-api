@@ -46,6 +46,36 @@ func (_m *ReportRepository) GetAccountingReportData(ctx context.Context, startDa
 	return r0, r1
 }
 
+// GetDailyReportData provides a mock function with given fields: ctx, date
+func (_m *ReportRepository) GetDailyReportData(ctx context.Context, date time.Time) (*domain.DailyReport, error) {
+	ret := _m.Called(ctx, date)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDailyReportData")
+	}
+
+	var r0 *domain.DailyReport
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) (*domain.DailyReport, error)); ok {
+		return rf(ctx, date)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) *domain.DailyReport); ok {
+		r0 = rf(ctx, date)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.DailyReport)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = rf(ctx, date)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPOSummaryData provides a mock function with given fields: ctx, poID
 func (_m *ReportRepository) GetPOSummaryData(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
 	ret := _m.Called(ctx, poID)
@@ -129,6 +159,62 @@ func (_m *ReportRepository) GetReceivablesDetailData(ctx context.Context) ([]dom
 
 	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
 		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTotalExpenseByBatchPOs provides a mock function with given fields: ctx, poIDs
+func (_m *ReportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error) {
+	ret := _m.Called(ctx, poIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTotalExpenseByBatchPOs")
+	}
+
+	var r0 float64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) (float64, error)); ok {
+		return rf(ctx, poIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) float64); ok {
+		r0 = rf(ctx, poIDs)
+	} else {
+		r0 = ret.Get(0).(float64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, poIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTotalExpenseByDateRange provides a mock function with given fields: ctx, startDate, endDate
+func (_m *ReportRepository) GetTotalExpenseByDateRange(ctx context.Context, startDate time.Time, endDate time.Time) (float64, error) {
+	ret := _m.Called(ctx, startDate, endDate)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTotalExpenseByDateRange")
+	}
+
+	var r0 float64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) (float64, error)); ok {
+		return rf(ctx, startDate, endDate)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) float64); ok {
+		r0 = rf(ctx, startDate, endDate)
+	} else {
+		r0 = ret.Get(0).(float64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = rf(ctx, startDate, endDate)
 	} else {
 		r1 = ret.Error(1)
 	}

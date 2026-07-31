@@ -63,7 +63,7 @@ func (r *reportRepository) GetAccountingReportData(ctx context.Context, startDat
 		TotalCashIn:     totalCashIn,
 		TotalReceivable: piutangBaru,
 		TotalOrderCount: int(totalOrders),
-		TotalItemQty:    int(totalQty), // TETAP int
+		TotalItemQty:    int(totalQty),
 	}
 
 	// 5. Leaderboard Sales (Siapa penyumbang omset di periode ini)
@@ -101,7 +101,7 @@ func (r *reportRepository) GetAccountingReportData(ctx context.Context, startDat
 		cashInMap[r.Date] = r.Amount
 	}
 
-	// Loop mengisi array agar grafik tidak bolong (dari startDate s/d endDate)
+	// Loop mengisi array agar grafik tidak bolong
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
 		dateStr := d.Format("2006-01-02")
 		report.DailyTrends = append(report.DailyTrends, domain.AccountingDailyTrend{
@@ -143,12 +143,11 @@ func (r *reportRepository) GetProductionReportData(ctx context.Context, targetMo
 	}
 	report.TotalQuota = totalQuota
 
-	// Jika tidak ada PO di edisi ini, kembalikan report kosong
 	if len(poIDs) == 0 {
 		return report, nil
 	}
 
-	// 2. Hitung Finansial (Khusus dari daftar poIDs di atas)
+	// 2. Hitung Finansial
 	var financial struct {
 		TotalRevenue     float64
 		TotalPaid        float64
@@ -190,7 +189,7 @@ func (r *reportRepository) GetProductionReportData(ctx context.Context, targetMo
 	}
 	report.RemainingQuota = remaining
 
-	// 4. Rekap Performa Sales di Edisi Ini
+	// 4. Rekap Performa Sales
 	r.db.WithContext(ctx).Table("orders o").
 		Select("u.name as sales_name, SUM(oi.qty) as total_qty, SUM(DISTINCT o.total_amount) as total_revenue").
 		Joins("JOIN users u ON u.id = o.sales_id").
@@ -205,8 +204,7 @@ func (r *reportRepository) GetProductionReportData(ctx context.Context, targetMo
 }
 
 // ============================================================================
-// 3. JALUR SPESIFIK (Summary per PO & Daftar Piutang)
-// Kode dipertahankan sama seperti aslimu
+// 3. JALUR SPESIFIK (Summary per PO & Daftar Piutang) -- DI-UPDATE
 // ============================================================================
 func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
 	summary := &domain.POSummaryReport{}
@@ -270,6 +268,23 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 		Order("total_revenue DESC").
 		Scan(&summary.SalesSummary)
 
+	// 5. TAMBAHAN: Daftar Piutang per Customer spesifik di PO ini
+	r.db.WithContext(ctx).Table("orders o").
+		Select(`
+			c.name as customer_name,
+			SUM(o.total_amount) as total_amount,
+			COALESCE(SUM(p.total_paid), 0) as total_paid,
+			SUM(o.total_amount - COALESCE(p.total_paid, 0)) as outstanding_amount
+		`).
+		Joins("JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL").
+		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL", poID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("c.name").
+		Having("SUM(o.total_amount - COALESCE(p.total_paid, 0)) > 0"). // Hanya yang masih ada hutang
+		Order("outstanding_amount DESC").
+		Scan(&summary.CustomerReceivables)
+
 	return summary, nil
 }
 
@@ -307,12 +322,11 @@ func (r *reportRepository) GetReceivablesDetailData(ctx context.Context) ([]doma
 }
 
 // ============================================================================
-// HELPER FINANSIAL (EXPENSES)
+// 4. HELPER FINANSIAL (EXPENSES)
 // ============================================================================
 
 func (r *reportRepository) GetTotalExpenseByDateRange(ctx context.Context, startDate, endDate time.Time) (float64, error) {
 	var total float64
-
 	err := r.db.WithContext(ctx).Table("expenses").
 		Where("expense_date >= ? AND expense_date <= ? AND deleted_at IS NULL", startDate, endDate).
 		Select("COALESCE(SUM(amount), 0)").
@@ -321,7 +335,6 @@ func (r *reportRepository) GetTotalExpenseByDateRange(ctx context.Context, start
 	if err != nil {
 		return 0, TranslateError(err)
 	}
-
 	return total, nil
 }
 
@@ -329,9 +342,7 @@ func (r *reportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs 
 	if len(poIDs) == 0 {
 		return 0, nil
 	}
-
 	var total float64
-
 	err := r.db.WithContext(ctx).Table("expenses").
 		Where("batch_po_id IN ? AND deleted_at IS NULL", poIDs).
 		Select("COALESCE(SUM(amount), 0)").
@@ -340,6 +351,155 @@ func (r *reportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs 
 	if err != nil {
 		return 0, TranslateError(err)
 	}
-
 	return total, nil
+}
+
+// ============================================================================
+// 5. JALUR HARIAN (DAILY TACTICAL REPORT) - BARU
+// ============================================================================
+func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate time.Time) (*domain.DailyReport, error) {
+	dateStr := targetDate.Format("2006-01-02")
+	report := &domain.DailyReport{
+		ReportDate: dateStr,
+	}
+
+	// 1. Cek PO Aktif (Asumsi: Hanya ada 1 PO aktif di sistem, kita ambil yang terbaru/pertama)
+	var po domain.BatchPO
+	err := r.db.WithContext(ctx).Table("batch_pos").
+		Where("status = ? AND deleted_at IS NULL", domain.BatchPOStatusActive).
+		Order("created_at DESC").
+		First(&po).Error
+
+	// Jika tidak ada PO aktif sama sekali, kembalikan report kosong
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return report, nil
+		}
+		return nil, TranslateError(err)
+	}
+
+	// 2. Set PO Info & Kalkulasi Qty PO
+	var qtyTotalPO int64
+	r.db.WithContext(ctx).Table("order_items oi").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Select("COALESCE(SUM(oi.qty), 0)").Scan(&qtyTotalPO)
+
+	remQuota := int64(po.Quota) - qtyTotalPO
+	if remQuota < 0 {
+		remQuota = 0
+	}
+
+	report.POInfo = domain.DailyPOInfo{
+		POID:           po.ID,
+		POName:         po.Name,
+		Quota:          po.Quota,
+		RemainingQuota: remQuota,
+	}
+	report.OrderSummary.QtyTotalPO = qtyTotalPO
+
+	// 3. Kalkulasi Qty Hari Ini (Dari order yang deal hari ini di PO tsb)
+	var qtyToday int64
+	r.db.WithContext(ctx).Table("order_items oi").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("DATE(o.approved_at) = DATE(?)", targetDate).
+		Select("COALESCE(SUM(oi.qty), 0)").Scan(&qtyToday)
+
+	report.OrderSummary.QtyToday = qtyToday
+
+	// 4. Financial Summary (Cash in hari ini, dan outstanding)
+	var totalRevenueToday, totalPaidToday float64
+	// Omset masuk HARI INI
+	r.db.WithContext(ctx).Table("orders").
+		Where("DATE(approved_at) = DATE(?) AND deleted_at IS NULL", targetDate).
+		Select("COALESCE(SUM(total_amount), 0)").Scan(&totalRevenueToday)
+	// Cash masuk HARI INI
+	r.db.WithContext(ctx).Table("payments").
+		Where("DATE(payment_date) = DATE(?) AND deleted_at IS NULL", targetDate).
+		Select("COALESCE(SUM(amount), 0)").Scan(&totalPaidToday)
+
+	// Piutang PO Aktif
+	var activeOut float64
+	r.db.WithContext(ctx).Table("orders o").
+		Select("COALESCE(SUM(o.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.order_id = o.id AND payments.deleted_at IS NULL)), 0)").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND o.order_status IN (?, ?)", po.ID, domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Scan(&activeOut)
+
+	// Piutang PO Sebelumnya (Bukan PO yang saat ini aktif)
+	var prevOut float64
+	r.db.WithContext(ctx).Table("orders o").
+		Select("COALESCE(SUM(o.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.order_id = o.id AND payments.deleted_at IS NULL)), 0)").
+		Where("o.batch_po_id != ? AND o.deleted_at IS NULL AND o.order_status IN (?, ?)", po.ID, domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Scan(&prevOut)
+
+	report.FinancialSummary = domain.DailyFinancialSummary{
+		TotalRevenue:          totalRevenueToday,
+		TotalPaid:             totalPaidToday,
+		ActivePOOutstanding:   activeOut,
+		PreviousPOOutstanding: prevOut,
+		TotalOutstanding:      activeOut + prevOut,
+	}
+
+	// 5. Trend Data (7 Hari Terakhir untuk PO ini)
+	trendData := make([]domain.DailyTrend, 0)
+	for i := 6; i >= 0; i-- {
+		d := targetDate.AddDate(0, 0, -i)
+		dateStr := d.Format("2006-01-02")
+
+		var qty int64
+		r.db.WithContext(ctx).Table("order_items oi").
+			Joins("JOIN orders o ON o.id = oi.order_id").
+			Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
+			Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+			Where("DATE(o.approved_at) = DATE(?)", d).
+			Select("COALESCE(SUM(oi.qty), 0)").Scan(&qty)
+
+		trendData = append(trendData, domain.DailyTrend{
+			Date: dateStr,
+			Qty:  qty,
+		})
+	}
+	report.OrderSummary.TrendData = trendData
+
+	// 6. Sales Details Hari Ini (Agregasi multi-tabel via Go code karena JSON nested)
+	type salesRaw struct {
+		SalesID   string
+		SalesName string
+		CatName   string
+		Qty       int64
+	}
+	var rawData []salesRaw
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("u.id as sales_id, u.name as sales_name, c.name as cat_name, SUM(oi.qty) as qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Joins("JOIN users u ON u.id = o.sales_id").
+		Joins("JOIN products p ON p.id = oi.product_id").
+		Joins("JOIN categories c ON c.id = p.category_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
+		Where("DATE(o.approved_at) = DATE(?)", targetDate).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("u.id, u.name, c.name").
+		Scan(&rawData)
+
+	salesMap := make(map[string]*domain.DailySalesDetail)
+	for _, row := range rawData {
+		if _, exists := salesMap[row.SalesID]; !exists {
+			salesMap[row.SalesID] = &domain.DailySalesDetail{
+				SalesName:  row.SalesName,
+				Categories: make(map[string]int64),
+				TotalQty:   0,
+			}
+		}
+		salesMap[row.SalesID].Categories[row.CatName] += row.Qty
+		salesMap[row.SalesID].TotalQty += row.Qty
+	}
+
+	for _, v := range salesMap {
+		report.SalesDetails = append(report.SalesDetails, *v)
+	}
+
+	return report, nil
 }
