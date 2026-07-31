@@ -43,7 +43,6 @@ type AccountingSalesPerformanceResponse struct {
 	TotalOrders int     `json:"total_orders"`
 }
 
-// Mapper untuk Akuntansi
 func ToAccountingReportResponse(src *domain.AccountingReport) *AccountingReportResponse {
 	if src == nil {
 		return nil
@@ -59,10 +58,9 @@ func ToAccountingReportResponse(src *domain.AccountingReport) *AccountingReportR
 			TotalReceivable: src.Summary.TotalReceivable,
 			TotalOrderCount: src.Summary.TotalOrderCount,
 			TotalItemQty:    src.Summary.TotalItemQty,
-			// MAPPING METRIK FINANSIAL
-			TotalExpense: src.Summary.TotalExpense,
-			NetProfit:    src.Summary.NetProfit,
-			NetCashflow:  src.Summary.NetCashflow,
+			TotalExpense:    src.Summary.TotalExpense,
+			NetProfit:       src.Summary.NetProfit,
+			NetCashflow:     src.Summary.NetCashflow,
 		},
 		DailyTrends:       make([]AccountingDailyTrendResponse, 0),
 		SalesPerformances: make([]AccountingSalesPerformanceResponse, 0),
@@ -94,7 +92,6 @@ type ProductionReportResponse struct {
 	TotalPaid        float64 `json:"total_paid"`
 	TotalOutstanding float64 `json:"total_outstanding"`
 
-	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
 	TotalHPP  float64 `json:"total_hpp"`
 	NetProfit float64 `json:"net_profit"`
 
@@ -110,7 +107,6 @@ type ProductionBatchPOResponse struct {
 	Quota  int    `json:"quota"`
 }
 
-// Mapper untuk Produksi
 func ToProductionReportResponse(src *domain.ProductionReport) *ProductionReportResponse {
 	if src == nil {
 		return nil
@@ -126,9 +122,8 @@ func ToProductionReportResponse(src *domain.ProductionReport) *ProductionReportR
 		TotalRevenue:     src.TotalRevenue,
 		TotalPaid:        src.TotalPaid,
 		TotalOutstanding: src.TotalOutstanding,
-		// MAPPING METRIK FINANSIAL
-		TotalHPP:  src.TotalHPP,
-		NetProfit: src.NetProfit,
+		TotalHPP:         src.TotalHPP,
+		NetProfit:        src.NetProfit,
 
 		ActiveBatchPOs: make([]ProductionBatchPOResponse, 0),
 		ProductSummary: make([]POProductSummaryResponse, 0),
@@ -167,18 +162,31 @@ func ToProductionReportResponse(src *domain.ProductionReport) *ProductionReportR
 // ============================================================================
 
 type POSummaryResponse struct {
-	POID             string                     `json:"po_id"`
-	POName           string                     `json:"po_name"`
-	StartDate        string                     `json:"start_date"`
-	EndDate          string                     `json:"end_date"`
-	Status           string                     `json:"status"`
-	TotalQuota       int                        `json:"total_quota"`
-	TotalQtyOrdered  int64                      `json:"total_qty_ordered"`
-	TotalRevenue     float64                    `json:"total_revenue"`
-	TotalPaid        float64                    `json:"total_paid"`
-	TotalOutstanding float64                    `json:"total_outstanding"`
-	ProductSummary   []POProductSummaryResponse `json:"product_summary"`
-	SalesSummary     []POSalesSummaryResponse   `json:"sales_summary"`
+	POID             string  `json:"po_id"`
+	POName           string  `json:"po_name"`
+	StartDate        string  `json:"start_date"`
+	EndDate          string  `json:"end_date"`
+	Status           string  `json:"status"`
+	TotalQuota       int     `json:"total_quota"`
+	TotalQtyOrdered  int64   `json:"total_qty_ordered"`
+	TotalRevenue     float64 `json:"total_revenue"`
+	TotalPaid        float64 `json:"total_paid"`
+	TotalOutstanding float64 `json:"total_outstanding"`
+
+	// FINANSIAL
+	TotalHPP  float64 `json:"total_hpp"`
+	NetProfit float64 `json:"net_profit"`
+
+	CustomerReceivables []POCustomerReceivableResponse `json:"customer_receivables"`
+	ProductSummary      []POProductSummaryResponse     `json:"product_summary"`
+	SalesSummary        []POSalesSummaryResponse       `json:"sales_summary"`
+}
+
+type POCustomerReceivableResponse struct {
+	CustomerName      string  `json:"customer_name"`
+	TotalAmount       float64 `json:"total_amount"`
+	TotalPaid         float64 `json:"total_paid"`
+	OutstandingAmount float64 `json:"outstanding_amount"`
 }
 
 type POProductSummaryResponse struct {
@@ -226,19 +234,32 @@ func ToPOSummaryResponse(src *domain.POSummaryReport) POSummaryResponse {
 		})
 	}
 
+	customerReceivables := make([]POCustomerReceivableResponse, 0, len(src.CustomerReceivables))
+	for _, c := range src.CustomerReceivables {
+		customerReceivables = append(customerReceivables, POCustomerReceivableResponse{
+			CustomerName:      c.CustomerName,
+			TotalAmount:       c.TotalAmount,
+			TotalPaid:         c.TotalPaid,
+			OutstandingAmount: c.OutstandingAmount,
+		})
+	}
+
 	return POSummaryResponse{
-		POID:             src.POID,
-		POName:           src.POName,
-		StartDate:        src.StartDate.Format("2006-01-02"),
-		EndDate:          src.EndDate.Format("2006-01-02"),
-		Status:           string(src.Status),
-		TotalQuota:       src.TotalQuota,
-		TotalQtyOrdered:  src.TotalQtyOrdered,
-		TotalRevenue:     src.TotalRevenue,
-		TotalPaid:        src.TotalPaid,
-		TotalOutstanding: src.TotalOutstanding,
-		ProductSummary:   prodSummary,
-		SalesSummary:     salesSummary,
+		POID:                src.POID,
+		POName:              src.POName,
+		StartDate:           src.StartDate.Format("2006-01-02"),
+		EndDate:             src.EndDate.Format("2006-01-02"),
+		Status:              string(src.Status),
+		TotalQuota:          src.TotalQuota,
+		TotalQtyOrdered:     src.TotalQtyOrdered,
+		TotalRevenue:        src.TotalRevenue,
+		TotalPaid:           src.TotalPaid,
+		TotalOutstanding:    src.TotalOutstanding,
+		TotalHPP:            src.TotalHPP,
+		NetProfit:           src.NetProfit,
+		CustomerReceivables: customerReceivables,
+		ProductSummary:      prodSummary,
+		SalesSummary:        salesSummary,
 	}
 }
 
@@ -263,4 +284,94 @@ func ToReceivableDetailListResponse(data []domain.ReceivableDetail) []Receivable
 	}
 
 	return responses
+}
+
+// ============================================================================
+// 4. DTO JALUR HARIAN (DAILY REPORT) - BARU
+// ============================================================================
+
+type DailyReportResponse struct {
+	ReportDate       string                        `json:"report_date"`
+	POInfo           DailyPOInfoResponse           `json:"po_info"`
+	OrderSummary     DailyOrderSummaryResponse     `json:"order_summary"`
+	FinancialSummary DailyFinancialSummaryResponse `json:"financial_summary"`
+	SalesDetails     []DailySalesDetailResponse    `json:"sales_details"`
+}
+
+type DailyPOInfoResponse struct {
+	POID           string `json:"po_id"`
+	POName         string `json:"po_name"`
+	Quota          int    `json:"quota"`
+	RemainingQuota int64  `json:"remaining_quota"`
+}
+
+type DailyOrderSummaryResponse struct {
+	QtyToday   int64                `json:"qty_today"`
+	QtyTotalPO int64                `json:"qty_total_po"`
+	TrendData  []DailyTrendResponse `json:"trend_data"`
+}
+
+type DailyTrendResponse struct {
+	Date string `json:"date"`
+	Qty  int64  `json:"qty"`
+}
+
+type DailyFinancialSummaryResponse struct {
+	TotalRevenue          float64 `json:"total_revenue"`
+	TotalPaid             float64 `json:"total_paid"`
+	ActivePOOutstanding   float64 `json:"active_po_outstanding"`
+	PreviousPOOutstanding float64 `json:"previous_po_outstanding"`
+	TotalOutstanding      float64 `json:"total_outstanding"`
+}
+
+type DailySalesDetailResponse struct {
+	SalesName  string           `json:"sales_name"`
+	Categories map[string]int64 `json:"categories"`
+	TotalQty   int64            `json:"total_qty"`
+}
+
+func ToDailyReportResponse(src *domain.DailyReport) DailyReportResponse {
+	if src == nil {
+		return DailyReportResponse{}
+	}
+
+	trendData := make([]DailyTrendResponse, 0, len(src.OrderSummary.TrendData))
+	for _, t := range src.OrderSummary.TrendData {
+		trendData = append(trendData, DailyTrendResponse{
+			Date: t.Date,
+			Qty:  t.Qty,
+		})
+	}
+
+	salesDetails := make([]DailySalesDetailResponse, 0, len(src.SalesDetails))
+	for _, s := range src.SalesDetails {
+		salesDetails = append(salesDetails, DailySalesDetailResponse{
+			SalesName:  s.SalesName,
+			Categories: s.Categories,
+			TotalQty:   s.TotalQty,
+		})
+	}
+
+	return DailyReportResponse{
+		ReportDate: src.ReportDate,
+		POInfo: DailyPOInfoResponse{
+			POID:           src.POInfo.POID,
+			POName:         src.POInfo.POName,
+			Quota:          src.POInfo.Quota,
+			RemainingQuota: src.POInfo.RemainingQuota,
+		},
+		OrderSummary: DailyOrderSummaryResponse{
+			QtyToday:   src.OrderSummary.QtyToday,
+			QtyTotalPO: src.OrderSummary.QtyTotalPO,
+			TrendData:  trendData,
+		},
+		FinancialSummary: DailyFinancialSummaryResponse{
+			TotalRevenue:          src.FinancialSummary.TotalRevenue,
+			TotalPaid:             src.FinancialSummary.TotalPaid,
+			ActivePOOutstanding:   src.FinancialSummary.ActivePOOutstanding,
+			PreviousPOOutstanding: src.FinancialSummary.PreviousPOOutstanding,
+			TotalOutstanding:      src.FinancialSummary.TotalOutstanding,
+		},
+		SalesDetails: salesDetails,
+	}
 }

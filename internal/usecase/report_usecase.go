@@ -90,7 +90,7 @@ func (u *reportUsecase) GetProductionReport(c context.Context, targetMonth, targ
 }
 
 // ============================================================================
-// 3. JALUR SPESIFIK (Detail PO & Piutang)
+// 3. JALUR SPESIFIK (Detail PO & Piutang) -- DI-UPDATE
 // ============================================================================
 func (u *reportUsecase) GetPOSummaryReport(c context.Context, poID string) (*domain.POSummaryReport, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
@@ -100,10 +100,21 @@ func (u *reportUsecase) GetPOSummaryReport(c context.Context, poID string) (*dom
 		return nil, errors.New("PO ID tidak boleh kosong")
 	}
 
+	// 1. Ambil data summary (termasuk list customer receivables)
 	summary, err := u.reportRepo.GetPOSummaryData(ctx, poID)
 	if err != nil {
 		return nil, err
 	}
+
+	// 2. Ambil pengeluaran (HPP) HANYA untuk PO ini
+	totalHPP, err := u.reportRepo.GetTotalExpenseByBatchPOs(ctx, []string{poID})
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Set kalkulasi finansial spesifik PO ini
+	summary.TotalHPP = totalHPP
+	summary.NetProfit = summary.TotalRevenue - totalHPP
 
 	return summary, nil
 }
@@ -118,4 +129,24 @@ func (u *reportUsecase) GetReceivablesDetailReport(c context.Context) ([]domain.
 	}
 
 	return data, nil
+}
+
+// ============================================================================
+// 4. JALUR HARIAN (DAILY REPORT) - BARU
+// ============================================================================
+func (u *reportUsecase) GetDailyReport(c context.Context, date time.Time) (*domain.DailyReport, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// Jika tanggal tidak diset secara eksplisit, gunakan waktu saat ini (hari ini)
+	if date.IsZero() {
+		date = time.Now()
+	}
+
+	report, err := u.reportRepo.GetDailyReportData(ctx, date)
+	if err != nil {
+		return nil, err
+	}
+
+	return report, nil
 }

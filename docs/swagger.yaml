@@ -41,7 +41,14 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSummaryResponse:
     properties:
+      net_cashflow:
+        type: number
+      net_profit:
+        type: number
       total_cash_in:
+        type: number
+      total_expense:
+        description: TAMBAHAN METRIK FINANSIAL PENGELUARAN
         type: number
       total_item_qty:
         type: integer
@@ -309,6 +316,75 @@ definitions:
         description: TAMBAHAN
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyFinancialSummaryResponse:
+    properties:
+      active_po_outstanding:
+        type: number
+      previous_po_outstanding:
+        type: number
+      total_outstanding:
+        type: number
+      total_paid:
+        type: number
+      total_revenue:
+        type: number
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyOrderSummaryResponse:
+    properties:
+      qty_today:
+        type: integer
+      qty_total_po:
+        type: integer
+      trend_data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse'
+        type: array
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyPOInfoResponse:
+    properties:
+      po_id:
+        type: string
+      po_name:
+        type: string
+      quota:
+        type: integer
+      remaining_quota:
+        type: integer
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyReportResponse:
+    properties:
+      financial_summary:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyFinancialSummaryResponse'
+      order_summary:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyOrderSummaryResponse'
+      po_info:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyPOInfoResponse'
+      report_date:
+        type: string
+      sales_details:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySalesDetailResponse'
+        type: array
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySalesDetailResponse:
+    properties:
+      categories:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      sales_name:
+        type: string
+      total_qty:
+        type: integer
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse:
+    properties:
+      date:
+        type: string
+      qty:
+        type: integer
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse:
     properties:
@@ -625,6 +701,17 @@ definitions:
         example: "2026-06-15T00:00:00Z"
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.POCustomerReceivableResponse:
+    properties:
+      customer_name:
+        type: string
+      outstanding_amount:
+        type: number
+      total_amount:
+        type: number
+      total_paid:
+        type: number
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.POProductSummaryResponse:
     properties:
       category_name:
@@ -643,8 +730,14 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.POSummaryResponse:
     properties:
+      customer_receivables:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POCustomerReceivableResponse'
+        type: array
       end_date:
         type: string
+      net_profit:
+        type: number
       po_id:
         type: string
       po_name:
@@ -661,6 +754,9 @@ definitions:
         type: string
       status:
         type: string
+      total_hpp:
+        description: FINANSIAL
+        type: number
       total_outstanding:
         type: number
       total_paid:
@@ -865,6 +961,8 @@ definitions:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionBatchPOResponse'
         type: array
+      net_profit:
+        type: number
       period_name:
         type: string
       product_summary:
@@ -881,6 +979,8 @@ definitions:
         type: integer
       target_year:
         type: integer
+      total_hpp:
+        type: number
       total_outstanding:
         type: number
       total_paid:
@@ -1275,6 +1375,13 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CustomerResponse'
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DailyReportResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyReportResponse'
       message:
         type: string
     type: object
@@ -3135,8 +3242,8 @@ paths:
       - Products
   /reports/accounting:
     get:
-      description: Mengambil laporan keuangan (omset, kas masuk, piutang) berdasarkan
-        rentang tanggal.
+      description: Mengambil laporan keuangan (Omset, Kas Masuk, Piutang, Pengeluaran,
+        Laba Bersih, dan Arus Kas) berdasarkan rentang tanggal.
       parameters:
       - description: 'Tanggal Awal (Format: YYYY-MM-DD)'
         in: query
@@ -3158,10 +3265,40 @@ paths:
       summary: Get Accounting Report
       tags:
       - Reports
+  /reports/daily:
+    get:
+      description: Mengambil laporan harian operasional (briefing pagi) berdasarkan
+        PO yang sedang aktif.
+      parameters:
+      - description: 'Tanggal Laporan (Format: YYYY-MM-DD) - Default: Hari ini'
+        in: query
+        name: date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DailyReportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Daily Tactical Report
+      tags:
+      - Reports
   /reports/po/{po_id}/summary:
     get:
       description: Mengambil rekapitulasi data PO tertentu, termasuk total produk
-        yang harus diproduksi dan tagihan finansial.
+        yang harus diproduksi, tagihan finansial, HPP, Net Profit, dan spesifik piutang
+        customer.
       parameters:
       - description: ID dari Batch PO
         in: path
@@ -3194,8 +3331,8 @@ paths:
       - Reports
   /reports/production:
     get:
-      description: Mengambil laporan produksi dan performa sales berdasarkan Edisi
-        PO (Bulan & Tahun).
+      description: Mengambil laporan produksi, tagihan, HPP (Pengeluaran), Laba Produksi,
+        dan performa sales berdasarkan Edisi PO (Bulan & Tahun).
       parameters:
       - description: 'Bulan Target PO (1-12) - Default: Bulan saat ini'
         in: query

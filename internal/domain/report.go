@@ -7,7 +7,6 @@ import (
 
 // ============================================================================
 // 1. JALUR AKUNTANSI (FINANCIAL / CALENDAR BASED)
-// Menggantikan fungsi lama Laporan Harian & Bulanan yang redundan
 // ============================================================================
 
 type AccountingReport struct {
@@ -47,7 +46,6 @@ type AccountingSalesPerformance struct {
 
 // ============================================================================
 // 2. JALUR PRODUKSI (PO EDITION BASED)
-// Fokus pada performa produksi berdasarkan Target Month & Target Year PO
 // ============================================================================
 
 type ProductionReport struct {
@@ -78,7 +76,7 @@ type ProductionBatchPO struct {
 }
 
 // ============================================================================
-// 3. JALUR SPESIFIK (TETAP DIPERTAHANKAN KARENA DIBUTUHKAN)
+// 3. JALUR SPESIFIK (PO SUMMARY & RECEIVABLE DETAIL)
 // ============================================================================
 
 type POSummaryReport struct {
@@ -92,8 +90,21 @@ type POSummaryReport struct {
 	TotalRevenue     float64
 	TotalPaid        float64
 	TotalOutstanding float64
-	ProductSummary   []POProductSummary
-	SalesSummary     []POSalesSummary
+
+	// TAMBAHAN METRIK FINANSIAL (HPP & PROFIT)
+	TotalHPP  float64
+	NetProfit float64
+
+	CustomerReceivables []POCustomerReceivable
+	ProductSummary      []POProductSummary
+	SalesSummary        []POSalesSummary
+}
+
+type POCustomerReceivable struct {
+	CustomerName      string
+	TotalAmount       float64
+	TotalPaid         float64
+	OutstandingAmount float64
 }
 
 type POProductSummary struct {
@@ -120,6 +131,50 @@ type ReceivableDetail struct {
 }
 
 // ============================================================================
+// 5. JALUR HARIAN (DAILY TACTICAL REPORT) - BARU
+// ============================================================================
+
+type DailyReport struct {
+	ReportDate       string // YYYY-MM-DD
+	POInfo           DailyPOInfo
+	OrderSummary     DailyOrderSummary
+	FinancialSummary DailyFinancialSummary
+	SalesDetails     []DailySalesDetail
+}
+
+type DailyPOInfo struct {
+	POID           string
+	POName         string
+	Quota          int
+	RemainingQuota int64
+}
+
+type DailyOrderSummary struct {
+	QtyToday   int64
+	QtyTotalPO int64
+	TrendData  []DailyTrend
+}
+
+type DailyTrend struct {
+	Date string
+	Qty  int64
+}
+
+type DailyFinancialSummary struct {
+	TotalRevenue          float64
+	TotalPaid             float64
+	ActivePOOutstanding   float64 // Piutang khusus PO yang sedang jalan
+	PreviousPOOutstanding float64 // Piutang dari PO-PO sebelumnya yang belum lunas
+	TotalOutstanding      float64 // Total semua piutang (Active + Previous)
+}
+
+type DailySalesDetail struct {
+	SalesName  string
+	Categories map[string]int64
+	TotalQty   int64
+}
+
+// ============================================================================
 // 4. INTERFACE KONTRAK (REPOSITORIES & USECASES)
 // ============================================================================
 
@@ -131,8 +186,9 @@ type ReportRepository interface {
 	// Laporan Spesifik
 	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
 	GetReceivablesDetailData(ctx context.Context) ([]ReceivableDetail, error)
+	GetDailyReportData(ctx context.Context, date time.Time) (*DailyReport, error) // BARU: Laporan Harian
 
-	// TAMBAHAN: Helper untuk mengambil total Pengeluaran (Expenses)
+	// Helper untuk mengambil total Pengeluaran (Expenses)
 	GetTotalExpenseByDateRange(ctx context.Context, startDate, endDate time.Time) (float64, error)
 	GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error)
 }
@@ -142,4 +198,5 @@ type ReportUsecase interface {
 	GetProductionReport(ctx context.Context, targetMonth, targetYear int) (*ProductionReport, error)
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
 	GetReceivablesDetailReport(ctx context.Context) ([]ReceivableDetail, error)
+	GetDailyReport(ctx context.Context, date time.Time) (*DailyReport, error) // BARU: Laporan Harian
 }

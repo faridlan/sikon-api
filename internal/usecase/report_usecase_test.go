@@ -18,6 +18,7 @@ type stubReportRepository struct {
 	productionReport  *domain.ProductionReport
 	poSummary         *domain.POSummaryReport
 	receivablesDetail []domain.ReceivableDetail
+	dailyReport       *domain.DailyReport // TAMBAHAN: Untuk laporan harian
 
 	// Nilai kembalian khusus untuk Expense
 	totalExpense float64
@@ -43,6 +44,10 @@ func (s stubReportRepository) GetPOSummaryData(_ context.Context, _ string) (*do
 
 func (s stubReportRepository) GetReceivablesDetailData(_ context.Context) ([]domain.ReceivableDetail, error) {
 	return s.receivablesDetail, s.err
+}
+
+func (s stubReportRepository) GetDailyReportData(_ context.Context, _ time.Time) (*domain.DailyReport, error) {
+	return s.dailyReport, s.err
 }
 
 // IMPLEMENTASI KONTRAK BARU (FINANCIAL EXPENSES)
@@ -213,16 +218,19 @@ func TestReportUsecase_GetProductionReport(t *testing.T) {
 }
 
 // ============================================================================
-// TEST: GetPOSummaryReport (Tidak banyak berubah)
+// TEST: GetPOSummaryReport (Diperbarui dengan HPP & Profit)
 // ============================================================================
 func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Success - Menghitung Profit per PO", func(t *testing.T) {
 		mockSummary := &domain.POSummaryReport{
 			POID:         "po-123",
 			TotalRevenue: 15000000,
 		}
 
-		repo := stubReportRepository{poSummary: mockSummary}
+		repo := stubReportRepository{
+			poSummary: mockSummary,
+			totalHPP:  5000000, // Simulasi HPP untuk PO tersebut
+		}
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
 		result, err := uc.GetPOSummaryReport(context.Background(), "po-123")
@@ -230,6 +238,9 @@ func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "po-123", result.POID)
+		assert.Equal(t, float64(15000000), result.TotalRevenue)
+		assert.Equal(t, float64(5000000), result.TotalHPP)
+		assert.Equal(t, float64(10000000), result.NetProfit) // 15jt - 5jt
 	})
 
 	t.Run("Error - Empty ID", func(t *testing.T) {
@@ -242,8 +253,21 @@ func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("Error - Repository Fails", func(t *testing.T) {
+	t.Run("Error - Repository PO Data Fails", func(t *testing.T) {
 		repo := stubReportRepository{err: errors.New("po not found")}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetPOSummaryReport(context.Background(), "po-123")
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("Error - Repository HPP Fails", func(t *testing.T) {
+		repo := stubReportRepository{
+			poSummary:      &domain.POSummaryReport{},
+			expenseByPOErr: errors.New("expense calc error"),
+		}
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
 		result, err := uc.GetPOSummaryReport(context.Background(), "po-123")
@@ -254,7 +278,7 @@ func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
 }
 
 // ============================================================================
-// TEST: GetReceivablesDetailReport (Tidak banyak berubah)
+// TEST: GetReceivablesDetailReport
 // ============================================================================
 func TestReportUsecase_GetReceivablesDetailReport(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
@@ -277,6 +301,59 @@ func TestReportUsecase_GetReceivablesDetailReport(t *testing.T) {
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
 		result, err := uc.GetReceivablesDetailReport(context.Background())
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+// ============================================================================
+// TEST: GetDailyReport (BARU)
+// ============================================================================
+func TestReportUsecase_GetDailyReport(t *testing.T) {
+	t.Run("Success - Dengan Tanggal Spesifik", func(t *testing.T) {
+		targetDate := time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC)
+
+		mockData := &domain.DailyReport{
+			ReportDate: "2026-07-21",
+			POInfo: domain.DailyPOInfo{
+				POID:   "po-123",
+				POName: "PO Aktif",
+			},
+		}
+
+		repo := stubReportRepository{dailyReport: mockData}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetDailyReport(context.Background(), targetDate)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "2026-07-21", result.ReportDate)
+		assert.Equal(t, "po-123", result.POInfo.POID)
+	})
+
+	t.Run("Success - Tanpa Tanggal (Default ke Hari Ini)", func(t *testing.T) {
+		mockData := &domain.DailyReport{
+			ReportDate: time.Now().Format("2006-01-02"),
+		}
+
+		repo := stubReportRepository{dailyReport: mockData}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		// Kirim time.Time{} (zero value)
+		result, err := uc.GetDailyReport(context.Background(), time.Time{})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, time.Now().Format("2006-01-02"), result.ReportDate)
+	})
+
+	t.Run("Error - Repository Fails", func(t *testing.T) {
+		repo := stubReportRepository{err: errors.New("db timeout")}
+		uc := usecase.NewReportUsecase(repo, 2*time.Second)
+
+		result, err := uc.GetDailyReport(context.Background(), time.Now())
 
 		assert.Error(t, err)
 		assert.Nil(t, result)

@@ -46,6 +46,36 @@ func (_m *ReportUsecase) GetAccountingReport(ctx context.Context, startDate time
 	return r0, r1
 }
 
+// GetDailyReport provides a mock function with given fields: ctx, date
+func (_m *ReportUsecase) GetDailyReport(ctx context.Context, date time.Time) (*domain.DailyReport, error) {
+	ret := _m.Called(ctx, date)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDailyReport")
+	}
+
+	var r0 *domain.DailyReport
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) (*domain.DailyReport, error)); ok {
+		return rf(ctx, date)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) *domain.DailyReport); ok {
+		r0 = rf(ctx, date)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.DailyReport)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = rf(ctx, date)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPOSummaryReport provides a mock function with given fields: ctx, poID
 func (_m *ReportUsecase) GetPOSummaryReport(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
 	ret := _m.Called(ctx, poID)
