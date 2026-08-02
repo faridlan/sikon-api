@@ -189,16 +189,109 @@ func (r *reportRepository) GetProductionReportData(ctx context.Context, targetMo
 	}
 	report.RemainingQuota = remaining
 
-	// 4. Rekap Performa Sales
+	// -------------------------------------------------------------------------
+	// 4. REKAP PERFORMA SALES (DENGAN DETAIL KATEGORI)
+	// -------------------------------------------------------------------------
+	salesMap := make(map[string]*domain.POSalesSummary)
+
+	// a. Ambil Total Revenue per Sales
+	type salesRev struct {
+		SalesName string
+		TotalRev  float64
+	}
+	var revs []salesRev
 	r.db.WithContext(ctx).Table("orders o").
-		Select("u.name as sales_name, SUM(oi.qty) as total_qty, SUM(DISTINCT o.total_amount) as total_revenue").
+		Select("u.name as sales_name, SUM(o.total_amount) as total_rev").
 		Joins("JOIN users u ON u.id = o.sales_id").
-		Joins("LEFT JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
 		Where("o.batch_po_id IN (?) AND o.deleted_at IS NULL", poIDs).
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
 		Group("u.name").
-		Order("total_revenue DESC").
-		Scan(&report.SalesSummary)
+		Scan(&revs)
+
+	for _, rv := range revs {
+		salesMap[rv.SalesName] = &domain.POSalesSummary{
+			SalesName:    rv.SalesName,
+			TotalRevenue: rv.TotalRev,
+			Categories:   make(map[string]int64),
+		}
+	}
+
+	// b. Ambil Total Qty dan Detail Kategori per Sales
+	type salesCat struct {
+		SalesName string
+		CatName   string
+		Qty       int64
+	}
+	var cats []salesCat
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("u.name as sales_name, c.name as cat_name, SUM(oi.qty) as qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Joins("JOIN users u ON u.id = o.sales_id").
+		Joins("JOIN products p ON p.id = oi.product_id").
+		Joins("JOIN categories c ON c.id = p.category_id").
+		Where("o.batch_po_id IN (?) AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", poIDs).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("u.name, c.name").
+		Scan(&cats)
+
+	for _, ct := range cats {
+		if _, ok := salesMap[ct.SalesName]; ok {
+			salesMap[ct.SalesName].Categories[ct.CatName] += ct.Qty
+			salesMap[ct.SalesName].TotalQty += ct.Qty
+		}
+	}
+
+	for _, v := range salesMap {
+		report.SalesSummary = append(report.SalesSummary, *v)
+	}
+	// -------------------------------------------------------------------------
+	// 5. TREND DATA BERDASARKAN RENTANG BATCH PO (BUKAN KALENDER)
+	// -------------------------------------------------------------------------
+	// Cari tanggal Start Date terawal dan End Date terakhir dari kumpulan PO edisi ini
+	var minDate, maxDate time.Time
+	if len(batchPOs) > 0 {
+		minDate = batchPOs[0].StartDate
+		maxDate = batchPOs[0].EndDate
+		for _, bp := range batchPOs {
+			if bp.StartDate.Before(minDate) {
+				minDate = bp.StartDate
+			}
+			if bp.EndDate.After(maxDate) {
+				maxDate = bp.EndDate
+			}
+		}
+	} else {
+		// Fallback (meskipun seharusnya tidak akan tereksekusi karena sudah ada return jika PO kosong)
+		minDate = time.Date(targetYear, time.Month(targetMonth), 1, 0, 0, 0, 0, time.UTC)
+		maxDate = minDate.AddDate(0, 1, -1)
+	}
+
+	type trendRaw struct {
+		Date string
+		Qty  int64
+	}
+	var tRaws []trendRaw
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("TO_CHAR(o.approved_at, 'YYYY-MM-DD') as date, SUM(oi.qty) as qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("o.batch_po_id IN (?) AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", poIDs).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("TO_CHAR(o.approved_at, 'YYYY-MM-DD')").
+		Scan(&tRaws)
+
+	trendMap := make(map[string]int64)
+	for _, tr := range tRaws {
+		trendMap[tr.Date] = tr.Qty
+	}
+
+	// Looping dinamis dari tanggal paling awal di PO pertama, s/d tanggal terakhir di PO terakhir
+	for d := minDate; !d.After(maxDate); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		report.TrendData = append(report.TrendData, domain.DailyTrend{
+			Date: dateStr,
+			Qty:  trendMap[dateStr],
+		})
+	}
 
 	return report, nil
 }
@@ -229,10 +322,10 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 	}
 	r.db.WithContext(ctx).Table("orders o").
 		Select(`
-      COALESCE(SUM(o.total_amount), 0) as total_revenue,
-      COALESCE(SUM(p.total_paid), 0) as total_paid,
-      COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_outstanding
-    `).
+			COALESCE(SUM(o.total_amount), 0) as total_revenue,
+			COALESCE(SUM(p.total_paid), 0) as total_paid,
+			COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_outstanding
+		`).
 		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
 		Where("o.batch_po_id = ? AND o.deleted_at IS NULL", poID).
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
@@ -242,7 +335,7 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 	summary.TotalPaid = financial.TotalPaid
 	summary.TotalOutstanding = financial.TotalOutstanding
 
-	// 3. Rekap Produk
+	// 3. Rekap Produk & Sisa Kuota
 	r.db.WithContext(ctx).Table("order_items oi").
 		Select("c.name as category_name, SUM(oi.qty) as total_qty").
 		Joins("JOIN orders o ON o.id = oi.order_id").
@@ -257,18 +350,93 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 		summary.TotalQtyOrdered += p.TotalQty
 	}
 
-	// 4. Rekap Performa Sales
-	r.db.WithContext(ctx).Table("orders o").
-		Select("u.name as sales_name, SUM(oi.qty) as total_qty, SUM(DISTINCT o.total_amount) as total_revenue").
+	remQuota := int64(po.Quota) - summary.TotalQtyOrdered
+	if remQuota < 0 {
+		remQuota = 0
+	}
+	summary.RemainingQuota = remQuota
+
+	// 4. Rekap Performa Sales (Dengan Detail Kategori via Go Mapping)
+	type salesRaw struct {
+		SalesID   string
+		SalesName string
+		CatName   string
+		Qty       int64
+	}
+	var rawData []salesRaw
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("u.id as sales_id, u.name as sales_name, c.name as cat_name, SUM(oi.qty) as qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
 		Joins("JOIN users u ON u.id = o.sales_id").
-		Joins("LEFT JOIN order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL").
+		Joins("JOIN products p ON p.id = oi.product_id").
+		Joins("JOIN categories c ON c.id = p.category_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", poID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("u.id, u.name, c.name").
+		Scan(&rawData)
+
+	// Ambil Total Revenue per Sales
+	type salesRev struct {
+		SalesName string
+		TotalRev  float64
+	}
+	var revs []salesRev
+	r.db.WithContext(ctx).Table("orders o").
+		Select("u.name as sales_name, SUM(o.total_amount) as total_rev").
+		Joins("JOIN users u ON u.id = o.sales_id").
 		Where("o.batch_po_id = ? AND o.deleted_at IS NULL", poID).
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
 		Group("u.name").
-		Order("total_revenue DESC").
-		Scan(&summary.SalesSummary)
+		Scan(&revs)
 
-	// 5. TAMBAHAN: Daftar Piutang per Customer spesifik di PO ini
+	salesMap := make(map[string]*domain.POSalesSummary)
+	for _, rv := range revs {
+		salesMap[rv.SalesName] = &domain.POSalesSummary{
+			SalesName:    rv.SalesName,
+			TotalRevenue: rv.TotalRev,
+			Categories:   make(map[string]int64),
+		}
+	}
+
+	for _, row := range rawData {
+		if _, exists := salesMap[row.SalesName]; exists {
+			salesMap[row.SalesName].Categories[row.CatName] += row.Qty
+			salesMap[row.SalesName].TotalQty += row.Qty
+		}
+	}
+
+	for _, v := range salesMap {
+		summary.SalesSummary = append(summary.SalesSummary, *v)
+	}
+
+	// 5. Trend Data Harian Selama Rentang PO Berjalan (StartDate s/d EndDate)
+	type trendRaw struct {
+		Date string
+		Qty  int64
+	}
+	var tRaws []trendRaw
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("TO_CHAR(o.approved_at, 'YYYY-MM-DD') as date, SUM(oi.qty) as qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", poID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("TO_CHAR(o.approved_at, 'YYYY-MM-DD')").
+		Scan(&tRaws)
+
+	trendMap := make(map[string]int64)
+	for _, tr := range tRaws {
+		trendMap[tr.Date] = tr.Qty
+	}
+
+	for d := po.StartDate; !d.After(po.EndDate); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		summary.TrendData = append(summary.TrendData, domain.DailyTrend{
+			Date: dateStr,
+			Qty:  trendMap[dateStr],
+		})
+	}
+
+	// 6. Daftar Piutang per Customer spesifik di PO ini
 	r.db.WithContext(ctx).Table("orders o").
 		Select(`
 			c.name as customer_name,
@@ -281,9 +449,18 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 		Where("o.batch_po_id = ? AND o.deleted_at IS NULL", poID).
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
 		Group("c.name").
-		Having("SUM(o.total_amount - COALESCE(p.total_paid, 0)) > 0"). // Hanya yang masih ada hutang
+		Having("SUM(o.total_amount - COALESCE(p.total_paid, 0)) > 0").
 		Order("outstanding_amount DESC").
 		Scan(&summary.CustomerReceivables)
+
+	// 7. Kalkulasi Expense (HPP) & Net Profit khusus PO ini
+	var totalHPP float64
+	r.db.WithContext(ctx).Table("expenses").
+		Where("batch_po_id = ? AND deleted_at IS NULL", poID).
+		Select("COALESCE(SUM(amount), 0)").Scan(&totalHPP)
+
+	summary.TotalHPP = totalHPP
+	summary.NetProfit = summary.TotalRevenue - totalHPP
 
 	return summary, nil
 }
@@ -355,7 +532,7 @@ func (r *reportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs 
 }
 
 // ============================================================================
-// 5. JALUR HARIAN (DAILY TACTICAL REPORT) - BARU
+// 5. JALUR HARIAN (DAILY TACTICAL REPORT)
 // ============================================================================
 func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate time.Time) (*domain.DailyReport, error) {
 	dateStr := targetDate.Format("2006-01-02")
@@ -363,27 +540,40 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 		ReportDate: dateStr,
 	}
 
-	// 1. Cek PO Aktif (Asumsi: Hanya ada 1 PO aktif di sistem, kita ambil yang terbaru/pertama)
+	// 1. Cek PO Berdasarkan Tanggal (Time Travel Logic)
 	var po domain.BatchPO
 	err := r.db.WithContext(ctx).Table("batch_pos").
-		Where("status = ? AND deleted_at IS NULL", domain.BatchPOStatusActive).
-		Order("created_at DESC").
+		Where("DATE(start_date) <= DATE(?) AND DATE(end_date) >= DATE(?) AND deleted_at IS NULL", targetDate, targetDate).
+		Order("end_date ASC"). // PERBAIKAN: Prioritaskan PO yang akan segera DITUTUP jika ada tanggal yang beririsan
 		First(&po).Error
 
-	// Jika tidak ada PO aktif sama sekali, kembalikan report kosong
+	// Skenario B (Fallback): Jika tidak ada PO di hari itu, ambil PO TERAKHIR sebelum tanggal tersebut
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return report, nil
+			errFallback := r.db.WithContext(ctx).Table("batch_pos").
+				Where("DATE(end_date) < DATE(?) AND deleted_at IS NULL", targetDate).
+				Order("end_date DESC"). // Ambil yang end_date-nya paling dekat dengan hari ini
+				First(&po).Error
+
+			// Jika ternyata memang belum pernah ada PO sama sekali di database
+			if errFallback != nil {
+				if errFallback == gorm.ErrRecordNotFound {
+					return report, nil
+				}
+				return nil, TranslateError(errFallback)
+			}
+		} else {
+			return nil, TranslateError(err) // Error database beneran
 		}
-		return nil, TranslateError(err)
 	}
 
-	// 2. Set PO Info & Kalkulasi Qty PO
+	// 2. Set PO Info & Kalkulasi Qty PO (Diisolasi HANYA sampai targetDate)
 	var qtyTotalPO int64
 	r.db.WithContext(ctx).Table("order_items oi").
 		Joins("JOIN orders o ON o.id = oi.order_id").
 		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("DATE(o.approved_at) <= DATE(?)", targetDate). // Cegah pesanan masa depan memotong kuota masa lalu
 		Select("COALESCE(SUM(oi.qty), 0)").Scan(&qtyTotalPO)
 
 	remQuota := int64(po.Quota) - qtyTotalPO
@@ -410,7 +600,7 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 
 	report.OrderSummary.QtyToday = qtyToday
 
-	// 4. Financial Summary (Cash in hari ini, dan outstanding)
+	// 4. Financial Summary (Time Travel Snapshot)
 	var totalRevenueToday, totalPaidToday float64
 	// Omset masuk HARI INI
 	r.db.WithContext(ctx).Table("orders").
@@ -421,18 +611,20 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 		Where("DATE(payment_date) = DATE(?) AND deleted_at IS NULL", targetDate).
 		Select("COALESCE(SUM(amount), 0)").Scan(&totalPaidToday)
 
-	// Piutang PO Aktif
+	// Piutang PO Aktif (Order & Payment diisolasi s/d targetDate)
 	var activeOut float64
 	r.db.WithContext(ctx).Table("orders o").
-		Select("COALESCE(SUM(o.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.order_id = o.id AND payments.deleted_at IS NULL)), 0)").
+		Select("COALESCE(SUM(o.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments p WHERE p.order_id = o.id AND p.deleted_at IS NULL AND DATE(p.payment_date) <= DATE(?))), 0)", targetDate).
 		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND o.order_status IN (?, ?)", po.ID, domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("DATE(o.approved_at) <= DATE(?)", targetDate).
 		Scan(&activeOut)
 
-	// Piutang PO Sebelumnya (Bukan PO yang saat ini aktif)
+	// Piutang PO Sebelumnya (Order & Payment diisolasi s/d targetDate)
 	var prevOut float64
 	r.db.WithContext(ctx).Table("orders o").
-		Select("COALESCE(SUM(o.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.order_id = o.id AND payments.deleted_at IS NULL)), 0)").
+		Select("COALESCE(SUM(o.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments p WHERE p.order_id = o.id AND p.deleted_at IS NULL AND DATE(p.payment_date) <= DATE(?))), 0)", targetDate).
 		Where("o.batch_po_id != ? AND o.deleted_at IS NULL AND o.order_status IN (?, ?)", po.ID, domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("DATE(o.approved_at) <= DATE(?)", targetDate).
 		Scan(&prevOut)
 
 	report.FinancialSummary = domain.DailyFinancialSummary{
@@ -443,23 +635,35 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 		TotalOutstanding:      activeOut + prevOut,
 	}
 
-	// 5. Trend Data (7 Hari Terakhir untuk PO ini)
+	// -------------------------------------------------------------------------
+	// 5. TREND DATA HARIAN (Dari Awal PO Dimulai s/d Tanggal Request)
+	// -------------------------------------------------------------------------
+	type trendRaw struct {
+		Date string
+		Qty  int64
+	}
+	var tRaws []trendRaw
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("TO_CHAR(o.approved_at, 'YYYY-MM-DD') as date, SUM(oi.qty) as qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("DATE(o.approved_at) >= DATE(?) AND DATE(o.approved_at) <= DATE(?)", po.StartDate, targetDate).
+		Group("TO_CHAR(o.approved_at, 'YYYY-MM-DD')").
+		Scan(&tRaws)
+
+	trendMap := make(map[string]int64)
+	for _, tr := range tRaws {
+		trendMap[tr.Date] = tr.Qty
+	}
+
 	trendData := make([]domain.DailyTrend, 0)
-	for i := 6; i >= 0; i-- {
-		d := targetDate.AddDate(0, 0, -i)
+	// Looping presisi: Mulai dari hari pertama PO dibuka, sampai hari request (Time Travel)
+	for d := po.StartDate; !d.After(targetDate); d = d.AddDate(0, 0, 1) {
 		dateStr := d.Format("2006-01-02")
-
-		var qty int64
-		r.db.WithContext(ctx).Table("order_items oi").
-			Joins("JOIN orders o ON o.id = oi.order_id").
-			Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
-			Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
-			Where("DATE(o.approved_at) = DATE(?)", d).
-			Select("COALESCE(SUM(oi.qty), 0)").Scan(&qty)
-
 		trendData = append(trendData, domain.DailyTrend{
 			Date: dateStr,
-			Qty:  qty,
+			Qty:  trendMap[dateStr],
 		})
 	}
 	report.OrderSummary.TrendData = trendData
@@ -499,6 +703,39 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 
 	for _, v := range salesMap {
 		report.SalesDetails = append(report.SalesDetails, *v)
+	}
+
+	// -------------------------------------------------------------------------
+	// 7. SALES DETAILS KESELURUHAN PO (TIME TRAVEL s/d targetDate)
+	// -------------------------------------------------------------------------
+	var rawDataPO []salesRaw
+	r.db.WithContext(ctx).Table("order_items oi").
+		Select("u.id as sales_id, u.name as sales_name, c.name as cat_name, SUM(oi.qty) as qty").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Joins("JOIN users u ON u.id = o.sales_id").
+		Joins("JOIN products p ON p.id = oi.product_id").
+		Joins("JOIN categories c ON c.id = p.category_id").
+		Where("o.batch_po_id = ? AND o.deleted_at IS NULL AND oi.deleted_at IS NULL", po.ID).
+		Where("DATE(o.approved_at) <= DATE(?)", targetDate). // Penting: Hanya ambil pencapaian sampai tanggal request!
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Group("u.id, u.name, c.name").
+		Scan(&rawDataPO)
+
+	salesMapPO := make(map[string]*domain.DailySalesDetail)
+	for _, row := range rawDataPO {
+		if _, exists := salesMapPO[row.SalesID]; !exists {
+			salesMapPO[row.SalesID] = &domain.DailySalesDetail{
+				SalesName:  row.SalesName,
+				Categories: make(map[string]int64),
+				TotalQty:   0,
+			}
+		}
+		salesMapPO[row.SalesID].Categories[row.CatName] += row.Qty
+		salesMapPO[row.SalesID].TotalQty += row.Qty
+	}
+
+	for _, v := range salesMapPO {
+		report.POSalesDetails = append(report.POSalesDetails, *v)
 	}
 
 	return report, nil
