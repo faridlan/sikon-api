@@ -2856,6 +2856,24 @@ const docTemplate = `{
                 }
             }
         },
+        "/seeder/clear": {
+            "post": {
+                "tags": [
+                    "Seeder"
+                ],
+                "summary": "Hapus Semua Data Seeder",
+                "responses": {}
+            }
+        },
+        "/seeder/generate": {
+            "post": {
+                "tags": [
+                    "Seeder"
+                ],
+                "summary": "Generate Data Testing Realistis",
+                "responses": {}
+            }
+        },
         "/spec-templates": {
             "get": {
                 "description": "Mengambil daftar seluruh template spesifikasi dengan pagination",

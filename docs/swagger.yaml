@@ -3374,6 +3374,18 @@ paths:
       summary: Get Detailed Receivables Report
       tags:
       - Reports
+  /seeder/clear:
+    post:
+      responses: {}
+      summary: Hapus Semua Data Seeder
+      tags:
+      - Seeder
+  /seeder/generate:
+    post:
+      responses: {}
+      summary: Generate Data Testing Realistis
+      tags:
+      - Seeder
   /spec-templates:
     get:
       description: Mengambil daftar seluruh template spesifikasi dengan pagination
