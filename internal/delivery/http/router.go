@@ -23,6 +23,7 @@ type Handlers struct {
 	BatchPOHandler      BatchPOHandler
 	UploadHandler       UploadHandler
 	ExpenseHandler      ExpenseHandler
+	SeederHandler       SeederHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers
@@ -142,18 +143,19 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	batchPos.Delete("/:id", handlers.BatchPOHandler.DeleteBatchPO)
 
 	expenses := api.Group("/expenses")
-
 	// Kategori (Route Statis ditaruh di ATAS)
 	expenses.Post("/categories", handlers.ExpenseHandler.CreateCategory)
 	expenses.Get("/categories", handlers.ExpenseHandler.ListCategories)
-
 	// Transaksi
 	expenses.Post("/", handlers.ExpenseHandler.CreateExpense)
 	expenses.Get("/", handlers.ExpenseHandler.ListExpenses)
-
 	// Route Dinamis ditaruh di BAWAH
 	expenses.Get("/:id", handlers.ExpenseHandler.GetExpense)
 	expenses.Delete("/:id", handlers.ExpenseHandler.DeleteExpense)
+
+	seederGroup := api.Group("/seeder")
+	seederGroup.Post("/generate", handlers.SeederHandler.Generate)
+	seederGroup.Post("/clear", handlers.SeederHandler.Clear)
 
 	uploads := api.Group("/uploads")
 

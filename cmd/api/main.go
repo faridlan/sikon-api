@@ -129,6 +129,7 @@ func main() {
 	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase) // Inisialisasi handler Batch PO
 	uploadHandler := myHttp.NewUploadHandler(uploadUsecase)
 	expenseHandler := myHttp.NewExpenseHandler(expenseUsecase) // Inisialisasi handler Expense
+	seederHandler := myHttp.NewSeederHandler(db)               // Inisialisasi handler Seeder
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
@@ -147,6 +148,7 @@ func main() {
 		BatchPOHandler:      batchPOHandler, // Tambahkan handler Batch PO ke registry
 		UploadHandler:       uploadHandler,
 		ExpenseHandler:      expenseHandler, // Tambahkan handler Expense ke registry
+		SeederHandler:       seederHandler,  // Tambahkan handler Seeder ke registry
 	}
 
 	// ==========================================
