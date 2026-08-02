@@ -66,6 +66,7 @@ type ProductionReport struct {
 	ActiveBatchPOs []ProductionBatchPO // Daftar PO apa saja yang masuk di edisi ini
 	SalesSummary   []POSalesSummary
 	ProductSummary []POProductSummary
+	TrendData      []DailyTrend
 }
 
 type ProductionBatchPO struct {
@@ -86,6 +87,7 @@ type POSummaryReport struct {
 	EndDate          time.Time
 	Status           BatchPOStatus
 	TotalQuota       int
+	RemainingQuota   int64
 	TotalQtyOrdered  int64
 	TotalRevenue     float64
 	TotalPaid        float64
@@ -98,6 +100,7 @@ type POSummaryReport struct {
 	CustomerReceivables []POCustomerReceivable
 	ProductSummary      []POProductSummary
 	SalesSummary        []POSalesSummary
+	TrendData           []DailyTrend
 }
 
 type POCustomerReceivable struct {
@@ -116,6 +119,7 @@ type POSalesSummary struct {
 	SalesName    string
 	TotalQty     int64
 	TotalRevenue float64
+	Categories   map[string]int64
 }
 
 type ReceivableDetail struct {
@@ -140,6 +144,7 @@ type DailyReport struct {
 	OrderSummary     DailyOrderSummary
 	FinancialSummary DailyFinancialSummary
 	SalesDetails     []DailySalesDetail
+	POSalesDetails   []DailySalesDetail
 }
 
 type DailyPOInfo struct {

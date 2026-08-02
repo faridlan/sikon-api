@@ -98,6 +98,7 @@ type ProductionReportResponse struct {
 	ActiveBatchPOs []ProductionBatchPOResponse `json:"active_batch_pos"`
 	ProductSummary []POProductSummaryResponse  `json:"product_summary"`
 	SalesSummary   []POSalesSummaryResponse    `json:"sales_summary"`
+	TrendData      []DailyTrendResponse        `json:"trend_data"`
 }
 
 type ProductionBatchPOResponse struct {
@@ -151,6 +152,15 @@ func ToProductionReportResponse(src *domain.ProductionReport) *ProductionReportR
 			SalesName:    s.SalesName,
 			TotalQty:     s.TotalQty,
 			TotalRevenue: s.TotalRevenue,
+			Categories:   s.Categories,
+		})
+	}
+
+	resp.TrendData = make([]DailyTrendResponse, 0)
+	for _, t := range src.TrendData {
+		resp.TrendData = append(resp.TrendData, DailyTrendResponse{
+			Date: t.Date,
+			Qty:  t.Qty,
 		})
 	}
 
@@ -168,6 +178,7 @@ type POSummaryResponse struct {
 	EndDate          string  `json:"end_date"`
 	Status           string  `json:"status"`
 	TotalQuota       int     `json:"total_quota"`
+	RemainingQuota   int64   `json:"remaining_quota"`
 	TotalQtyOrdered  int64   `json:"total_qty_ordered"`
 	TotalRevenue     float64 `json:"total_revenue"`
 	TotalPaid        float64 `json:"total_paid"`
@@ -180,6 +191,7 @@ type POSummaryResponse struct {
 	CustomerReceivables []POCustomerReceivableResponse `json:"customer_receivables"`
 	ProductSummary      []POProductSummaryResponse     `json:"product_summary"`
 	SalesSummary        []POSalesSummaryResponse       `json:"sales_summary"`
+	TrendData           []DailyTrendResponse           `json:"trend_data"`
 }
 
 type POCustomerReceivableResponse struct {
@@ -195,9 +207,10 @@ type POProductSummaryResponse struct {
 }
 
 type POSalesSummaryResponse struct {
-	SalesName    string  `json:"sales_name"`
-	TotalQty     int64   `json:"total_qty"`
-	TotalRevenue float64 `json:"total_revenue"`
+	SalesName    string           `json:"sales_name"`
+	TotalQty     int64            `json:"total_qty"`
+	TotalRevenue float64          `json:"total_revenue"`
+	Categories   map[string]int64 `json:"categories"`
 }
 
 type ReceivableDetailResponse struct {
@@ -231,9 +244,17 @@ func ToPOSummaryResponse(src *domain.POSummaryReport) POSummaryResponse {
 			SalesName:    s.SalesName,
 			TotalQty:     s.TotalQty,
 			TotalRevenue: s.TotalRevenue,
+			Categories:   s.Categories,
 		})
 	}
 
+	trendData := make([]DailyTrendResponse, 0, len(src.TrendData))
+	for _, t := range src.TrendData {
+		trendData = append(trendData, DailyTrendResponse{
+			Date: t.Date,
+			Qty:  t.Qty,
+		})
+	}
 	customerReceivables := make([]POCustomerReceivableResponse, 0, len(src.CustomerReceivables))
 	for _, c := range src.CustomerReceivables {
 		customerReceivables = append(customerReceivables, POCustomerReceivableResponse{
@@ -251,6 +272,7 @@ func ToPOSummaryResponse(src *domain.POSummaryReport) POSummaryResponse {
 		EndDate:             src.EndDate.Format("2006-01-02"),
 		Status:              string(src.Status),
 		TotalQuota:          src.TotalQuota,
+		RemainingQuota:      src.RemainingQuota,
 		TotalQtyOrdered:     src.TotalQtyOrdered,
 		TotalRevenue:        src.TotalRevenue,
 		TotalPaid:           src.TotalPaid,
@@ -260,6 +282,7 @@ func ToPOSummaryResponse(src *domain.POSummaryReport) POSummaryResponse {
 		CustomerReceivables: customerReceivables,
 		ProductSummary:      prodSummary,
 		SalesSummary:        salesSummary,
+		TrendData:           trendData,
 	}
 }
 
@@ -296,6 +319,7 @@ type DailyReportResponse struct {
 	OrderSummary     DailyOrderSummaryResponse     `json:"order_summary"`
 	FinancialSummary DailyFinancialSummaryResponse `json:"financial_summary"`
 	SalesDetails     []DailySalesDetailResponse    `json:"sales_details"`
+	POSalesDetails   []DailySalesDetailResponse    `json:"po_sales_details"`
 }
 
 type DailyPOInfoResponse struct {
@@ -352,6 +376,15 @@ func ToDailyReportResponse(src *domain.DailyReport) DailyReportResponse {
 		})
 	}
 
+	poSalesDetails := make([]DailySalesDetailResponse, 0, len(src.POSalesDetails))
+	for _, s := range src.POSalesDetails {
+		poSalesDetails = append(poSalesDetails, DailySalesDetailResponse{
+			SalesName:  s.SalesName,
+			Categories: s.Categories,
+			TotalQty:   s.TotalQty,
+		})
+	}
+
 	return DailyReportResponse{
 		ReportDate: src.ReportDate,
 		POInfo: DailyPOInfoResponse{
@@ -372,6 +405,7 @@ func ToDailyReportResponse(src *domain.DailyReport) DailyReportResponse {
 			PreviousPOOutstanding: src.FinancialSummary.PreviousPOOutstanding,
 			TotalOutstanding:      src.FinancialSummary.TotalOutstanding,
 		},
-		SalesDetails: salesDetails,
+		SalesDetails:   salesDetails,
+		POSalesDetails: poSalesDetails,
 	}
 }
