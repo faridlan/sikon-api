@@ -66,48 +66,48 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 	var models []OrderModel
 	var total int64
 
-	// 1. Inisiasi instance GORM Model
-	query := r.db.WithContext(ctx).Model(&OrderModel{})
+	// 1. Inisiasi instance GORM Model & Join ke tabel customers
+	query := r.db.WithContext(ctx).Model(&OrderModel{}).
+		Joins("LEFT JOIN customers ON customers.id = orders.customer_id")
 
-	// 2. Terapkan Filter Dinamis (Jika nilainya ada)
+	// 2. Terapkan Filter Dinamis (Gunakan prefix "orders." untuk menghindari ambiguitas kolom)
 	if filter.Search != "" {
-		// Menggunakan ILIKE untuk pencarian case-insensitive di Postgres
-		query = query.Where("order_number ILIKE ?", "%"+filter.Search+"%")
+		// Pencarian menggunakan ILIKE untuk Nomor Order ATAU Nama Customer
+		searchKeyword := "%" + filter.Search + "%"
+		query = query.Where("orders.order_number ILIKE ? OR customers.name ILIKE ?", searchKeyword, searchKeyword)
 	}
 	if filter.CustomerID != "" {
-		query = query.Where("customer_id = ?", filter.CustomerID)
+		query = query.Where("orders.customer_id = ?", filter.CustomerID)
 	}
 	if filter.SalesID != "" {
-		query = query.Where("sales_id = ?", filter.SalesID)
+		query = query.Where("orders.sales_id = ?", filter.SalesID)
 	}
 	if filter.OrderStatus != "" {
-		query = query.Where("order_status = ?", filter.OrderStatus)
+		query = query.Where("orders.order_status = ?", filter.OrderStatus)
 	}
 	if filter.PaymentStatus != "" {
-		query = query.Where("payment_status = ?", filter.PaymentStatus)
+		query = query.Where("orders.payment_status = ?", filter.PaymentStatus)
 	}
 	if filter.StartDate != "" {
-		// Mulai dari jam 00:00:00
-		query = query.Where("created_at >= ?", filter.StartDate+" 00:00:00")
+		query = query.Where("orders.created_at >= ?", filter.StartDate+" 00:00:00")
 	}
 	if filter.EndDate != "" {
-		// Sampai jam 23:59:59
-		query = query.Where("created_at <= ?", filter.EndDate+" 23:59:59")
+		query = query.Where("orders.created_at <= ?", filter.EndDate+" 23:59:59")
 	}
 
-	// 3. Hitung Total Data (Penting! Harus dipanggil SETELAH filter diterapkan, tapi SEBELUM limit & offset)
+	// 3. Hitung Total Data
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
 	// 4. Ambil Data dengan Pagination dan Preload
 	err := query.
-		Preload("Customer"). // Hanya Preload relasi utama untuk list agar ringan
+		Preload("Customer").
 		Preload("Sales").
 		Preload("BatchPO").
 		Limit(limit).
 		Offset(offset).
-		Order("created_at DESC").
+		Order("orders.created_at DESC"). // Pastikan menggunakan prefix "orders."
 		Find(&models).Error
 
 	if err != nil {
@@ -121,7 +121,6 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 
 	return orders, total, nil
 }
-
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
 	model := FromOrderDomain(order)
 
