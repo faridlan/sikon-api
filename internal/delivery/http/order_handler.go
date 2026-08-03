@@ -118,7 +118,7 @@ func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
-// @Param search query string false "Cari berdasarkan Nomor Order (ORD-XXX)"
+// @Param search query string false "Cari berdasarkan Nomor Order (ORD-XXX) atau Nama Customer"
 // @Param customer_id query string false "Filter berdasarkan ID Customer (UUID)"
 // @Param sales_id query string false "Filter berdasarkan ID Sales (UUID)"
 // @Param order_status query string false "Filter Status Order (Enum: quotation, pending, production, completed, canceled)"

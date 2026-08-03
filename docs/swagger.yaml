@@ -360,6 +360,10 @@ definitions:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyOrderSummaryResponse'
       po_info:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyPOInfoResponse'
+      po_sales_details:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySalesDetailResponse'
+        type: array
       report_date:
         type: string
       sales_details:
@@ -721,6 +725,11 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.POSalesSummaryResponse:
     properties:
+      categories:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
       sales_name:
         type: string
       total_qty:
@@ -746,6 +755,8 @@ definitions:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POProductSummaryResponse'
         type: array
+      remaining_quota:
+        type: integer
       sales_summary:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POSalesSummaryResponse'
@@ -767,6 +778,10 @@ definitions:
         type: integer
       total_revenue:
         type: number
+      trend_data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse'
+        type: array
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentCreateRequest:
     properties:
@@ -991,6 +1006,10 @@ definitions:
         type: integer
       total_revenue:
         type: number
+      trend_data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse'
+        type: array
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse:
     properties:
@@ -2454,7 +2473,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Cari berdasarkan Nomor Order (ORD-XXX)
+      - description: Cari berdasarkan Nomor Order (ORD-XXX) atau Nama Customer
         in: query
         name: search
         type: string

@@ -1501,7 +1501,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Cari berdasarkan Nomor Order (ORD-XXX)",
+                        "description": "Cari berdasarkan Nomor Order (ORD-XXX) atau Nama Customer",
                         "name": "search",
                         "in": "query"
                     },
@@ -3905,6 +3905,12 @@ const docTemplate = `{
                 "po_info": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyPOInfoResponse"
                 },
+                "po_sales_details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailySalesDetailResponse"
+                    }
+                },
                 "report_date": {
                     "type": "string"
                 },
@@ -4406,6 +4412,13 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.POSalesSummaryResponse": {
             "type": "object",
             "properties": {
+                "categories": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
                 "sales_name": {
                     "type": "string"
                 },
@@ -4444,6 +4457,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.POProductSummaryResponse"
                     }
                 },
+                "remaining_quota": {
+                    "type": "integer"
+                },
                 "sales_summary": {
                     "type": "array",
                     "items": {
@@ -4474,6 +4490,12 @@ const docTemplate = `{
                 },
                 "total_revenue": {
                     "type": "number"
+                },
+                "trend_data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse"
+                    }
                 }
             }
         },
@@ -4792,6 +4814,12 @@ const docTemplate = `{
                 },
                 "total_revenue": {
                     "type": "number"
+                },
+                "trend_data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse"
+                    }
                 }
             }
         },
