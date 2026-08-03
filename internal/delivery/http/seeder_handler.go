@@ -31,7 +31,9 @@ func NewSeederHandler(db *gorm.DB) SeederHandler {
 // @Tags Seeder
 // @Router /seeder/clear [post]
 func (h *seederHandler) Clear(c *fiber.Ctx) error {
-	// Hard-delete data dummy (menggunakan wildcard yang mencakup semua dummy sales)
+	// Hard-delete data dummy secara berurutan agar tidak melanggar Foreign Key
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ExpenseModel{})
+	h.db.Unscoped().Where("name LIKE ?", "Dummy Cat Exp%").Delete(&postgresRepo.ExpenseCategoryModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.PaymentModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.OrderItemModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.OrderModel{})
@@ -51,7 +53,7 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	// --- 1. SETUP MASTER DATA ---
 
-	// A. Buat 3 User Sales
+	// A. Buat 3 User Sales (Bisa merangkap pembuat pengeluaran)
 	salesDummies := []postgresRepo.UserModel{
 		{ID: uuid.NewString(), Name: "Budi (Sales Dummy)", Email: "budi_dummy@sikon.com", Password: "password123", Role: "sales"},
 		{ID: uuid.NewString(), Name: "Andi (Sales Dummy)", Email: "andi_dummy@sikon.com", Password: "password123", Role: "sales"},
@@ -93,18 +95,27 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	customerNames := []string{"Dummy Cust PT A", "Dummy Cust PT B", "Dummy Cust Personal C", "Dummy Cust CV D", "Dummy Cust Personal E"}
 
 	for i, name := range customerNames {
-		// Ambil random ID Sales
 		randomSalesID := activeSalesIDs[rand.Intn(len(activeSalesIDs))]
-
 		cust := postgresRepo.CustomerModel{
 			ID:        uuid.NewString(),
 			Name:      name,
 			Phone:     fmt.Sprintf("08111222%d", i),
 			CreatedBy: randomSalesID,
-			SalesID:   &randomSalesID, // Di-assign ke sales terpilih
+			SalesID:   &randomSalesID,
 		}
 		h.db.Create(&cust)
 		customers = append(customers, cust)
+	}
+
+	// E. Buat Kategori Pengeluaran (Expense Categories) - BARU!
+	expenseCats := []postgresRepo.ExpenseCategoryModel{
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Belanja Kain & Benang", Type: "hpp"},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Ongkos Jahit (CMT)", Type: "hpp"},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Operasional Listrik", Type: "operational"},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Biaya Iklan Meta Ads", Type: "operational"},
+	}
+	for _, ec := range expenseCats {
+		h.db.Create(&ec)
 	}
 
 	// --- 2. SETUP BATCH PO (Juni - Agustus) ---
@@ -147,6 +158,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	endDate, _ := time.Parse("2006-01-02", "2026-08-01")
 
 	orderCounter := 1
+	expenseCounter := 0 // Counter untuk pengeluaran
 
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
 		var activePoID *string
@@ -162,10 +174,9 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			continue
 		}
 
-		// Simulasi pembuatan 1 - 3 Order per hari
+		// A. Generate Orders (Seperti sebelumnya)
 		numOrders := rand.Intn(3) + 1
 		for i := 0; i < numOrders; i++ {
-			// Pilih customer secara acak
 			cust := customers[rand.Intn(len(customers))]
 			prod := products[rand.Intn(len(products))]
 
@@ -196,7 +207,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				OrderNumber:   fmt.Sprintf("SEED-ORD-%04d", orderCounter),
 				BatchPoID:     activePoID,
 				CustomerID:    cust.ID,
-				SalesID:       *cust.SalesID, // Pakai SalesID yang terikat di Customer!
+				SalesID:       *cust.SalesID,
 				Subtotal:      totalAmount,
 				TotalAmount:   totalAmount,
 				OrderStatus:   string(domain.OrderStatusProduction),
@@ -229,9 +240,41 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			}
 			orderCounter++
 		}
+
+		// B. Generate Expenses (BARU)
+		// 60% probabilitas akan ada pengeluaran di hari tersebut
+		if rand.Intn(100) < 60 {
+			expCat := expenseCats[rand.Intn(len(expenseCats))]
+			var poIDPtr *string
+			var expAmount float64
+
+			// Jika kategorinya HPP, maka wajib di-link ke PO Aktif dan biayanya biasanya lebih besar
+			if expCat.Type == "hpp" {
+				poIDPtr = activePoID
+				expAmount = float64(rand.Intn(3000)*1000 + 500000) // Rp 500.000 - Rp 3.500.000
+			} else {
+				// Operasional tidak terkait PO
+				poIDPtr = nil
+				expAmount = float64(rand.Intn(200)*1000 + 50000) // Rp 50.000 - Rp 250.000
+			}
+
+			expense := postgresRepo.ExpenseModel{
+				ID:                uuid.NewString(),
+				ExpenseCategoryID: expCat.ID,
+				BatchPoID:         poIDPtr,
+				Title:             fmt.Sprintf("Pengeluaran Dummy - %s", expCat.Name),
+				Amount:            expAmount,
+				ExpenseDate:       d.Add(14 * time.Hour), // Misal dicatat jam 2 siang
+				Notes:             "Dibuat otomatis oleh Seeder SIKOn",
+				CreatedByID:       activeSalesIDs[0], // Anggap Admin/Sales pertama yang mencatat
+			}
+			h.db.Create(&expense)
+			expenseCounter++
+		}
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder dengan Multi-Sales secara realistis!", fiber.Map{
-		"total_orders_generated": orderCounter - 1,
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder secara lengkap (Orders, Payments, & Expenses)!", fiber.Map{
+		"total_orders_generated":   orderCounter - 1,
+		"total_expenses_generated": expenseCounter,
 	})
 }
