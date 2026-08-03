@@ -111,15 +111,24 @@ func (h *reportHandler) GetPOSummaryReport(c *fiber.Ctx) error {
 }
 
 // @Summary Get Detailed Receivables Report
-// @Description Menampilkan daftar detail pelanggan dan sales yang masih memiliki piutang (Outstanding Amount > 0).
+// @Description Menampilkan daftar detail pelanggan dan sales yang masih memiliki piutang dengan opsi filter PO dan sorting.
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth
+// @Param batch_po_id query string false "Filter berdasarkan ID Batch PO (UUID)"
+// @Param order_status query string false "Filter berdasarkan status order (production, completed)"
+// @Param sort_by query string false "Urutkan data (amount_desc, amount_asc, date_asc, date_desc)"
 // @Success 200 {object} utils.SuccessResponse[[]dto.ReceivableDetailResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /reports/receivables [get]
 func (h *reportHandler) GetReceivablesReport(c *fiber.Ctx) error {
-	data, err := h.reportUsecase.GetReceivablesDetailReport(c.Context())
+	filter := domain.ReceivablesFilter{
+		BatchPoID:   c.Query("batch_po_id"),
+		OrderStatus: c.Query("order_status"),
+		SortBy:      c.Query("sort_by"),
+	}
+
+	data, err := h.reportUsecase.GetReceivablesDetailReport(c.Context(), filter)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}

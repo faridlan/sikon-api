@@ -2832,7 +2832,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menampilkan daftar detail pelanggan dan sales yang masih memiliki piutang (Outstanding Amount \u003e 0).",
+                "description": "Menampilkan daftar detail pelanggan dan sales yang masih memiliki piutang dengan opsi filter PO dan sorting.",
                 "produces": [
                     "application/json"
                 ],
@@ -2840,6 +2840,26 @@ const docTemplate = `{
                     "Reports"
                 ],
                 "summary": "Get Detailed Receivables Report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan ID Batch PO (UUID)",
+                        "name": "batch_po_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan status order (production, completed)",
+                        "name": "order_status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Urutkan data (amount_desc, amount_asc, date_asc, date_desc)",
+                        "name": "sort_by",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
