@@ -42,7 +42,7 @@ func (s stubReportRepository) GetPOSummaryData(_ context.Context, _ string) (*do
 	return s.poSummary, s.err
 }
 
-func (s stubReportRepository) GetReceivablesDetailData(_ context.Context) ([]domain.ReceivableDetail, error) {
+func (s stubReportRepository) GetReceivablesDetailData(_ context.Context, _ domain.ReceivablesFilter) ([]domain.ReceivableDetail, error) {
 	return s.receivablesDetail, s.err
 }
 
@@ -289,7 +289,7 @@ func TestReportUsecase_GetReceivablesDetailReport(t *testing.T) {
 		repo := stubReportRepository{receivablesDetail: mockData}
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
-		result, err := uc.GetReceivablesDetailReport(context.Background())
+		result, err := uc.GetReceivablesDetailReport(context.Background(), domain.ReceivablesFilter{})
 
 		assert.NoError(t, err)
 		assert.Len(t, result, 1)
@@ -300,7 +300,7 @@ func TestReportUsecase_GetReceivablesDetailReport(t *testing.T) {
 		repo := stubReportRepository{err: errors.New("db timeout")}
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
-		result, err := uc.GetReceivablesDetailReport(context.Background())
+		result, err := uc.GetReceivablesDetailReport(context.Background(), domain.ReceivablesFilter{})
 
 		assert.Error(t, err)
 		assert.Nil(t, result)

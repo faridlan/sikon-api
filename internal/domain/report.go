@@ -179,6 +179,12 @@ type DailySalesDetail struct {
 	TotalQty   int64
 }
 
+type ReceivablesFilter struct {
+	BatchPoID   string // Filter spesifik berdasarkan PO tertentu
+	OrderStatus string // Filter berdasarkan status order (misal: production, completed)
+	SortBy      string // Opsi sorting: "amount_desc", "amount_asc", "date_asc", "date_desc"
+}
+
 // ============================================================================
 // 4. INTERFACE KONTRAK (REPOSITORIES & USECASES)
 // ============================================================================
@@ -190,7 +196,7 @@ type ReportRepository interface {
 
 	// Laporan Spesifik
 	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
-	GetReceivablesDetailData(ctx context.Context) ([]ReceivableDetail, error)
+	GetReceivablesDetailData(ctx context.Context, filter ReceivablesFilter) ([]ReceivableDetail, error)
 	GetDailyReportData(ctx context.Context, date time.Time) (*DailyReport, error) // BARU: Laporan Harian
 
 	// Helper untuk mengambil total Pengeluaran (Expenses)
@@ -202,6 +208,6 @@ type ReportUsecase interface {
 	GetAccountingReport(ctx context.Context, startDate, endDate time.Time) (*AccountingReport, error)
 	GetProductionReport(ctx context.Context, targetMonth, targetYear int) (*ProductionReport, error)
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
-	GetReceivablesDetailReport(ctx context.Context) ([]ReceivableDetail, error)
+	GetReceivablesDetailReport(ctx context.Context, filter ReceivablesFilter) ([]ReceivableDetail, error)
 	GetDailyReport(ctx context.Context, date time.Time) (*DailyReport, error) // BARU: Laporan Harian
 }

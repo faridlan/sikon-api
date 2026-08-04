@@ -465,21 +465,21 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 	return summary, nil
 }
 
-func (r *reportRepository) GetReceivablesDetailData(ctx context.Context) ([]domain.ReceivableDetail, error) {
+func (r *reportRepository) GetReceivablesDetailData(ctx context.Context, filter domain.ReceivablesFilter) ([]domain.ReceivableDetail, error) {
 	var details []domain.ReceivableDetail
 
-	err := r.db.WithContext(ctx).Table("orders o").
+	query := r.db.WithContext(ctx).Table("orders o").
 		Select(`
-      o.id as order_id,
-      o.order_number,
-      bp.name as po_name,
-      bp.status as po_status,
-      c.name as customer_name,
-      u.name as sales_name,
-      o.total_amount,
-      COALESCE(p.total_paid, 0) as total_paid,
-      (o.total_amount - COALESCE(p.total_paid, 0)) as outstanding_amount
-    `).
+			o.id as order_id,
+			o.order_number,
+			bp.name as po_name,
+			bp.status as po_status,
+			c.name as customer_name,
+			u.name as sales_name,
+			o.total_amount,
+			COALESCE(p.total_paid, 0) as total_paid,
+			(o.total_amount - COALESCE(p.total_paid, 0)) as outstanding_amount
+		`).
 		Joins("LEFT JOIN batch_pos bp ON bp.id = o.batch_po_id AND bp.deleted_at IS NULL").
 		Joins("LEFT JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL").
 		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
@@ -487,10 +487,34 @@ func (r *reportRepository) GetReceivablesDetailData(ctx context.Context) ([]doma
 		Where("o.deleted_at IS NULL").
 		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
 		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial).
-		Where("(o.total_amount - COALESCE(p.total_paid, 0)) > 0").
-		Order("outstanding_amount DESC").
-		Scan(&details).Error
+		Where("(o.total_amount - COALESCE(p.total_paid, 0)) > 0")
 
+	// 1. Filter berdasarkan Batch PO ID (Jika diisi)
+	if filter.BatchPoID != "" {
+		query = query.Where("o.batch_po_id = ?", filter.BatchPoID)
+	}
+
+	// 2. Filter berdasarkan Order Status (Opsional jika ingin dispesifikan)
+	if filter.OrderStatus != "" {
+		query = query.Where("o.order_status = ?", filter.OrderStatus)
+	}
+
+	// 3. Pengurutan Data (Sorting Dinamis)
+	switch filter.SortBy {
+	case "amount_asc":
+		query = query.Order("outstanding_amount ASC")
+	case "amount_desc":
+		query = query.Order("outstanding_amount DESC")
+	case "date_asc":
+		query = query.Order("o.created_at ASC")
+	case "date_desc":
+		query = query.Order("o.created_at DESC")
+	default:
+		// Default behavior lama (Tagihan terbesar ke terkecil)
+		query = query.Order("outstanding_amount DESC")
+	}
+
+	err := query.Scan(&details).Error
 	if err != nil {
 		return nil, TranslateError(err)
 	}

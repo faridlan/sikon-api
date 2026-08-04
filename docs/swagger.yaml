@@ -3376,7 +3376,20 @@ paths:
   /reports/receivables:
     get:
       description: Menampilkan daftar detail pelanggan dan sales yang masih memiliki
-        piutang (Outstanding Amount > 0).
+        piutang dengan opsi filter PO dan sorting.
+      parameters:
+      - description: Filter berdasarkan ID Batch PO (UUID)
+        in: query
+        name: batch_po_id
+        type: string
+      - description: Filter berdasarkan status order (production, completed)
+        in: query
+        name: order_status
+        type: string
+      - description: Urutkan data (amount_desc, amount_asc, date_asc, date_desc)
+        in: query
+        name: sort_by
+        type: string
       produces:
       - application/json
       responses:

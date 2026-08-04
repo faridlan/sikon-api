@@ -119,11 +119,11 @@ func (u *reportUsecase) GetPOSummaryReport(c context.Context, poID string) (*dom
 	return summary, nil
 }
 
-func (u *reportUsecase) GetReceivablesDetailReport(c context.Context) ([]domain.ReceivableDetail, error) {
+func (u *reportUsecase) GetReceivablesDetailReport(c context.Context, filter domain.ReceivablesFilter) ([]domain.ReceivableDetail, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	data, err := u.reportRepo.GetReceivablesDetailData(ctx)
+	data, err := u.reportRepo.GetReceivablesDetailData(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
