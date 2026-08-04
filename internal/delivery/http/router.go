@@ -108,6 +108,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	payments.Get("/order/:order_id", handlers.PaymentHandler.GetPaymentsByOrderID)
 	payments.Get("/:id", handlers.PaymentHandler.GetPayment)
 	payments.Put("/:id", handlers.PaymentHandler.UpdatePayment)
+	payments.Patch("/:id/verify", handlers.PaymentHandler.VerifyPayment) // BARU: Endpoint Finance Approval
 	payments.Delete("/:id", handlers.PaymentHandler.DeletePayment)
 
 	orders.Post("/:id/items", handlers.OrderHandler.AddOrderItem)

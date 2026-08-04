@@ -189,6 +189,36 @@ func (_m *PaymentUsecase) UpdatePayment(ctx context.Context, id string, input do
 	return r0, r1
 }
 
+// VerifyPayment provides a mock function with given fields: ctx, paymentID, input
+func (_m *PaymentUsecase) VerifyPayment(ctx context.Context, paymentID string, input domain.PaymentVerifyInput) (*domain.Payment, error) {
+	ret := _m.Called(ctx, paymentID, input)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyPayment")
+	}
+
+	var r0 *domain.Payment
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.PaymentVerifyInput) (*domain.Payment, error)); ok {
+		return rf(ctx, paymentID, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.PaymentVerifyInput) *domain.Payment); ok {
+		r0 = rf(ctx, paymentID, input)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Payment)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, domain.PaymentVerifyInput) error); ok {
+		r1 = rf(ctx, paymentID, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewPaymentUsecase creates a new instance of PaymentUsecase. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewPaymentUsecase(t interface {

@@ -15,6 +15,7 @@ type PaymentHandler interface {
 	UpdatePayment(c *fiber.Ctx) error
 	DeletePayment(c *fiber.Ctx) error
 	GetPaymentsByOrderID(c *fiber.Ctx) error
+	VerifyPayment(c *fiber.Ctx) error // BARU
 }
 
 type paymentHandler struct {
@@ -28,7 +29,7 @@ func NewPaymentHandler(pu domain.PaymentUsecase) PaymentHandler {
 }
 
 // @Summary Process Payment
-// @Description Memproses pembayaran (DP/Lunas) untuk sebuah pesanan. <br><br> **PENTING UNTUK FE:** <br> 1. Otomatis mengubah `payment_status` pada Order menjadi `partial` atau `paid`. (Tidak perlu hit API update status lagi). <br> 2. Sistem akan menolak (HTTP 400) jika nominal bayar melebihi sisa tagihan (Anti-Overpayment). <br> 3. Endpoint ini sudah dilindungi kunci database (Pessimistic Locking) sehingga aman dari *double submit* (Race Condition).
+// @Description Memproses pembayaran (DP/Lunas) baru oleh Sales/Admin. Pembayaran yang baru di-submit akan berstatus `pending` sampai diverifikasi oleh Divisi Finance.
 // @Tags Payments
 // @Accept json
 // @Produce json
@@ -90,13 +91,14 @@ func (h *paymentHandler) GetPayment(c *fiber.Ctx) error {
 }
 
 // @Summary List Payments
-// @Description Mengambil daftar seluruh histori pembayaran dari semua pesanan dengan fitur pagination dan filter.
+// @Description Mengambil daftar seluruh histori pembayaran dengan fitur pagination dan filter (termasuk filter status verifikasi: pending, verified, rejected).
 // @Tags Payments
 // @Produce json
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
 // @Param search query string false "Cari No Referensi atau Order ID"
 // @Param payment_type query string false "Filter Tipe Pembayaran (dp, settlement, installment)"
+// @Param status query string false "Filter Status Verifikasi (pending, verified, rejected)"
 // @Param start_date query string false "Tanggal Mulai Pembayaran (YYYY-MM-DD)"
 // @Param end_date query string false "Tanggal Akhir Pembayaran (YYYY-MM-DD)"
 // @Success 200 {object} utils.PaginatedResponse[dto.PaymentResponse]
@@ -106,17 +108,16 @@ func (h *paymentHandler) ListPayments(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
-	// Tangkap filter dari URL
 	filter := domain.PaymentFilter{
 		Search:      c.Query("search"),
 		PaymentType: c.Query("payment_type"),
+		Status:      c.Query("status"), // BARU: Filter berdasarkan status verifikasi
 		StartDate:   c.Query("start_date"),
 		EndDate:     c.Query("end_date"),
 	}
 
 	query := domain.PaginationQuery{Page: page, Limit: limit}
 
-	// Teruskan filter ke usecase
 	payments, meta, err := h.paymentUsecase.ListPayments(c.Context(), query, filter)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
@@ -126,7 +127,7 @@ func (h *paymentHandler) ListPayments(c *fiber.Ctx) error {
 }
 
 // @Summary Update Payment
-// @Description Memperbarui data meta pembayaran seperti nomor referensi atau tipe pembayaran. **Catatan:** Endpoint ini tidak dapat mengubah Nominal (Amount) untuk menjaga integritas data keuangan.
+// @Description Memperbarui data meta pembayaran seperti nomor referensi atau tipe pembayaran.
 // @Tags Payments
 // @Accept json
 // @Produce json
@@ -164,8 +165,54 @@ func (h *paymentHandler) UpdatePayment(c *fiber.Ctx) error {
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui data pembayaran", dto.ToPaymentResponse(payment))
 }
 
+// @Summary Verify Payment (Finance Approval)
+// @Description Memverifikasi atau menolak bukti pembayaran. <br><br> **EFEK SAMPING OTOMATIS:** <br> 1. Jika di-`verified`, sistem menghitung uang sah dan mengubah `payment_status` Order ke `partial` atau `paid`. <br> 2. Uang baru resmi masuk ke Kas / Laporan Akuntansi.
+// @Tags Payments
+// @Accept json
+// @Produce json
+// @Param id path string true "Payment ID (UUID)"
+// @Param request body dto.PaymentVerifyRequest true "Status Verifikasi (verified / rejected)"
+// @Success 200 {object} utils.SuccessResponse[dto.PaymentResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /payments/{id}/verify [patch]
+func (h *paymentHandler) VerifyPayment(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	var req dto.PaymentVerifyRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	// Tangkap user_id dari locals (JWT middleware) atau request body/param jika ada
+	userID, _ := c.Locals("user_id").(string)
+	if userID == "" {
+		// Dapatkan verified_by_id dari header / query / fallback dummy di test jika belum ada JWT
+		userID = c.Get("X-User-Id")
+	}
+
+	input := domain.PaymentVerifyInput{
+		Status:       domain.PaymentVerificationStatus(req.Status),
+		VerifiedByID: userID,
+	}
+
+	payment, err := h.paymentUsecase.VerifyPayment(c.Context(), id, input)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil memperbarui status verifikasi pembayaran", dto.ToPaymentResponse(payment))
+}
+
 // @Summary Delete Payment
-// @Description Menghapus data/histori pembayaran secara permanen (Misal: jika kasir salah input). <br><br> **EFEK SAMPING OTOMATIS:** <br> Sistem akan menghitung ulang sisa tagihan pesanan dan otomatis mengubah mundur `payment_status` pada Order kembali ke `partial` atau `unpaid`.
+// @Description Menghapus data/histori pembayaran secara permanen.
 // @Tags Payments
 // @Produce json
 // @Param id path string true "Payment ID (UUID)"

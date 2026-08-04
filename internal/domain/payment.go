@@ -6,11 +6,16 @@ import (
 )
 
 type PaymentType string
+type PaymentVerificationStatus string
 
 const (
 	PaymentTypeDP          PaymentType = "dp"
 	PaymentTypeSettlement  PaymentType = "settlement"
 	PaymentTypeInstallment PaymentType = "installment"
+
+	PaymentVerificationPending  PaymentVerificationStatus = "pending"
+	PaymentVerificationVerified PaymentVerificationStatus = "verified"
+	PaymentVerificationRejected PaymentVerificationStatus = "rejected"
 )
 
 type Payment struct {
@@ -21,11 +26,15 @@ type Payment struct {
 	PaymentDate     time.Time
 	ReferenceNumber string
 	PaymentType     PaymentType
+	Status          PaymentVerificationStatus // pending, verified, rejected
+	VerifiedByID    *string
+	VerifiedAt      *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 
 	Order       *Order
 	BankAccount *BankAccount
+	VerifiedBy  *User
 }
 
 type PaymentCreateInput struct {
@@ -42,9 +51,15 @@ type PaymentUpdateInput struct {
 	PaymentType     PaymentType
 }
 
+type PaymentVerifyInput struct {
+	Status       PaymentVerificationStatus // verified atau rejected
+	VerifiedByID string
+}
+
 type PaymentFilter struct {
 	Search      string
 	PaymentType string
+	Status      string // Filter berdasarkan verification status
 	StartDate   string
 	EndDate     string
 }
@@ -58,6 +73,7 @@ type PaymentRepository interface {
 
 	// Custom Query
 	GetByOrderID(ctx context.Context, orderID string) ([]Payment, error)
+	UpdateVerificationStatus(ctx context.Context, paymentID string, status PaymentVerificationStatus, verifiedByID string, verifiedAt time.Time) error
 }
 
 type PaymentUsecase interface {
@@ -67,4 +83,7 @@ type PaymentUsecase interface {
 	UpdatePayment(ctx context.Context, id string, input PaymentUpdateInput) (*Payment, error)
 	DeletePayment(ctx context.Context, id string) error
 	GetPaymentsByOrderID(ctx context.Context, orderID string) ([]Payment, error)
+
+	// BARU: Verifikasi pembayaran oleh Divisi Finance/Admin
+	VerifyPayment(ctx context.Context, paymentID string, input PaymentVerifyInput) (*Payment, error)
 }

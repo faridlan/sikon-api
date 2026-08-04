@@ -14,13 +14,17 @@ type PaymentModel struct {
 	Amount          float64        `gorm:"type:decimal(15,2);not null;default:0"`
 	PaymentDate     time.Time      `gorm:"type:timestamp with time zone;default:CURRENT_TIMESTAMP"`
 	ReferenceNumber string         `gorm:"type:varchar(100)"`
-	PaymentType     string         `gorm:"type:varchar(50);not null"` // "dp", "settlement", "installment"
+	PaymentType     string         `gorm:"type:varchar(50);not null"`
+	Status          string         `gorm:"type:varchar(50);not null;default:'pending'"` // BARU
+	VerifiedByID    *string        `gorm:"type:uuid"`                                   // BARU
+	VerifiedAt      *time.Time     `gorm:"type:timestamp with time zone"`               // BARU
 	CreatedAt       time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt       gorm.DeletedAt `gorm:"index"`
 
 	Order       *OrderModel       `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	BankAccount *BankAccountModel `gorm:"foreignKey:BankAccountID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	VerifiedBy  *UserModel        `gorm:"foreignKey:VerifiedByID"`
 }
 
 func (PaymentModel) TableName() string {
@@ -35,24 +39,33 @@ func (m *PaymentModel) ToDomain() *domain.Payment {
 		Amount:          m.Amount,
 		PaymentDate:     m.PaymentDate,
 		ReferenceNumber: m.ReferenceNumber,
-		PaymentType:     domain.PaymentType(m.PaymentType), // Konversi kembali ke Enum (Custom Type)
+		PaymentType:     domain.PaymentType(m.PaymentType),
+		Status:          domain.PaymentVerificationStatus(m.Status),
+		VerifiedByID:    m.VerifiedByID,
+		VerifiedAt:      m.VerifiedAt,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
 	}
 
-	// Map relasi Order jika tersedia
 	if m.Order != nil {
 		payment.Order = m.Order.ToDomain()
 	}
-	// Map relasi BankAccount jika tersedia
 	if m.BankAccount != nil {
 		payment.BankAccount = m.BankAccount.ToDomain()
+	}
+	if m.VerifiedBy != nil {
+		payment.VerifiedBy = m.VerifiedBy.ToDomain()
 	}
 
 	return payment
 }
 
 func FromPaymentDomain(d *domain.Payment) *PaymentModel {
+	status := string(d.Status)
+	if status == "" {
+		status = string(domain.PaymentVerificationPending)
+	}
+
 	return &PaymentModel{
 		ID:              d.ID,
 		OrderID:         d.OrderID,
@@ -61,6 +74,9 @@ func FromPaymentDomain(d *domain.Payment) *PaymentModel {
 		PaymentDate:     d.PaymentDate,
 		ReferenceNumber: d.ReferenceNumber,
 		PaymentType:     string(d.PaymentType),
+		Status:          status,
+		VerifiedByID:    d.VerifiedByID,
+		VerifiedAt:      d.VerifiedAt,
 		CreatedAt:       d.CreatedAt,
 		UpdatedAt:       d.UpdatedAt,
 	}

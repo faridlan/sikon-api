@@ -358,3 +358,177 @@ func TestPaymentUsecase_DeletePayment(t *testing.T) {
 		mockPaymentRepo.AssertNotCalled(t, "Delete")
 	})
 }
+
+func TestVerifyPayment_Success(t *testing.T) {
+	mockPaymentRepo, mockOrderRepo, _, mockTxManager, _, uc := setupPaymentTest()
+
+	paymentID := "pay-uuid-1"
+	orderID := "ord-uuid-1"
+	verifiedByID := "finance-uuid-1"
+
+	paymentInput := domain.PaymentVerifyInput{
+		Status:       domain.PaymentVerificationVerified,
+		VerifiedByID: verifiedByID,
+	}
+
+	existingPayment := &domain.Payment{
+		ID:          paymentID,
+		OrderID:     orderID,
+		Amount:      500000,
+		Status:      domain.PaymentVerificationPending,
+		PaymentType: domain.PaymentTypeDP,
+	}
+
+	allPayments := []domain.Payment{
+		{
+			ID:      paymentID,
+			OrderID: orderID,
+			Amount:  500000,
+			Status:  domain.PaymentVerificationVerified, // Status setelah ter-update
+		},
+	}
+
+	existingOrder := &domain.Order{
+		ID:            orderID,
+		TotalAmount:   1000000,
+		PaymentStatus: domain.PaymentStatusUnpaid,
+	}
+
+	// Mock Transaction Manager
+	mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
+		Return(func(ctx context.Context, fn func(txCtx context.Context) error) error {
+			return fn(ctx)
+		})
+
+	// Expectations
+	mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(existingPayment, nil)
+	mockPaymentRepo.On("UpdateVerificationStatus", mock.Anything, paymentID, domain.PaymentVerificationVerified, verifiedByID, mock.AnythingOfType("time.Time")).Return(nil)
+	mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(allPayments, nil)
+	mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(existingOrder, nil)
+
+	// Harapannya PaymentStatus order berubah jadi "partial" karena total paid (500rb) < total amount (1jt)
+	mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
+		return o.ID == orderID && o.PaymentStatus == domain.PaymentStatusPartial
+	})).Return(nil)
+
+	// Execute Test
+	res, err := uc.VerifyPayment(context.Background(), paymentID, paymentInput)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, domain.PaymentVerificationVerified, res.Status)
+	assert.Equal(t, verifiedByID, *res.VerifiedByID)
+
+	mockTxManager.AssertExpectations(t)
+	mockPaymentRepo.AssertExpectations(t)
+	mockOrderRepo.AssertExpectations(t)
+}
+
+func TestVerifyPayment_InvalidStatus_Error(t *testing.T) {
+	_, _, _, _, _, uc := setupPaymentTest()
+
+	input := domain.PaymentVerifyInput{
+		Status:       domain.PaymentVerificationStatus("invalid_status"),
+		VerifiedByID: "finance-uuid-1",
+	}
+
+	res, err := uc.VerifyPayment(context.Background(), "pay-uuid-1", input)
+
+	assert.Error(t, err)
+	assert.Nil(t, res)
+
+	var appErr *domain.AppError
+	assert.True(t, errors.As(err, &appErr))
+	assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
+}
+
+func TestVerifyPayment_PaymentNotFound_Error(t *testing.T) {
+	mockPaymentRepo, _, _, mockTxManager, _, uc := setupPaymentTest()
+
+	paymentID := "non-existing-id"
+	input := domain.PaymentVerifyInput{
+		Status:       domain.PaymentVerificationVerified,
+		VerifiedByID: "finance-uuid-1",
+	}
+
+	mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
+		Return(func(ctx context.Context, fn func(txCtx context.Context) error) error {
+			return fn(ctx)
+		})
+
+	mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(nil, domain.ErrNotFound)
+
+	res, err := uc.VerifyPayment(context.Background(), paymentID, input)
+
+	assert.Error(t, err)
+	assert.Nil(t, res)
+
+	var appErr *domain.AppError
+	assert.True(t, errors.As(err, &appErr))
+	assert.Equal(t, domain.ErrNotFound, appErr.ErrType)
+
+	mockTxManager.AssertExpectations(t)
+	mockPaymentRepo.AssertExpectations(t)
+}
+
+func TestVerifyPayment_RejectedPayment_SetsOrderUnpaid(t *testing.T) {
+	mockPaymentRepo, mockOrderRepo, _, mockTxManager, _, uc := setupPaymentTest()
+
+	paymentID := "pay-uuid-2"
+	orderID := "ord-uuid-2"
+	verifiedByID := "finance-uuid-1"
+
+	paymentInput := domain.PaymentVerifyInput{
+		Status:       domain.PaymentVerificationRejected,
+		VerifiedByID: verifiedByID,
+	}
+
+	existingPayment := &domain.Payment{
+		ID:      paymentID,
+		OrderID: orderID,
+		Amount:  500000,
+		Status:  domain.PaymentVerificationPending,
+	}
+
+	// Pembayaran ditolak, jadi total verified payment = 0
+	allPayments := []domain.Payment{
+		{
+			ID:      paymentID,
+			OrderID: orderID,
+			Amount:  500000,
+			Status:  domain.PaymentVerificationRejected,
+		},
+	}
+
+	existingOrder := &domain.Order{
+		ID:            orderID,
+		TotalAmount:   1000000,
+		PaymentStatus: domain.PaymentStatusPartial,
+	}
+
+	mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
+		Return(func(ctx context.Context, fn func(txCtx context.Context) error) error {
+			return fn(ctx)
+		})
+
+	mockPaymentRepo.On("GetByID", mock.Anything, paymentID).Return(existingPayment, nil)
+	mockPaymentRepo.On("UpdateVerificationStatus", mock.Anything, paymentID, domain.PaymentVerificationRejected, verifiedByID, mock.AnythingOfType("time.Time")).Return(nil)
+	mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(allPayments, nil)
+	mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(existingOrder, nil)
+
+	// Harapannya PaymentStatus order kembali menjadi "unpaid" karena tidak ada payment verified
+	mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
+		return o.ID == orderID && o.PaymentStatus == domain.PaymentStatusUnpaid
+	})).Return(nil)
+
+	res, err := uc.VerifyPayment(context.Background(), paymentID, paymentInput)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, domain.PaymentVerificationRejected, res.Status)
+
+	mockTxManager.AssertExpectations(t)
+	mockPaymentRepo.AssertExpectations(t)
+	mockOrderRepo.AssertExpectations(t)
+}

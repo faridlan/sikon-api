@@ -136,9 +136,9 @@ func (_m *ReportRepository) GetProductionReportData(ctx context.Context, targetM
 	return r0, r1
 }
 
-// GetReceivablesDetailData provides a mock function with given fields: ctx
-func (_m *ReportRepository) GetReceivablesDetailData(ctx context.Context) ([]domain.ReceivableDetail, error) {
-	ret := _m.Called(ctx)
+// GetReceivablesDetailData provides a mock function with given fields: ctx, filter
+func (_m *ReportRepository) GetReceivablesDetailData(ctx context.Context, filter domain.ReceivablesFilter) ([]domain.ReceivableDetail, error) {
+	ret := _m.Called(ctx, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetReceivablesDetailData")
@@ -146,19 +146,19 @@ func (_m *ReportRepository) GetReceivablesDetailData(ctx context.Context) ([]dom
 
 	var r0 []domain.ReceivableDetail
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]domain.ReceivableDetail, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ReceivablesFilter) ([]domain.ReceivableDetail, error)); ok {
+		return rf(ctx, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []domain.ReceivableDetail); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.ReceivablesFilter) []domain.ReceivableDetail); ok {
+		r0 = rf(ctx, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.ReceivableDetail)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.ReceivablesFilter) error); ok {
+		r1 = rf(ctx, filter)
 	} else {
 		r1 = ret.Error(1)
 	}
