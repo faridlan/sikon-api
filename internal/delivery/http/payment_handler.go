@@ -191,11 +191,13 @@ func (h *paymentHandler) VerifyPayment(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	// Tangkap user_id dari locals (JWT middleware) atau request body/param jika ada
-	userID, _ := c.Locals("user_id").(string)
-	if userID == "" {
-		// Dapatkan verified_by_id dari header / query / fallback dummy di test jika belum ada JWT
-		userID = c.Get("X-User-Id")
+	userID := c.Get("X-User-Id")
+
+	// Validasi apakah X-User-Id benar-benar format UUID
+	if err := utils.ValidateUUID(userID, "x-user-id"); err != nil {
+		// Jika X-User-Id dari FE berupa dummy string biasa (bukan UUID format),
+		// kosongkan nilainya agar diset NULL atau fallback ke nilai aman tanpa merusak SQL constraint
+		userID = ""
 	}
 
 	input := domain.PaymentVerifyInput{
