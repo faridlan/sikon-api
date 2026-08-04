@@ -1,0 +1,4 @@
+ALTER TABLE payments
+ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'pending',
+ADD COLUMN verified_by_id UUID REFERENCES users (id),
+ADD COLUMN verified_at TIMESTAMP WITH TIME ZONE;

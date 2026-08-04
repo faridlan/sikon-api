@@ -88,11 +88,9 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 	// D. Buat Customers dan distribusikan secara ADIL (Round-Robin)
 	var customers []postgresRepo.CustomerModel
-	// Tambah 1 customer agar total 6 (Tiap sales pasti kebagian 2)
 	customerNames := []string{"Dummy Cust PT A", "Dummy Cust PT B", "Dummy Cust Personal C", "Dummy Cust CV D", "Dummy Cust Personal E", "Dummy Cust CV F"}
 
 	for i, name := range customerNames {
-		// Menggunakan Modulo (%) agar penentuan salesID bergiliran: 0, 1, 2, 0, 1, 2
 		assignedSalesID := activeSalesIDs[i%len(activeSalesIDs)]
 		cust := postgresRepo.CustomerModel{
 			ID:        uuid.NewString(),
@@ -129,7 +127,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		{"PO 2 JULI 2026", 7, 2026, "2026-07-04", "2026-07-11", string(domain.BatchPOStatusClosed)},
 		{"PO 3 JULI 2026", 7, 2026, "2026-07-11", "2026-07-18", string(domain.BatchPOStatusClosed)},
 		{"PO 4 JULI 2026", 7, 2026, "2026-07-18", "2026-07-25", string(domain.BatchPOStatusClosed)},
-		{"PO 1 AGUSTUS 2026", 8, 2026, "2026-07-25", "2026-08-01", string(domain.BatchPOStatusActive)},
+		{"PO 1 AGUSTUS 2026", 8, 2026, "2026-07-25", "2026-08-01", string(domain.BatchPOStatusClosed)},
+		{"PO 2 AGUSTUS 2026", 8, 2026, "2026-08-01", "2026-08-08", string(domain.BatchPOStatusActive)},
 	}
 
 	var batchPOs []postgresRepo.BatchPOModel
@@ -153,7 +152,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 	// --- 3. LOOPING TRANSAKSI HARIAN ---
 	startDate, _ := time.Parse("2006-01-02", "2026-06-27")
-	endDate, _ := time.Parse("2006-01-02", "2026-08-01")
+	endDate, _ := time.Parse("2006-01-02", "2026-08-03")
 
 	orderCounter := 1
 	expenseCounter := 0
@@ -224,13 +223,19 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			h.db.Create(&orderItem)
 
 			if paidAmount > 0 {
+				payTime := approvedTime.Add(2 * time.Hour)
+				verifierID := *cust.SalesID
+
 				payment := postgresRepo.PaymentModel{
 					ID:              uuid.NewString(),
 					OrderID:         orderID,
 					BankAccountID:   bankAccount.ID,
 					Amount:          paidAmount,
 					PaymentType:     "dp",
-					PaymentDate:     approvedTime.Add(2 * time.Hour),
+					Status:          string(domain.PaymentVerificationVerified), // 🚨 BARU: Seeder otomatis ter-verified
+					VerifiedByID:    &verifierID,                                // 🚨 BARU: Terisi ID verifikator
+					VerifiedAt:      &payTime,                                   // 🚨 BARU: Terisi timestamp verifikasi
+					PaymentDate:     payTime,
 					ReferenceNumber: fmt.Sprintf("SEED-PAY-%04d", orderCounter),
 				}
 				h.db.Create(&payment)
@@ -259,7 +264,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				Amount:            expAmount,
 				ExpenseDate:       d.Add(14 * time.Hour),
 				Notes:             "Dibuat otomatis oleh Seeder SIKOn",
-				CreatedByID:       activeSalesIDs[rand.Intn(len(activeSalesIDs))], // Acak pencatat pengeluaran
+				CreatedByID:       activeSalesIDs[rand.Intn(len(activeSalesIDs))],
 			}
 			h.db.Create(&expense)
 			expenseCounter++

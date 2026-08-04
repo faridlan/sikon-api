@@ -34,52 +34,40 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi Rekening Bank (Bisa di luar transaksi)
-	if _, err := u.bankAccountRepo.GetByID(ctx, input.BankAccountID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return nil, domain.NewError(domain.ErrBadParamInput, "Rekening bank tidak valid")
-		}
-		return nil, err
-	}
+	var createdPayment *domain.Payment
 
-	var savedPayment *domain.Payment // Ember penampung hasil
-
-	// 🚨 MEMULAI TRANSAKSI KEUANGAN 🚨
 	err := u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// 🚨 PASTIKAN SELALU MENGGUNAKAN txCtx DI SINI:
 
-		// 1. Ambil Order SAMBIL DIGEMBOK (Mencegah admin lain memproses order yang sama)
+		// 1. Ambil order dengan lock
 		order, err := u.orderRepo.GetByIDForUpdate(txCtx, input.OrderID)
 		if err != nil {
-			if errors.Is(err, domain.ErrNotFound) {
-				return domain.NewError(domain.ErrBadParamInput, "Order tidak ditemukan")
-			}
 			return err
 		}
 
-		grandTotal := order.TotalAmount
-
-		// 2. Hitung total uang masuk sebelumnya (Dalam kondisi database masih digembok)
+		// 2. Ambil payments yang terverifikasi
 		existingPayments, err := u.paymentRepo.GetByOrderID(txCtx, input.OrderID)
 		if err != nil {
 			return err
 		}
 
-		var totalPaid float64
+		var totalPaidVerified float64
 		for _, p := range existingPayments {
-			totalPaid += p.Amount
+			if p.Status == domain.PaymentVerificationVerified {
+				totalPaidVerified += p.Amount
+			}
 		}
 
-		// 3. Validasi
-		if totalPaid >= grandTotal {
+		sisaTagihan := order.TotalAmount - totalPaidVerified
+		if sisaTagihan <= 0 {
 			return domain.NewError(domain.ErrConflict, "Pesanan ini sudah lunas sepenuhnya")
 		}
 
-		sisaTagihan := grandTotal - totalPaid
 		if input.Amount > sisaTagihan {
-			return domain.NewError(domain.ErrBadParamInput, "Jumlah bayar melebihi sisa tagihan. Sisa tagihan: Rp "+fmt.Sprintf("%.0f", sisaTagihan))
+			return domain.NewError(domain.ErrBadParamInput, fmt.Sprintf("Nominal pembayaran (Rp %.0f) melebihi sisa tagihan (Rp %.0f)", input.Amount, sisaTagihan))
 		}
 
-		// 4. Save Payment (Catat ke buku)
+		// 3. Simpan payment baru
 		payment := &domain.Payment{
 			OrderID:         input.OrderID,
 			BankAccountID:   input.BankAccountID,
@@ -87,55 +75,23 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 			PaymentDate:     input.PaymentDate,
 			ReferenceNumber: input.ReferenceNumber,
 			PaymentType:     input.PaymentType,
+			Status:          domain.PaymentVerificationPending,
 		}
 
-		if payment.PaymentDate.IsZero() {
-			payment.PaymentDate = time.Now()
-		}
-
+		// 🚨 GUNAKAN txCtx
 		if err := u.paymentRepo.Create(txCtx, payment); err != nil {
 			return err
 		}
 
-		// 5. Update Status Order & Re-alokasi PO (Jika masih Quotation)
-		totalPaidSetelahMasuk := totalPaid + payment.Amount
-		newPaymentStatus := domain.PaymentStatusPartial
-
-		if totalPaidSetelahMasuk >= grandTotal {
-			newPaymentStatus = domain.PaymentStatusPaid
-		}
-
-		// 🚨 LOGIC RE-ALOKASI PO OTOMATIS 🚨
-		// Jika ini adalah pembayaran pertama, status berubah menjadi Production
-		if order.OrderStatus == domain.OrderStatusQuotation {
-			order.OrderStatus = domain.OrderStatusProduction
-			now := time.Now()
-			order.ApprovedAt = &now
-
-			// Cari PO yang aktif hari ini
-			activePO, err := u.batchPoRepo.GetActivePOByDate(txCtx, now)
-			if err == nil && activePO != nil {
-				// Pindahkan order ini ke PO yang sedang aktif saat DP dibayar
-				order.BatchPoID = activePO.ID
-			}
-		}
-
-		order.PaymentStatus = newPaymentStatus
-
-		// Gunakan Update penuh karena kita mengubah banyak field (bukan cuma status)
-		if err := u.orderRepo.Update(txCtx, order); err != nil {
-			return err
-		}
-
-		savedPayment = payment
-		return nil // Transaksi sukses. COMMIT & LEPASKAN GEMBOK!
+		createdPayment = payment
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	return savedPayment, nil
+	return createdPayment, nil
 }
 
 func (u *paymentUsecase) GetPayment(c context.Context, id string) (*domain.Payment, error) {
@@ -284,4 +240,89 @@ func (u *paymentUsecase) GetPaymentsByOrderID(c context.Context, orderID string)
 	}
 
 	return u.paymentRepo.GetByOrderID(ctx, order.ID)
+}
+
+func (u *paymentUsecase) VerifyPayment(c context.Context, paymentID string, input domain.PaymentVerifyInput) (*domain.Payment, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	// 1. Validasi Input Status Verifikasi
+	if input.Status != domain.PaymentVerificationVerified && input.Status != domain.PaymentVerificationRejected {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Status verifikasi harus 'verified' atau 'rejected'")
+	}
+
+	var updatedPayment *domain.Payment
+
+	// 2. Jalankan dalam DB Transaction (Atomic & Safe)
+	err := u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
+		// A. Ambil data payment yang akan diverifikasi
+		payment, err := u.paymentRepo.GetByID(txCtx, paymentID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NewError(domain.ErrNotFound, "Pembayaran tidak ditemukan")
+			}
+			return err
+		}
+
+		now := time.Now()
+		// B. Update status verifikasi pembayaran di DB
+		err = u.paymentRepo.UpdateVerificationStatus(txCtx, paymentID, input.Status, input.VerifiedByID, now)
+		if err != nil {
+			return err
+		}
+
+		// C. Ambil SELURUH histori pembayaran untuk Order ini
+		allPayments, err := u.paymentRepo.GetByOrderID(txCtx, payment.OrderID)
+		if err != nil {
+			return err
+		}
+
+		// D. Hitung total uang yang sah (HANYA pembayaran yang berstatus VERIFIED)
+		var totalPaidVerified float64
+		for _, p := range allPayments {
+			// Karena payment saat ini di-DB sudah ter-update statusnya, kita evaluasi status terbarunya
+			currentStatus := p.Status
+			if p.ID == paymentID {
+				currentStatus = input.Status
+			}
+
+			if currentStatus == domain.PaymentVerificationVerified {
+				totalPaidVerified += p.Amount
+			}
+		}
+
+		// E. Ambil data Order terkait via orderRepo
+		order, err := u.orderRepo.GetByID(txCtx, payment.OrderID)
+		if err != nil {
+			return err
+		}
+
+		// F. Evaluasi dan tentukan PaymentStatus baru pada Order
+		if totalPaidVerified <= 0 {
+			order.PaymentStatus = domain.PaymentStatusUnpaid
+		} else if totalPaidVerified < order.TotalAmount {
+			order.PaymentStatus = domain.PaymentStatusPartial
+		} else {
+			order.PaymentStatus = domain.PaymentStatusPaid
+		}
+
+		// G. Simpan perubahan PaymentStatus ke tabel orders
+		if err := u.orderRepo.Update(txCtx, order); err != nil {
+			return err
+		}
+
+		// H. Set data penampung untuk response
+		payment.Status = input.Status
+		payment.VerifiedByID = &input.VerifiedByID
+		payment.VerifiedAt = &now
+		updatedPayment = payment
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedPayment, nil
 }

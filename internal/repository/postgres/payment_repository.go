@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
 	"gorm.io/gorm"
@@ -16,8 +17,13 @@ func NewPaymentRepository(db *gorm.DB) domain.PaymentRepository {
 }
 
 func (r *paymentRepository) Create(ctx context.Context, payment *domain.Payment) error {
+	if payment.Status == "" {
+		payment.Status = domain.PaymentVerificationPending
+	}
+
 	model := FromPaymentDomain(payment)
 
+	// 🚨 GUNAKAN GetTx AGAR BERJALAN DI DALAM TRANSAKSI YANG SAMA
 	db := GetTx(ctx, r.db)
 
 	if err := db.WithContext(ctx).Create(model).Error; err != nil {
@@ -27,6 +33,7 @@ func (r *paymentRepository) Create(ctx context.Context, payment *domain.Payment)
 	payment.ID = model.ID
 	payment.CreatedAt = model.CreatedAt
 	payment.UpdatedAt = model.UpdatedAt
+	payment.Status = domain.PaymentVerificationStatus(model.Status)
 
 	return nil
 }
@@ -115,15 +122,50 @@ func (r *paymentRepository) Delete(ctx context.Context, id string) error {
 func (r *paymentRepository) GetByOrderID(ctx context.Context, orderID string) ([]domain.Payment, error) {
 	var models []PaymentModel
 
-	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+	// 🚨 GUNAKAN GetTx
+	db := GetTx(ctx, r.db)
 
-	if err := db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("order_id = ?", orderID).Order("payment_date ASC").Find(&models).Error; err != nil {
+	err := db.WithContext(ctx).
+		Where("order_id = ?", orderID).
+		Order("created_at ASC").
+		Find(&models).Error
+
+	if err != nil {
 		return nil, TranslateError(err)
 	}
 
 	payments := make([]domain.Payment, len(models))
-	for i, model := range models {
-		payments[i] = *model.ToDomain()
+	for i, m := range models {
+		payments[i] = *m.ToDomain()
 	}
+
 	return payments, nil
+}
+
+func (r *paymentRepository) UpdateVerificationStatus(ctx context.Context, paymentID string, status domain.PaymentVerificationStatus, verifiedByID string, verifiedAt time.Time) error {
+	// 1. Tangani verifiedByID agar tidak mengirim string kosong "" ke kolom UUID PostgreSQL
+	var verifiedByVal any = verifiedByID
+	if verifiedByID == "" {
+		verifiedByVal = nil
+	}
+
+	updates := map[string]any{
+		"status":         string(status),
+		"verified_by_id": verifiedByVal, // 👈 Diset nil/NULL jika string kosong
+		"verified_at":    verifiedAt,
+		"updated_at":     time.Now(),
+	}
+
+	// 2. Gunakan GetTx agar mendukung transaksi dari Usecase
+	db := GetTx(ctx, r.db)
+
+	err := db.WithContext(ctx).Table("payments").
+		Where("id = ? AND deleted_at IS NULL", paymentID).
+		Updates(updates).Error
+
+	if err != nil {
+		return TranslateError(err)
+	}
+
+	return nil
 }

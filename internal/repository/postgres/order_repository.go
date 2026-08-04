@@ -256,14 +256,9 @@ func (r *orderRepository) GetByIDForUpdate(ctx context.Context, id string) (*dom
 	// Wajib mengambil txCtx, karena penguncian hanya berlaku di dalam sebuah Transaksi
 	db := GetTx(ctx, r.db)
 
-	// CLAUSE "FOR UPDATE" DITAMBAHKAN DI SINI (Gunakan fitur gorm: clause.Locking)
+	// HAPUS PRELOAD di sini agar query FOR UPDATE super ringan & tidak mengunci tabel relasi lain
 	err := db.WithContext(ctx).
-		Preload("Items").
-		Preload("Customer").
-		Preload("Sales").
-		Preload("BatchPO").
-		// Preload("Items.Product"). // Boleh dihilangkan di sini agar lock lebih ringan, kita hanya butuh TotalAmount
-		Clauses(clause.Locking{Strength: "UPDATE"}). // <--- INI GEMBOKNYA!
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).
 		First(&model).Error
 

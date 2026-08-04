@@ -2,7 +2,7 @@ package tests
 
 import (
 	"log/slog"
-	"os" // Jangan lupa import os
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -35,7 +35,6 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	supabaseKey := os.Getenv("SUPABASE_KEY")
 	supabaseBucket := os.Getenv("SUPABASE_BUCKET")
 
-	// 🚨 DEBUG: Cek apa yang terbaca
 	slog.Info("INTEGRATION TEST CONFIG",
 		slog.String("bucket_detected", supabaseBucket),
 		slog.String("url_detected", supabaseURL),
@@ -44,7 +43,8 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	if supabaseBucket == "" {
 		panic("SUPABASE_BUCKET kosong! Pastikan .env.test terbaca dengan benar.")
 	}
-	// 3. Inisiasi DB Test (Masukkan variabel di atas, JANGAN di-hardcode)
+
+	// 3. Inisiasi DB Test
 	db := config.InitDB(dbUser, dbPassword, dbHost, dbPort, dbName)
 
 	db.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`)
@@ -66,45 +66,46 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.ExpenseModel{},
 	)
 
-	timeout := 5 * time.Second
+	// 🚨 DIBERIKAN DURASI LEBIH LONGGAR UNTUK TRANSAKSI INTEGRASI & LOCKING TEST
+	timeout := 30 * time.Second
 
 	storageService := supabase.NewSupabaseStorage(supabaseURL, supabaseKey, supabaseBucket)
 
 	// 1. Repo
 	categoryRepo := postgres.NewCategoryRepository(db)
-	productRepo := postgres.NewProductRepository(db) // <-- Tambahkan ini
+	productRepo := postgres.NewProductRepository(db)
 	userRepo := postgres.NewUserRepository(db)
 	customerRepo := postgres.NewCustomerRepository(db)
 	bankAccountRepo := postgres.NewBankAccountRepository(db)
 	orderRepo := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
-	specTemplateRepo := postgres.NewSpecTemplateRepository(db) // <-- Tambahkan ini
+	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
 	txManager := postgres.NewTransactionManager(db)
 	dashboardRepo := postgres.NewDashboardRepository(db)
 	reportRepo := postgres.NewReportRepository(db)
-	batchPORepo := postgres.NewBatchPORepository(db) // <-- Tambahkan ini
+	batchPORepo := postgres.NewBatchPORepository(db)
 	expenseRepo := postgres.NewExpenseRepository(db)
 
-	// 2. Usecase (Perhatikan bahwa productUsecase juga butuh categoryRepo)
+	// 2. Usecase
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
-	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout) // <-- Tambahkan ini
+	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout)
 	userUsecase := usecase.NewUserUsecase(userRepo, storageService, txManager, timeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, timeout)
-	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout) // <-- Tambahkan ini
+	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, timeout)
 	reportUsecase := usecase.NewReportUsecase(reportRepo, timeout)
-	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, timeout) // <-- Tambahkan ini
+	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, timeout)
 	uploadUsecase := usecase.NewUploadUsecase(storageService, timeout)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, timeout)
 
 	// 3. Masukkan ke struct Handlers
 	handlers := myHttp.Handlers{
 		CategoryHandler:     myHttp.NewCategoryHandler(categoryUsecase),
-		ProductHandler:      myHttp.NewProductHandler(productUsecase),           // <-- Tambahkan ini
-		SpecTemplateHandler: myHttp.NewSpecTemplateHandler(specTemplateUsecase), // <-- Tambahkan ini
+		ProductHandler:      myHttp.NewProductHandler(productUsecase),
+		SpecTemplateHandler: myHttp.NewSpecTemplateHandler(specTemplateUsecase),
 		UserHandler:         myHttp.NewUserHandler(userUsecase),
 		CustomerHandler:     myHttp.NewCustomerHandler(customerUsecase),
 		BankAccountHandler:  myHttp.NewBankAccountHandler(bankAccountUsecase),
@@ -115,6 +116,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		BatchPOHandler:      myHttp.NewBatchPOHandler(batchPOUsecase),
 		UploadHandler:       myHttp.NewUploadHandler(uploadUsecase),
 		ExpenseHandler:      myHttp.NewExpenseHandler(expenseUsecase),
+		SeederHandler:       myHttp.NewSeederHandler(db),
 	}
 
 	app := fiber.New()
@@ -125,7 +127,6 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 
 // ClearTables adalah fungsi ajaib untuk mengosongkan semua isi tabel sebelum tiap test berjalan
 func ClearTables(db *gorm.DB) {
-	// Hapus product terlebih dahulu (jika ada relasi) lalu categories
 	db.Exec("TRUNCATE TABLE categories RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE products RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE users RESTART IDENTITY CASCADE;")
@@ -134,8 +135,8 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE orders RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE order_items RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE;")
-	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;") // <-- Tambahkan ini
-	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")      // <-- Tambahkan ini
+	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE expense_categories RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE expenses RESTART IDENTITY CASCADE;")
 }

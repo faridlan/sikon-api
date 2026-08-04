@@ -296,49 +296,42 @@ func (u *orderUsecase) UpdatePaymentStatus(c context.Context, id string, status 
 
 // --- Private Helper untuk Hitung Ulang Total ---
 func (u *orderUsecase) recalculateOrderTotal(ctx context.Context, orderID string) (*domain.Order, error) {
-	// 1. Ambil data order terbaru beserta seluruh items-nya
+	// 1. Ambil data order terbaru
 	order, err := u.orderRepo.GetByID(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Hitung ulang subtotal murni dari list order.Items
+	// 2. Hitung ulang subtotal dari items
 	var subtotal float64
 	for _, item := range order.Items {
 		subtotal += item.Price * float64(item.Qty)
 	}
-
-	// 3. Masukkan ke order & hitung ulang Grand Total
 	order.Subtotal = subtotal
 	order.CalculateTotals()
 
-	// =========================================================
-	// 🚨 TAMBAHAN BARU: RE-EVALUASI STATUS PEMBAYARAN 🚨
-	// =========================================================
-
-	// Ambil semua histori pembayaran untuk order ini
+	// 3. Re-evaluasi status pembayaran HANYA dari Payment yang VERIFIED
 	existingPayments, err := u.paymentRepo.GetByOrderID(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Jumlahkan total yang sudah dibayar (kas nyata yang masuk)
-	var totalPaid float64
+	var totalPaidVerified float64
 	for _, p := range existingPayments {
-		totalPaid += p.Amount
+		// 🚨 HANYA HITUNG PAYMENT YANG SUDAH DIVERIFIKASI FINANCE
+		if p.Status == domain.PaymentVerificationVerified {
+			totalPaidVerified += p.Amount
+		}
 	}
 
-	// Tentukan status pembayaran baru berdasarkan selisih
-	if totalPaid <= 0 {
+	if totalPaidVerified <= 0 {
 		order.PaymentStatus = domain.PaymentStatusUnpaid
-	} else if totalPaid < order.TotalAmount {
+	} else if totalPaidVerified < order.TotalAmount {
 		order.PaymentStatus = domain.PaymentStatusPartial
 	} else {
 		order.PaymentStatus = domain.PaymentStatusPaid
 	}
-	// =========================================================
 
-	// 4. Update Header Order-nya saja ke Database (Subtotal, TotalAmount, & PaymentStatus ikut terupdate)
 	err = u.orderRepo.Update(ctx, order)
 	if err != nil {
 		return nil, err
