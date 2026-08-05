@@ -31,6 +31,15 @@ func NewSeederHandler(db *gorm.DB) SeederHandler {
 // @Tags Seeder
 // @Router /seeder/clear [post]
 func (h *seederHandler) Clear(c *fiber.Ctx) error {
+	// Hapus Relasi Produk Baru
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductModelViewModel{})
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.DesignerModel{})
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.WholesalePriceModel{})
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.FabricColorModel{})
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductFabricModel{})
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductImageModel{})
+
+	// Hapus Data Utama
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ExpenseModel{})
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Cat Exp%").Delete(&postgresRepo.ExpenseCategoryModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.PaymentModel{})
@@ -77,11 +86,172 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 	h.db.Create(&bankAccount)
 
-	cat := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Kemeja"}
+	cat := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Kemeja Taktikal"}
 	h.db.Create(&cat)
 
-	product1 := postgresRepo.ProductModel{ID: uuid.NewString(), CategoryID: cat.ID, Name: "Dummy Prod PDL", BasePrice: 150000}
-	product2 := postgresRepo.ProductModel{ID: uuid.NewString(), CategoryID: cat.ID, Name: "Dummy Prod PDH", BasePrice: 180000}
+	// --- SETUP SEEDER PRODUK KATALOG & CANVAS DESIGNER REALISTIS ---
+
+	prod1ID := uuid.NewString()
+	prod2ID := uuid.NewString()
+
+	// Fabric IDs
+	fab1Prod1 := uuid.NewString()
+	fab2Prod1 := uuid.NewString()
+	fab1Prod2 := uuid.NewString()
+
+	// Designer Model IDs
+	dm1ID := uuid.NewString()
+	dm2ID := uuid.NewString()
+
+	product1 := postgresRepo.ProductModel{
+		ID:            prod1ID,
+		CategoryID:    cat.ID,
+		Name:          "Dummy Prod Kemeja Taktikal Premium 7200",
+		Description:   "Kemeja taktikal lengan panjang, 2 saku flap velcro, ventilasi punggung",
+		BasePrice:     185000,
+		Slug:          "dummy-prod-kemeja-taktikal-premium-7200",
+		GSMInfo:       "210gsm",
+		FabricSummary: "Ripstop Cotton",
+		Rating:        4.9,
+		SoldCount:     1240,
+		ReviewCount:   318,
+		KeyFeatures:   `["Bahan ripstop anti robek", "Dual chest pocket velcro", "Pen slot di lengan", "Ventilasi punggung", "Bisa custom bordir & patch"]`,
+		Images: []postgresRepo.ProductImageModel{
+			{ID: uuid.NewString(), ProductID: prod1ID, ImageURL: "https://raw.githubusercontent.com/faridlan/assets/main/mockups/series1-front-long.png", IsPrimary: true},
+			{ID: uuid.NewString(), ProductID: prod1ID, ImageURL: "https://raw.githubusercontent.com/faridlan/assets/main/mockups/series1-back-long.png", IsPrimary: false},
+		},
+		Fabrics: []postgresRepo.ProductFabricModel{
+			{
+				ID:              fab1Prod1,
+				ProductID:       prod1ID,
+				Name:            "Ripstop Cotton 65/35",
+				Description:     "Kuat & anti robek, 210gsm",
+				Composition:     "65% Cotton / 35% Polyester",
+				CareInstruction: "Cuci mesin air dingin, jangan diputihkan, setrika suhu sedang",
+				BasePrice:       185000,
+				PriceAdjustment: 0,
+				IsDefault:       true,
+				Colors: []postgresRepo.FabricColorModel{
+					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Olive", HexCode: "#4b5320"},
+					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Navy", HexCode: "#1b263b"},
+					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Black", HexCode: "#000000"},
+					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Khaki", HexCode: "#c2b280"},
+				},
+			},
+			{
+				ID:              fab2Prod1,
+				ProductID:       prod1ID,
+				Name:            "Nagata Drill Premium",
+				Description:     "Tebal & kokoh, 260gsm",
+				Composition:     "100% Cotton",
+				CareInstruction: "Cuci mesin air dingin, setrika suhu sedang",
+				BasePrice:       200000,
+				PriceAdjustment: 15000,
+				IsDefault:       false,
+				Colors: []postgresRepo.FabricColorModel{
+					{ID: uuid.NewString(), FabricID: fab2Prod1, Name: "Black", HexCode: "#000000"},
+					{ID: uuid.NewString(), FabricID: fab2Prod1, Name: "Navy", HexCode: "#1b263b"},
+				},
+			},
+		},
+		Wholesale: []postgresRepo.WholesalePriceModel{
+			{ID: uuid.NewString(), ProductID: prod1ID, FabricID: &fab1Prod1, MinQty: 6, MaxQty: pointerInt(23), UnitPrice: 175000},
+			{ID: uuid.NewString(), ProductID: prod1ID, FabricID: &fab1Prod1, MinQty: 24, MaxQty: nil, UnitPrice: 165000},
+		},
+		DesignModel: &postgresRepo.DesignerModel{
+			ID:          dm1ID,
+			ProductID:   prod1ID,
+			Name:        "Series 1 — Lengan Panjang",
+			Type:        "long_sleeve",
+			Description: "Template kemeja taktikal 2 saku flap",
+			Views: []postgresRepo.ProductModelViewModel{
+				{
+					ID:             uuid.NewString(),
+					ProductModelID: dm1ID,
+					Side:           "front",
+					ArtURL:         "/mockups/series1-front-long.png",
+					MaskURL:        "/mockups/series1-front-mask-long.png",
+					Width:          1756,
+					Height:         1920,
+				},
+				{
+					ID:             uuid.NewString(),
+					ProductModelID: dm1ID,
+					Side:           "back",
+					ArtURL:         "/mockups/series1-back-long.png",
+					MaskURL:        "/mockups/series1-back-mask-long.png",
+					Width:          1738,
+					Height:         1920,
+				},
+			},
+		},
+	}
+
+	product2 := postgresRepo.ProductModel{
+		ID:            prod2ID,
+		CategoryID:    cat.ID,
+		Name:          "Dummy Prod Kemeja PDL Lengan Pendek 5000",
+		Description:   "Kemeja taktikal lengan pendek, ringan & dingin untuk aktivitas lapangan",
+		BasePrice:     165000,
+		Slug:          "dummy-prod-kemeja-pdl-lengan-pendek-5000",
+		GSMInfo:       "190gsm",
+		FabricSummary: "American Drill",
+		Rating:        4.8,
+		SoldCount:     760,
+		ReviewCount:   180,
+		KeyFeatures:   `["Bahan halus & dingin", "Jahitan double stitch", "Tahan cuci berulang"]`,
+		Images: []postgresRepo.ProductImageModel{
+			{ID: uuid.NewString(), ProductID: prod2ID, ImageURL: "https://raw.githubusercontent.com/faridlan/assets/main/mockups/series1-front-short.png", IsPrimary: true},
+		},
+		Fabrics: []postgresRepo.ProductFabricModel{
+			{
+				ID:              fab1Prod2,
+				ProductID:       prod2ID,
+				Name:            "American Drill",
+				Description:     "Halus & nyaman, 230gsm",
+				Composition:     "80% Cotton / 20% Polyester",
+				CareInstruction: "Cuci mesin air dingin",
+				BasePrice:       165000,
+				PriceAdjustment: 0,
+				IsDefault:       true,
+				Colors: []postgresRepo.FabricColorModel{
+					{ID: uuid.NewString(), FabricID: fab1Prod2, Name: "Olive", HexCode: "#4b5320"},
+					{ID: uuid.NewString(), FabricID: fab1Prod2, Name: "Black", HexCode: "#000000"},
+				},
+			},
+		},
+		Wholesale: []postgresRepo.WholesalePriceModel{
+			{ID: uuid.NewString(), ProductID: prod2ID, FabricID: nil, MinQty: 12, MaxQty: nil, UnitPrice: 155000},
+		},
+		DesignModel: &postgresRepo.DesignerModel{
+			ID:          dm2ID,
+			ProductID:   prod2ID,
+			Name:        "Series 1 — Lengan Pendek",
+			Type:        "short_sleeve",
+			Description: "Template kemeja taktikal lengan pendek",
+			Views: []postgresRepo.ProductModelViewModel{
+				{
+					ID:             uuid.NewString(),
+					ProductModelID: dm2ID,
+					Side:           "front",
+					ArtURL:         "/mockups/series1-front-short.png",
+					MaskURL:        "/mockups/series1-front-mask-short.png",
+					Width:          1727,
+					Height:         1920,
+				},
+				{
+					ID:             uuid.NewString(),
+					ProductModelID: dm2ID,
+					Side:           "back",
+					ArtURL:         "/mockups/series1-back-short.png",
+					MaskURL:        "/mockups/series1-back-mask-short.png",
+					Width:          1708,
+					Height:         1920,
+				},
+			},
+		},
+	}
+
 	h.db.Create(&product1)
 	h.db.Create(&product2)
 	products := []postgresRepo.ProductModel{product1, product2}
@@ -232,9 +402,9 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 					BankAccountID:   bankAccount.ID,
 					Amount:          paidAmount,
 					PaymentType:     "dp",
-					Status:          string(domain.PaymentVerificationVerified), // 🚨 BARU: Seeder otomatis ter-verified
-					VerifiedByID:    &verifierID,                                // 🚨 BARU: Terisi ID verifikator
-					VerifiedAt:      &payTime,                                   // 🚨 BARU: Terisi timestamp verifikasi
+					Status:          string(domain.PaymentVerificationVerified),
+					VerifiedByID:    &verifierID,
+					VerifiedAt:      &payTime,
 					PaymentDate:     payTime,
 					ReferenceNumber: fmt.Sprintf("SEED-PAY-%04d", orderCounter),
 				}
@@ -271,8 +441,12 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		}
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder secara lengkap (Orders, Payments, & Expenses)!", fiber.Map{
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder secara lengkap (Products, Fabrics, Designer Models, Orders, Payments, & Expenses)!", fiber.Map{
 		"total_orders_generated":   orderCounter - 1,
 		"total_expenses_generated": expenseCounter,
 	})
+}
+
+func pointerInt(v int) *int {
+	return &v
 }

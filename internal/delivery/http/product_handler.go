@@ -1,6 +1,8 @@
 package http
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
@@ -11,6 +13,7 @@ import (
 type ProductHandler interface {
 	CreateProduct(c *fiber.Ctx) error
 	GetProduct(c *fiber.Ctx) error
+	GetProductBySlug(c *fiber.Ctx) error
 	ListProducts(c *fiber.Ctx) error
 	UpdateProduct(c *fiber.Ctx) error
 	DeleteProduct(c *fiber.Ctx) error
@@ -27,7 +30,7 @@ func NewProductHandler(pu domain.ProductUsecase) ProductHandler {
 }
 
 // @Summary Create Product
-// @Description Menambahkan produk baru ke dalam katalog beserta daftar gambarnya
+// @Description Menambahkan produk baru ke dalam katalog beserta opsi kain, warna, grosir, dan template canvas
 // @Tags Products
 // @Accept json
 // @Produce json
@@ -47,13 +50,7 @@ func (h *productHandler) CreateProduct(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	domainReq := domain.ProductCreateInput{
-		CategoryID:  req.CategoryID,
-		Name:        req.Name,
-		Description: req.Description,
-		BasePrice:   req.BasePrice,
-		ImageURLs:   req.ImageURLs,
-	}
+	domainReq := req.ToDomainCreateInput()
 
 	product, err := h.productUsecase.CreateProduct(c.Context(), domainReq)
 	if err != nil {
@@ -63,7 +60,7 @@ func (h *productHandler) CreateProduct(c *fiber.Ctx) error {
 	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil membuat produk", dto.ToProductResponse(product))
 }
 
-// @Summary Get Product
+// @Summary Get Product By ID
 // @Description Mengambil detail data produk berdasarkan ID
 // @Tags Products
 // @Produce json
@@ -87,12 +84,41 @@ func (h *productHandler) GetProduct(c *fiber.Ctx) error {
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data produk", dto.ToProductResponse(product))
 }
 
+// @Summary Get Product By Slug
+// @Description Mengambil detail data produk berdasarkan Slug URL
+// @Tags Products
+// @Produce json
+// @Param slug path string true "Product Slug"
+// @Success 200 {object} utils.SuccessResponse[dto.ProductResponse]
+// @Failure 400 {object} utils.ErrorResponse
+// @Failure 404 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /products/slug/{slug} [get]
+func (h *productHandler) GetProductBySlug(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return utils.SendError(c, fiber.StatusBadRequest, "Slug produk tidak boleh kosong")
+	}
+
+	product, err := h.productUsecase.GetProductBySlug(c.Context(), slug)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data produk", dto.ToProductResponse(product))
+}
+
 // @Summary List Products
-// @Description Mengambil daftar seluruh produk dengan pagination
+// @Description Mengambil daftar seluruh produk dengan pagination, filter kategori, harga, dan sorting
 // @Tags Products
 // @Produce json
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
+// @Param search query string false "Pencarian nama/deskripsi"
+// @Param category_id query string false "Filter Kategori ID (UUID)"
+// @Param min_price query float64 false "Filter Harga Minimal"
+// @Param max_price query float64 false "Filter Harga Maksimal"
+// @Param sort_by query string false "Urutan Data (popular, price_low, price_high, newest)"
 // @Success 200 {object} utils.PaginatedResponse[dto.ProductResponse]
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /products [get]
@@ -100,9 +126,15 @@ func (h *productHandler) ListProducts(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
+	minPrice, _ := strconv.ParseFloat(c.Query("min_price"), 64)
+	maxPrice, _ := strconv.ParseFloat(c.Query("max_price"), 64)
+
 	filter := domain.ProductFilter{
 		Search:     c.Query("search"),
 		CategoryID: c.Query("category_id"),
+		MinPrice:   minPrice,
+		MaxPrice:   maxPrice,
+		SortBy:     c.Query("sort_by"),
 	}
 
 	query := domain.PaginationQuery{Page: page, Limit: limit}
@@ -116,7 +148,7 @@ func (h *productHandler) ListProducts(c *fiber.Ctx) error {
 }
 
 // @Summary Update Product
-// @Description Memperbarui data produk (nama, harga, kategori, dan daftar gambar)
+// @Description Memperbarui data produk (kain, warna, grosir, dan template canvas)
 // @Tags Products
 // @Accept json
 // @Produce json
@@ -142,13 +174,7 @@ func (h *productHandler) UpdateProduct(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	domainReq := domain.ProductUpdateInput{
-		CategoryID:  req.CategoryID,
-		Name:        req.Name,
-		Description: req.Description,
-		BasePrice:   req.BasePrice,
-		ImageURLs:   req.ImageURLs,
-	}
+	domainReq := req.ToDomainUpdateInput()
 
 	product, err := h.productUsecase.UpdateProduct(c.Context(), id, domainReq)
 	if err != nil {

@@ -17,7 +17,9 @@ func NewProductRepository(db *gorm.DB) domain.ProductRepository {
 
 func (r *productRepository) Create(ctx context.Context, product *domain.Product) error {
 	model := FromProductDomain(product)
-	if err := r.db.WithContext(ctx).Create(model).Error; err != nil {
+	db := GetTx(ctx, r.db)
+
+	if err := db.WithContext(ctx).Create(model).Error; err != nil {
 		return TranslateError(err)
 	}
 
@@ -25,9 +27,46 @@ func (r *productRepository) Create(ctx context.Context, product *domain.Product)
 	product.CreatedAt = model.CreatedAt
 	product.UpdatedAt = model.UpdatedAt
 
+	// Sync ID Images
 	for i := range product.Images {
-		product.Images[i].ID = model.Images[i].ID
-		product.Images[i].ProductID = model.ID
+		if i < len(model.Images) {
+			product.Images[i].ID = model.Images[i].ID
+			product.Images[i].ProductID = model.ID
+		}
+	}
+
+	// Sync ID Fabrics & Colors
+	for i := range product.Fabrics {
+		if i < len(model.Fabrics) {
+			product.Fabrics[i].ID = model.Fabrics[i].ID
+			product.Fabrics[i].ProductID = model.ID
+			for j := range product.Fabrics[i].Colors {
+				if j < len(model.Fabrics[i].Colors) {
+					product.Fabrics[i].Colors[j].ID = model.Fabrics[i].Colors[j].ID
+					product.Fabrics[i].Colors[j].FabricID = model.Fabrics[i].ID
+				}
+			}
+		}
+	}
+
+	// Sync ID Wholesale
+	for i := range product.Wholesale {
+		if i < len(model.Wholesale) {
+			product.Wholesale[i].ID = model.Wholesale[i].ID
+			product.Wholesale[i].ProductID = model.ID
+		}
+	}
+
+	// Sync ID DesignModel & Views
+	if product.DesignModel != nil && model.DesignModel != nil {
+		product.DesignModel.ID = model.DesignModel.ID
+		product.DesignModel.ProductID = model.ID
+		for i := range product.DesignModel.Views {
+			if i < len(model.DesignModel.Views) {
+				product.DesignModel.Views[i].ID = model.DesignModel.Views[i].ID
+				product.DesignModel.Views[i].ProductModelID = model.DesignModel.ID
+			}
+		}
 	}
 
 	return nil
@@ -35,10 +74,12 @@ func (r *productRepository) Create(ctx context.Context, product *domain.Product)
 
 func (r *productRepository) GetByID(ctx context.Context, id string) (*domain.Product, error) {
 	var model ProductModel
-	// 🚨 Tambahkan Preload("Images")
 	if err := r.db.WithContext(ctx).
 		Preload("Category").
-		Preload("Images"). // Tarik semua gambar milik produk ini
+		Preload("Images").
+		Preload("Fabrics.Colors").
+		Preload("Wholesale").
+		Preload("DesignModel.Views").
 		Where("id = ?", id).
 		First(&model).Error; err != nil {
 		return nil, TranslateError(err)
@@ -46,37 +87,73 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 	return model.ToDomain(), nil
 }
 
-// Tambahkan parameter filter domain.ProductFilter
+func (r *productRepository) GetBySlug(ctx context.Context, slug string) (*domain.Product, error) {
+	var model ProductModel
+	if err := r.db.WithContext(ctx).
+		Preload("Category").
+		Preload("Images").
+		Preload("Fabrics.Colors").
+		Preload("Wholesale").
+		Preload("DesignModel.Views").
+		Where("slug = ?", slug).
+		First(&model).Error; err != nil {
+		return nil, TranslateError(err)
+	}
+	return model.ToDomain(), nil
+}
+
 func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilter, limit, offset int) ([]domain.Product, int64, error) {
 	var models []ProductModel
 	var total int64
 
-	// 1. Inisialisasi Instance Model
 	query := r.db.WithContext(ctx).Model(&ProductModel{})
 
-	// 2. Terapkan Filter Dinamis
+	// 1. Filter Search (Pencarian Nama / Description)
 	if filter.Search != "" {
-		// Gunakan ILIKE untuk pencarian case-insensitive pada field nama
-		query = query.Where("name ILIKE ?", "%"+filter.Search+"%")
+		query = query.Where("name ILIKE ? OR description ILIKE ?", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
 
+	// 2. Filter Kategori
 	if filter.CategoryID != "" {
-		// Pencarian presisi untuk UUID Kategori
 		query = query.Where("category_id = ?", filter.CategoryID)
 	}
 
-	// 3. Count harus dipanggil setelah query kondisi dibuat
+	// 3. Filter Rentang Harga
+	if filter.MinPrice > 0 {
+		query = query.Where("base_price >= ?", filter.MinPrice)
+	}
+	if filter.MaxPrice > 0 {
+		query = query.Where("base_price <= ?", filter.MaxPrice)
+	}
+
+	// 4. Hitung Total Rows
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	// 4. Tambahkan Preload, Limit, Offset, lalu Find
+	// 5. Sorting Dinamis
+	orderClause := "created_at DESC"
+	switch filter.SortBy {
+	case "popular":
+		orderClause = "sold_count DESC, rating DESC"
+	case "price_low":
+		orderClause = "base_price ASC"
+	case "price_high":
+		orderClause = "base_price DESC"
+	case "newest":
+		orderClause = "created_at DESC"
+	}
+
+	// 6. Fetch dengan Preload
 	err := query.
 		Preload("Category").
 		Preload("Images").
+		Preload("Fabrics.Colors").
+		Preload("Wholesale").
+		Preload("DesignModel.Views").
 		Limit(limit).
 		Offset(offset).
-		Order("created_at DESC").
+		Order(orderClause).
 		Find(&models).Error
 
 	if err != nil {
@@ -93,58 +170,183 @@ func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilt
 
 func (r *productRepository) Update(ctx context.Context, product *domain.Product) error {
 	model := FromProductDomain(product)
-
-	// 🚨 Ambil DB dari Context (Otomatis menggunakan Transaksi jika dipanggil dari Usecase)
 	db := GetTx(ctx, r.db)
 
-	// 1. Update data utama (Tabel Products)
+	// 1. Update data utama (Tabel products)
 	if err := db.WithContext(ctx).Model(&ProductModel{ID: model.ID}).Updates(model).Error; err != nil {
 		return TranslateError(err)
 	}
 
-	// 2. Kumpulkan ID gambar yang DIPERTAHANKAN
-	var keptImageIDs []string
-	for _, img := range model.Images {
-		if img.ID != "" {
-			keptImageIDs = append(keptImageIDs, img.ID)
-		}
+	// 2. Sync Product Images
+	if err := syncProductImages(ctx, db, model.ID, model.Images); err != nil {
+		return err
 	}
 
-	// 3. Hapus gambar lama yang TIDAK ADA di request baru (Cegah Error 23502 Constraint)
-	if len(keptImageIDs) > 0 {
-		if err := db.WithContext(ctx).Where("product_id = ? AND id NOT IN ?", model.ID, keptImageIDs).Delete(&ProductImageModel{}).Error; err != nil {
-			return TranslateError(err)
-		}
-	} else {
-		// Jika frontend mengirimkan array kosong (Semua gambar dihapus)
-		if err := db.WithContext(ctx).Where("product_id = ?", model.ID).Delete(&ProductImageModel{}).Error; err != nil {
-			return TranslateError(err)
-		}
+	// 3. Sync Product Fabrics & Colors
+	if err := syncProductFabrics(ctx, db, model.ID, model.Fabrics); err != nil {
+		return err
 	}
 
-	// 4. Upsert (Insert gambar baru ATAU Update gambar lama)
-	for _, img := range model.Images {
-		img.ProductID = model.ID // Pastikan foreign key selalu terkait
+	// 4. Sync Wholesale Prices
+	if err := syncWholesalePrices(ctx, db, model.ID, model.Wholesale); err != nil {
+		return err
+	}
 
-		if img.ID == "" {
-			// Jika tidak ada ID, berarti ini gambar baru yang baru diupload
-			if err := db.WithContext(ctx).Create(&img).Error; err != nil {
-				return TranslateError(err)
-			}
-		} else {
-			// Jika ada ID, update datanya (misal: urutan is_primary berubah)
-			if err := db.WithContext(ctx).Model(&ProductImageModel{ID: img.ID}).Updates(img).Error; err != nil {
-				return TranslateError(err)
-			}
-		}
+	// 5. Sync Designer Model & Views
+	if err := syncDesignerModel(ctx, db, model.ID, model.DesignModel); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 func (r *productRepository) Delete(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&ProductModel{}).Error; err != nil {
+	db := GetTx(ctx, r.db)
+	if err := db.WithContext(ctx).Where("id = ?", id).Delete(&ProductModel{}).Error; err != nil {
 		return TranslateError(err)
+	}
+	return nil
+}
+
+// --- HELPER FUNCTIONS FOR UPDATE SYNC ---
+
+func syncProductImages(ctx context.Context, db *gorm.DB, productID string, images []ProductImageModel) error {
+	var keptIDs []string
+	for _, img := range images {
+		if img.ID != "" {
+			keptIDs = append(keptIDs, img.ID)
+		}
+	}
+
+	deleteQuery := db.WithContext(ctx).Where("product_id = ?", productID)
+	if len(keptIDs) > 0 {
+		deleteQuery = deleteQuery.Where("id NOT IN ?", keptIDs)
+	}
+	if err := deleteQuery.Delete(&ProductImageModel{}).Error; err != nil {
+		return TranslateError(err)
+	}
+
+	for _, img := range images {
+		img.ProductID = productID
+		if img.ID == "" {
+			if err := db.WithContext(ctx).Create(&img).Error; err != nil {
+				return TranslateError(err)
+			}
+		} else {
+			if err := db.WithContext(ctx).Model(&ProductImageModel{ID: img.ID}).Updates(img).Error; err != nil {
+				return TranslateError(err)
+			}
+		}
+	}
+	return nil
+}
+
+func syncProductFabrics(ctx context.Context, db *gorm.DB, productID string, fabrics []ProductFabricModel) error {
+	var keptFabricIDs []string
+	for _, fab := range fabrics {
+		if fab.ID != "" {
+			keptFabricIDs = append(keptFabricIDs, fab.ID)
+		}
+	}
+
+	deleteFabQuery := db.WithContext(ctx).Where("product_id = ?", productID)
+	if len(keptFabricIDs) > 0 {
+		deleteFabQuery = deleteFabQuery.Where("id NOT IN ?", keptFabricIDs)
+	}
+	if err := deleteFabQuery.Delete(&ProductFabricModel{}).Error; err != nil {
+		return TranslateError(err)
+	}
+
+	for _, fab := range fabrics {
+		fab.ProductID = productID
+		if fab.ID == "" {
+			if err := db.WithContext(ctx).Create(&fab).Error; err != nil {
+				return TranslateError(err)
+			}
+		} else {
+			if err := db.WithContext(ctx).Model(&ProductFabricModel{ID: fab.ID}).Updates(fab).Error; err != nil {
+				return TranslateError(err)
+			}
+			// Sync colors inside this fabric
+			var keptColorIDs []string
+			for _, c := range fab.Colors {
+				if c.ID != "" {
+					keptColorIDs = append(keptColorIDs, c.ID)
+				}
+			}
+			deleteColorQuery := db.WithContext(ctx).Where("fabric_id = ?", fab.ID)
+			if len(keptColorIDs) > 0 {
+				deleteColorQuery = deleteColorQuery.Where("id NOT IN ?", keptColorIDs)
+			}
+			if err := deleteColorQuery.Delete(&FabricColorModel{}).Error; err != nil {
+				return TranslateError(err)
+			}
+
+			for _, c := range fab.Colors {
+				c.FabricID = fab.ID
+				if c.ID == "" {
+					if err := db.WithContext(ctx).Create(&c).Error; err != nil {
+						return TranslateError(err)
+					}
+				} else {
+					if err := db.WithContext(ctx).Model(&FabricColorModel{ID: c.ID}).Updates(c).Error; err != nil {
+						return TranslateError(err)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func syncWholesalePrices(ctx context.Context, db *gorm.DB, productID string, wholesales []WholesalePriceModel) error {
+	var keptIDs []string
+	for _, w := range wholesales {
+		if w.ID != "" {
+			keptIDs = append(keptIDs, w.ID)
+		}
+	}
+
+	deleteQuery := db.WithContext(ctx).Where("product_id = ?", productID)
+	if len(keptIDs) > 0 {
+		deleteQuery = deleteQuery.Where("id NOT IN ?", keptIDs)
+	}
+	if err := deleteQuery.Delete(&WholesalePriceModel{}).Error; err != nil {
+		return TranslateError(err)
+	}
+
+	for _, w := range wholesales {
+		w.ProductID = productID
+		if w.ID == "" {
+			if err := db.WithContext(ctx).Create(&w).Error; err != nil {
+				return TranslateError(err)
+			}
+		} else {
+			if err := db.WithContext(ctx).Model(&WholesalePriceModel{ID: w.ID}).Updates(w).Error; err != nil {
+				return TranslateError(err)
+			}
+		}
+	}
+	return nil
+}
+
+func syncDesignerModel(ctx context.Context, db *gorm.DB, productID string, dm *DesignerModel) error {
+	if dm == nil {
+		if err := db.WithContext(ctx).Where("product_id = ?", productID).Delete(&DesignerModel{}).Error; err != nil {
+			return TranslateError(err)
+		}
+		return nil
+	}
+
+	dm.ProductID = productID
+	if dm.ID == "" {
+		if err := db.WithContext(ctx).Create(dm).Error; err != nil {
+			return TranslateError(err)
+		}
+	} else {
+		if err := db.WithContext(ctx).Model(&DesignerModel{ID: dm.ID}).Updates(dm).Error; err != nil {
+			return TranslateError(err)
+		}
 	}
 	return nil
 }

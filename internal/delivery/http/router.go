@@ -75,9 +75,10 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 
 	// --- Products Routes ---
 	products := api.Group("/products")
-	products.Post("/", handlers.ProductHandler.CreateProduct)
 	products.Get("/", handlers.ProductHandler.ListProducts)
+	products.Get("/slug/:slug", handlers.ProductHandler.GetProductBySlug)
 	products.Get("/:id", handlers.ProductHandler.GetProduct)
+	products.Post("/", handlers.ProductHandler.CreateProduct)
 	products.Put("/:id", handlers.ProductHandler.UpdateProduct)
 	products.Delete("/:id", handlers.ProductHandler.DeleteProduct)
 

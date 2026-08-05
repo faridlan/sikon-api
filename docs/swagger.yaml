@@ -509,6 +509,27 @@ definitions:
         example: Beli Kain Ripstop 1 Roll
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorRequest:
+    properties:
+      hex_code:
+        example: '#4b5320'
+        type: string
+      name:
+        example: Olive
+        type: string
+    required:
+    - hex_code
+    - name
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorResponse:
+    properties:
+      hex_code:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
     properties:
       batch_po_id:
@@ -795,7 +816,7 @@ definitions:
         example: ord-uuid
         type: string
       payment_date:
-        example: "2023-10-02T10:00:00Z"
+        example: "2026-10-02T10:00:00Z"
         type: string
       payment_type:
         enum:
@@ -825,7 +846,7 @@ definitions:
         example: 777e4567-e89b-12d3-a456-426614174000
         type: string
       created_at:
-        example: "2023-10-02T10:05:00Z"
+        example: "2026-10-02T10:05:00Z"
         type: string
       id:
         example: pay-uuid
@@ -836,7 +857,7 @@ definitions:
         example: ord-uuid
         type: string
       payment_date:
-        example: "2023-10-02T10:00:00Z"
+        example: "2026-10-02T10:00:00Z"
         type: string
       payment_type:
         example: dp
@@ -844,8 +865,20 @@ definitions:
       reference_number:
         example: TRX-0987654321
         type: string
+      status:
+        description: pending, verified, rejected
+        example: pending
+        type: string
       updated_at:
-        example: "2023-10-02T10:05:00Z"
+        example: "2026-10-02T10:05:00Z"
+        type: string
+      verified_at:
+        example: "2026-10-02T11:00:00Z"
+        type: string
+      verified_by:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse'
+      verified_by_id:
+        example: user-finance-uuid
         type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentStatusUpdateRequest:
@@ -872,31 +905,121 @@ definitions:
         example: TRX-0987654322-REVISI
         type: string
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentVerifyRequest:
+    properties:
+      status:
+        enum:
+        - verified
+        - rejected
+        example: verified
+        type: string
+    required:
+    - status
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductCreateRequest:
     properties:
       base_price:
-        example: 35000
+        example: 185000
         type: number
       category_id:
         example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       description:
-        example: Kaos polos bahan cotton combed 30s kualitas premium
+        example: Kemeja taktikal bahan ripstop cotton 65/35
+        type: string
+      design_model:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest'
+      fabric_summary:
+        example: Ripstop
+        type: string
+      fabrics:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest'
+        type: array
+      gsm_info:
+        example: 210gsm
         type: string
       image_urls:
         example:
-        - '["https://supa.../1.jpg"'
-        - ' "https://supa.../2.jpg"]'
+        - '["https://supa.../1.jpg"]'
+        items:
+          type: string
+        type: array
+      key_features:
+        example:
+        - '["Bahan ripstop anti robek"'
+        - ' "Dual chest pocket velcro"]'
         items:
           type: string
         type: array
       name:
-        example: Kaos Polos Cotton Combed 30s
+        example: Kemeja Taktikal Premium 7200
         type: string
+      slug:
+        example: kemeja-taktikal-premium-7200
+        type: string
+      wholesale:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceRequest'
+        type: array
     required:
     - base_price
     - category_id
     - name
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest:
+    properties:
+      base_price:
+        example: 185000
+        minimum: 0
+        type: number
+      care_instruction:
+        example: Cuci mesin air dingin, jangan diputihkan
+        type: string
+      colors:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorRequest'
+        type: array
+      composition:
+        example: 65% Cotton / 35% Polyester
+        type: string
+      description:
+        example: Kuat & anti robek, 210gsm
+        type: string
+      is_default:
+        example: true
+        type: boolean
+      name:
+        example: Ripstop Cotton 65/35
+        type: string
+      price_adjustment:
+        example: 0
+        type: number
+    required:
+    - name
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricResponse:
+    properties:
+      base_price:
+        type: number
+      care_instruction:
+        type: string
+      colors:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorResponse'
+        type: array
+      composition:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_default:
+        type: boolean
+      name:
+        type: string
+      price_adjustment:
+        type: number
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse:
     properties:
@@ -907,10 +1030,85 @@ definitions:
       is_primary:
         type: boolean
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest:
+    properties:
+      description:
+        example: Template kemeja taktikal 2 saku
+        type: string
+      name:
+        example: Series 1 — Lengan Panjang
+        type: string
+      type:
+        example: long_sleeve
+        type: string
+      views:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewRequest'
+        type: array
+    required:
+    - name
+    - type
+    - views
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+      views:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewResponse'
+        type: array
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewRequest:
+    properties:
+      art_url:
+        example: https://supa.../front-art.png
+        type: string
+      height:
+        example: 1920
+        type: integer
+      mask_url:
+        example: https://supa.../front-mask.png
+        type: string
+      side:
+        enum:
+        - front
+        - back
+        example: front
+        type: string
+      width:
+        example: 1756
+        type: integer
+    required:
+    - art_url
+    - mask_url
+    - side
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewResponse:
+    properties:
+      art_url:
+        type: string
+      height:
+        type: integer
+      id:
+        type: string
+      mask_url:
+        type: string
+      side:
+        type: string
+      width:
+        type: integer
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductResponse:
     properties:
       base_price:
-        example: 35000
+        example: 185000
         type: number
       category:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryResponse'
@@ -918,10 +1116,21 @@ definitions:
         example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       created_at:
-        example: "2023-10-01T15:00:00Z"
         type: string
       description:
-        example: Kaos polos bahan cotton combed 30s kualitas premium
+        example: Kemeja taktikal bahan ripstop cotton
+        type: string
+      design_model:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelResponse'
+      fabric_summary:
+        example: Ripstop
+        type: string
+      fabrics:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricResponse'
+        type: array
+      gsm_info:
+        example: 210gsm
         type: string
       id:
         example: 999e4567-e89b-12d3-a456-426614174000
@@ -930,34 +1139,73 @@ definitions:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse'
         type: array
+      key_features:
+        items:
+          type: string
+        type: array
       name:
-        example: Kaos Polos Cotton Combed 30s
+        example: Kemeja Taktikal Premium 7200
         type: string
+      rating:
+        example: 4.9
+        type: number
+      review_count:
+        example: 318
+        type: integer
+      slug:
+        example: kemeja-taktikal-premium-7200
+        type: string
+      sold_count:
+        example: 1240
+        type: integer
       updated_at:
-        example: "2023-10-01T15:00:00Z"
         type: string
+      wholesale:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceResponse'
+        type: array
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductUpdateRequest:
     properties:
       base_price:
-        example: 45000
+        example: 190000
         type: number
       category_id:
         example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       description:
-        example: Versi lengan panjang
+        example: Versi update
+        type: string
+      design_model:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest'
+      fabric_summary:
+        example: Ripstop Cotton
+        type: string
+      fabrics:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest'
+        type: array
+      gsm_info:
+        example: 220gsm
         type: string
       image_urls:
-        example:
-        - '["https://supa.../1.jpg"'
-        - ' "https://supa.../2.jpg"]'
+        items:
+          type: string
+        type: array
+      key_features:
         items:
           type: string
         type: array
       name:
-        example: Kaos Polos Lengan Panjang
+        example: Kemeja Taktikal Premium 7200 V2
         type: string
+      slug:
+        example: kemeja-taktikal-premium-7200-v2
+        type: string
+      wholesale:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceRequest'
+        type: array
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionBatchPOResponse:
     properties:
@@ -1161,6 +1409,37 @@ definitions:
         - sales
         example: admin
         type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceRequest:
+    properties:
+      fabric_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      max_qty:
+        example: 24
+        type: integer
+      min_qty:
+        example: 6
+        type: integer
+      unit_price:
+        example: 175000
+        type: number
+    required:
+    - min_qty
+    - unit_price
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceResponse:
+    properties:
+      fabric_id:
+        type: string
+      id:
+        type: string
+      max_qty:
+        type: integer
+      min_qty:
+        type: integer
+      unit_price:
+        type: number
     type: object
   github_com_faridlan_sikon-api_internal_domain.PaginationMeta:
     properties:
@@ -2886,8 +3165,8 @@ paths:
       - Orders
   /payments:
     get:
-      description: Mengambil daftar seluruh histori pembayaran dari semua pesanan
-        dengan fitur pagination dan filter.
+      description: 'Mengambil daftar seluruh histori pembayaran dengan fitur pagination
+        dan filter (termasuk filter status verifikasi: pending, verified, rejected).'
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -2906,6 +3185,10 @@ paths:
       - description: Filter Tipe Pembayaran (dp, settlement, installment)
         in: query
         name: payment_type
+        type: string
+      - description: Filter Status Verifikasi (pending, verified, rejected)
+        in: query
+        name: status
         type: string
       - description: Tanggal Mulai Pembayaran (YYYY-MM-DD)
         in: query
@@ -2932,12 +3215,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Memproses pembayaran (DP/Lunas) untuk sebuah pesanan. <br><br>
-        **PENTING UNTUK FE:** <br> 1. Otomatis mengubah `payment_status` pada Order
-        menjadi `partial` atau `paid`. (Tidak perlu hit API update status lagi). <br>
-        2. Sistem akan menolak (HTTP 400) jika nominal bayar melebihi sisa tagihan
-        (Anti-Overpayment). <br> 3. Endpoint ini sudah dilindungi kunci database (Pessimistic
-        Locking) sehingga aman dari *double submit* (Race Condition).
+      description: Memproses pembayaran (DP/Lunas) baru oleh Sales/Admin. Pembayaran
+        yang baru di-submit akan berstatus `pending` sampai diverifikasi oleh Divisi
+        Finance.
       parameters:
       - description: Data Pembayaran
         in: body
@@ -2973,10 +3253,7 @@ paths:
       - Payments
   /payments/{id}:
     delete:
-      description: 'Menghapus data/histori pembayaran secara permanen (Misal: jika
-        kasir salah input). <br><br> **EFEK SAMPING OTOMATIS:** <br> Sistem akan menghitung
-        ulang sisa tagihan pesanan dan otomatis mengubah mundur `payment_status` pada
-        Order kembali ke `partial` atau `unpaid`.'
+      description: Menghapus data/histori pembayaran secara permanen.
       parameters:
       - description: Payment ID (UUID)
         in: path
@@ -3039,8 +3316,7 @@ paths:
       consumes:
       - application/json
       description: Memperbarui data meta pembayaran seperti nomor referensi atau tipe
-        pembayaran. **Catatan:** Endpoint ini tidak dapat mengubah Nominal (Amount)
-        untuk menjaga integritas data keuangan.
+        pembayaran.
       parameters:
       - description: Payment ID (UUID)
         in: path
@@ -3073,6 +3349,48 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       summary: Update Payment
+      tags:
+      - Payments
+  /payments/{id}/verify:
+    patch:
+      consumes:
+      - application/json
+      description: Memverifikasi atau menolak bukti pembayaran. <br><br> **EFEK SAMPING
+        OTOMATIS:** <br> 1. Jika di-`verified`, sistem menghitung uang sah dan mengubah
+        `payment_status` Order ke `partial` atau `paid`. <br> 2. Uang baru resmi masuk
+        ke Kas / Laporan Akuntansi.
+      parameters:
+      - description: Payment ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status Verifikasi (verified / rejected)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Verify Payment (Finance Approval)
       tags:
       - Payments
   /payments/order/{order_id}:
@@ -3109,7 +3427,8 @@ paths:
       - Payments
   /products:
     get:
-      description: Mengambil daftar seluruh produk dengan pagination
+      description: Mengambil daftar seluruh produk dengan pagination, filter kategori,
+        harga, dan sorting
       parameters:
       - default: 1
         description: Nomor Halaman
@@ -3121,6 +3440,28 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Pencarian nama/deskripsi
+        in: query
+        name: search
+        type: string
+      - description: Filter Kategori ID (UUID)
+        in: query
+        name: category_id
+        type: string
+      - description: Filter Harga Minimal
+        format: float64
+        in: query
+        name: min_price
+        type: number
+      - description: Filter Harga Maksimal
+        format: float64
+        in: query
+        name: max_price
+        type: number
+      - description: Urutan Data (popular, price_low, price_high, newest)
+        in: query
+        name: sort_by
+        type: string
       produces:
       - application/json
       responses:
@@ -3138,7 +3479,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Menambahkan produk baru ke dalam katalog beserta daftar gambarnya
+      description: Menambahkan produk baru ke dalam katalog beserta opsi kain, warna,
+        grosir, dan template canvas
       parameters:
       - description: Data Produk Baru
         in: body
@@ -3218,13 +3560,13 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
-      summary: Get Product
+      summary: Get Product By ID
       tags:
       - Products
     put:
       consumes:
       - application/json
-      description: Memperbarui data produk (nama, harga, kategori, dan daftar gambar)
+      description: Memperbarui data produk (kain, warna, grosir, dan template canvas)
       parameters:
       - description: Product ID (UUID)
         in: path
@@ -3257,6 +3599,37 @@ paths:
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       summary: Update Product
+      tags:
+      - Products
+  /products/slug/{slug}:
+    get:
+      description: Mengambil detail data produk berdasarkan Slug URL
+      parameters:
+      - description: Product Slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Product By Slug
       tags:
       - Products
   /reports/accounting:
