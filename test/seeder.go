@@ -25,29 +25,134 @@ func SeedCategory(db *gorm.DB, name string, image ...string) postgres.CategoryMo
 	return category
 }
 
+// SeedProduct sederhana untuk kemeja/kaos dasar
 func SeedProduct(db *gorm.DB, categoryID string, name string, price float64) postgres.ProductModel {
 	product := postgres.ProductModel{
-		ID:          uuid.New().String(),
-		CategoryID:  categoryID,
-		Name:        name,
-		Description: "Deskripsi " + name,
-		BasePrice:   price,
+		ID:            uuid.New().String(),
+		CategoryID:    categoryID,
+		Name:          name,
+		Description:   "Deskripsi " + name,
+		BasePrice:     price,
+		Slug:          "slug-" + uuid.New().String()[:8],
+		GSMInfo:       "210gsm",
+		FabricSummary: "Ripstop Cotton",
+		Rating:        4.9,
+		SoldCount:     100,
+		ReviewCount:   25,
+		KeyFeatures:   `["Bahan anti robek", "Dual chest pocket"]`,
 	}
 	db.Create(&product)
 	return product
 }
 
-func SeedUser(db *gorm.DB, name, email, role string, image ...string) postgres.UserModel {
+// ========================================================================
+// 🚨 SEEDER TAMBAHAN: Seed Custom Product dengan Fabric, Color, Wholesale, & Designer
+// ========================================================================
+func SeedFullCustomProduct(db *gorm.DB, categoryID string, name string, price float64) postgres.ProductModel {
+	productID := uuid.New().String()
+	fabricID := uuid.New().String()
+	designerID := uuid.New().String()
 
+	product := postgres.ProductModel{
+		ID:            productID,
+		CategoryID:    categoryID,
+		Name:          name,
+		Description:   "Deskripsi lengkap " + name,
+		BasePrice:     price,
+		Slug:          "custom-slug-" + uuid.New().String()[:8],
+		GSMInfo:       "210gsm",
+		FabricSummary: "Ripstop Cotton 65/35",
+		Rating:        4.9,
+		SoldCount:     50,
+		ReviewCount:   10,
+		KeyFeatures:   `["Bahan anti robek", "Dual chest pocket velcro", "Ventilasi punggung"]`,
+		Images: []postgres.ProductImageModel{
+			{
+				ID:        uuid.New().String(),
+				ProductID: productID,
+				ImageURL:  "https://example.com/tactical-primary.jpg",
+				IsPrimary: true,
+			},
+		},
+		Fabrics: []postgres.ProductFabricModel{
+			{
+				ID:              fabricID,
+				ProductID:       productID,
+				Name:            "Ripstop Cotton 65/35",
+				Description:     "Kuat & anti robek, 210gsm",
+				Composition:     "65% Cotton / 35% Polyester",
+				CareInstruction: "Cuci mesin air dingin",
+				BasePrice:       price,
+				PriceAdjustment: 0,
+				IsDefault:       true,
+				Colors: []postgres.FabricColorModel{
+					{
+						ID:       uuid.New().String(),
+						FabricID: fabricID,
+						Name:     "Olive",
+						HexCode:  "#4b5320",
+					},
+					{
+						ID:       uuid.New().String(),
+						FabricID: fabricID,
+						Name:     "Navy",
+						HexCode:  "#1b263b",
+					},
+				},
+			},
+		},
+		Wholesale: []postgres.WholesalePriceModel{
+			{
+				ID:        uuid.New().String(),
+				ProductID: productID,
+				FabricID:  &fabricID,
+				MinQty:    6,
+				UnitPrice: price - 10000,
+			},
+		},
+		DesignModel: &postgres.DesignerModel{
+			ID:          designerID,
+			ProductID:   productID,
+			Name:        "Series 1 — Lengan Panjang",
+			Type:        "long_sleeve",
+			Description: "Template kemeja taktikal lengan panjang",
+			Views: []postgres.ProductModelViewModel{
+				{
+					ID:             uuid.New().String(),
+					ProductModelID: designerID,
+					Side:           "front",
+					ArtURL:         "https://example.com/mockups/front-art.png",
+					MaskURL:        "https://example.com/mockups/front-mask.png",
+					Width:          1756,
+					Height:         1920,
+				},
+				{
+					ID:             uuid.New().String(),
+					ProductModelID: designerID,
+					Side:           "back",
+					ArtURL:         "https://example.com/mockups/back-art.png",
+					MaskURL:        "https://example.com/mockups/back-mask.png",
+					Width:          1738,
+					Height:         1920,
+				},
+			},
+		},
+	}
+
+	db.Create(&product)
+	return product
+}
+
+func SeedUser(db *gorm.DB, name, email, role string, image ...string) postgres.UserModel {
 	if len(image) == 0 {
-		image = append(image, "") // Default kosong jika tidak ada image yang diberikan
+		image = append(image, "")
 	}
 
 	user := postgres.UserModel{
 		ID:       uuid.New().String(),
 		Name:     name,
 		Email:    email,
-		Password: "hashedpassword123", // Anggap saja ini sudah di-hash oleh repo/usecase
+		Password: "hashedpassword123",
 		Role:     role,
 		ImageURL: image[0],
 	}
@@ -63,10 +168,7 @@ func SeedCustomer(db *gorm.DB, name, phone, address string) postgres.CustomerMod
 		Address: address,
 	}
 
-	// Gunakan Omit agar GORM tidak memaksa mengirim string kosong ("")
-	// ke kolom created_by yang bertipe UUID
 	db.Omit("created_by").Create(&customer)
-
 	return customer
 }
 
@@ -76,11 +178,10 @@ func SeedCustomerWithSales(db *gorm.DB, name, phone, address string, salesID str
 		Name:    name,
 		Phone:   phone,
 		Address: address,
-		SalesID: &salesID, // Memasukkan pointer string
+		SalesID: &salesID,
 	}
 
 	db.Omit("created_by").Create(&customer)
-
 	return customer
 }
 
@@ -96,15 +197,12 @@ func SeedBankAccount(db *gorm.DB, userID *string, bankName, accNumber, accName s
 	return account
 }
 
-// ========================================================================
-// 🚨 TAMBAHAN: Seeder untuk Batch PO
-// ========================================================================
 func SeedBatchPO(db *gorm.DB, name string, status string) postgres.BatchPOModel {
 	batchPO := postgres.BatchPOModel{
 		ID:        uuid.New().String(),
 		Name:      name,
 		StartDate: time.Now(),
-		EndDate:   time.Now().AddDate(0, 0, 7), // Default tutup 7 hari lagi
+		EndDate:   time.Now().AddDate(0, 0, 7),
 		Status:    status,
 		Quota:     100,
 	}
@@ -112,14 +210,10 @@ func SeedBatchPO(db *gorm.DB, name string, status string) postgres.BatchPOModel 
 	return batchPO
 }
 
-// Fungsi Helper untuk membuat pointer string dengan mudah
 func StringPtr(s string) *string {
 	return &s
 }
 
-// ========================================================================
-// 🚨 UPDATE: Menambahkan parameter batchPoID ke dalam SeedOrder
-// ========================================================================
 func SeedOrder(db *gorm.DB, batchPoID, customerID, salesID, productID string, customStatus ...string) postgres.OrderModel {
 	orderID := uuid.New().String()
 	validUntil := time.Now().AddDate(0, 0, 7)
@@ -129,7 +223,6 @@ func SeedOrder(db *gorm.DB, batchPoID, customerID, salesID, productID string, cu
 		status = customStatus[0]
 	}
 
-	// Tangani pointer agar aman jika tidak ada ID yang dikirim
 	var batchPoIDPtr *string
 	if batchPoID != "" {
 		batchPoIDPtr = &batchPoID
@@ -138,7 +231,7 @@ func SeedOrder(db *gorm.DB, batchPoID, customerID, salesID, productID string, cu
 	order := postgres.OrderModel{
 		ID:              orderID,
 		OrderNumber:     "ORD-" + uuid.New().String()[:8],
-		BatchPoID:       batchPoIDPtr, // <-- Disematkan di sini
+		BatchPoID:       batchPoIDPtr,
 		CustomerID:      customerID,
 		SalesID:         salesID,
 		Subtotal:        100000,

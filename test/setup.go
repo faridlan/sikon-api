@@ -49,10 +49,16 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 
 	db.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`)
 
-	// Jalankan AutoMigrate agar tabel selalu terbuat di DB test
+	// Jalankan AutoMigrate agar seluruh tabel terbuat secara dinamis di DB test
 	db.AutoMigrate(
 		&postgres.CategoryModel{},
 		&postgres.ProductModel{},
+		&postgres.ProductImageModel{},
+		&postgres.ProductFabricModel{},    // 👈 Tambahan Opsi Kain
+		&postgres.FabricColorModel{},      // 👈 Tambahan Warna Per Kain
+		&postgres.WholesalePriceModel{},   // 👈 Tambahan Harga Grosir
+		&postgres.DesignerModel{},         // 👈 Tambahan Canvas Template Designer
+		&postgres.ProductModelViewModel{}, // 👈 Tambahan View PNG Art & Mask
 		&postgres.UserModel{},
 		&postgres.CustomerModel{},
 		&postgres.BankAccountModel{},
@@ -61,17 +67,16 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.PaymentModel{},
 		&postgres.SpecTemplateModel{},
 		&postgres.BatchPOModel{},
-		&postgres.ProductImageModel{},
 		&postgres.ExpenseCategoryModel{},
 		&postgres.ExpenseModel{},
 	)
 
-	// 🚨 DIBERIKAN DURASI LEBIH LONGGAR UNTUK TRANSAKSI INTEGRASI & LOCKING TEST
+	// Durasi timeout untuk transaksi integrasi
 	timeout := 30 * time.Second
 
 	storageService := supabase.NewSupabaseStorage(supabaseURL, supabaseKey, supabaseBucket)
 
-	// 1. Repo
+	// 1. Repositories
 	categoryRepo := postgres.NewCategoryRepository(db)
 	productRepo := postgres.NewProductRepository(db)
 	userRepo := postgres.NewUserRepository(db)
@@ -86,7 +91,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	batchPORepo := postgres.NewBatchPORepository(db)
 	expenseRepo := postgres.NewExpenseRepository(db)
 
-	// 2. Usecase
+	// 2. Usecases
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout)
 	userUsecase := usecase.NewUserUsecase(userRepo, storageService, txManager, timeout)
@@ -101,7 +106,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	uploadUsecase := usecase.NewUploadUsecase(storageService, timeout)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, timeout)
 
-	// 3. Masukkan ke struct Handlers
+	// 3. Setup Fiber Handlers
 	handlers := myHttp.Handlers{
 		CategoryHandler:     myHttp.NewCategoryHandler(categoryUsecase),
 		ProductHandler:      myHttp.NewProductHandler(productUsecase),
@@ -125,10 +130,16 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	return app, db
 }
 
-// ClearTables adalah fungsi ajaib untuk mengosongkan semua isi tabel sebelum tiap test berjalan
+// ClearTables mengosongkan seluruh isi tabel sebelum/sesudah tiap test case berjalan
 func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE categories RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE products RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE product_images RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE product_fabrics RESTART IDENTITY CASCADE;")     // 👈 Clear Opsi Kain
+	db.Exec("TRUNCATE TABLE fabric_colors RESTART IDENTITY CASCADE;")       // 👈 Clear Warna
+	db.Exec("TRUNCATE TABLE wholesale_prices RESTART IDENTITY CASCADE;")    // 👈 Clear Grosir
+	db.Exec("TRUNCATE TABLE product_models RESTART IDENTITY CASCADE;")      // 👈 Clear Designer
+	db.Exec("TRUNCATE TABLE product_model_views RESTART IDENTITY CASCADE;") // 👈 Clear Views
 	db.Exec("TRUNCATE TABLE users RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE customers RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE bank_accounts RESTART IDENTITY CASCADE;")

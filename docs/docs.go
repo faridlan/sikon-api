@@ -2105,7 +2105,7 @@ const docTemplate = `{
         },
         "/payments": {
             "get": {
-                "description": "Mengambil daftar seluruh histori pembayaran dari semua pesanan dengan fitur pagination dan filter.",
+                "description": "Mengambil daftar seluruh histori pembayaran dengan fitur pagination dan filter (termasuk filter status verifikasi: pending, verified, rejected).",
                 "produces": [
                     "application/json"
                 ],
@@ -2142,6 +2142,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Filter Status Verifikasi (pending, verified, rejected)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Tanggal Mulai Pembayaran (YYYY-MM-DD)",
                         "name": "start_date",
                         "in": "query"
@@ -2169,7 +2175,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Memproses pembayaran (DP/Lunas) untuk sebuah pesanan. \u003cbr\u003e\u003cbr\u003e **PENTING UNTUK FE:** \u003cbr\u003e 1. Otomatis mengubah ` + "`" + `payment_status` + "`" + ` pada Order menjadi ` + "`" + `partial` + "`" + ` atau ` + "`" + `paid` + "`" + `. (Tidak perlu hit API update status lagi). \u003cbr\u003e 2. Sistem akan menolak (HTTP 400) jika nominal bayar melebihi sisa tagihan (Anti-Overpayment). \u003cbr\u003e 3. Endpoint ini sudah dilindungi kunci database (Pessimistic Locking) sehingga aman dari *double submit* (Race Condition).",
+                "description": "Memproses pembayaran (DP/Lunas) baru oleh Sales/Admin. Pembayaran yang baru di-submit akan berstatus ` + "`" + `pending` + "`" + ` sampai diverifikasi oleh Divisi Finance.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2319,7 +2325,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Memperbarui data meta pembayaran seperti nomor referensi atau tipe pembayaran. **Catatan:** Endpoint ini tidak dapat mengubah Nominal (Amount) untuk menjaga integritas data keuangan.",
+                "description": "Memperbarui data meta pembayaran seperti nomor referensi atau tipe pembayaran.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2376,7 +2382,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Menghapus data/histori pembayaran secara permanen (Misal: jika kasir salah input). \u003cbr\u003e\u003cbr\u003e **EFEK SAMPING OTOMATIS:** \u003cbr\u003e Sistem akan menghitung ulang sisa tagihan pesanan dan otomatis mengubah mundur ` + "`" + `payment_status` + "`" + ` pada Order kembali ke ` + "`" + `partial` + "`" + ` atau ` + "`" + `unpaid` + "`" + `.",
+                "description": "Menghapus data/histori pembayaran secara permanen.",
                 "produces": [
                     "application/json"
                 ],
@@ -2421,9 +2427,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/payments/{id}/verify": {
+            "patch": {
+                "description": "Memverifikasi atau menolak bukti pembayaran. \u003cbr\u003e\u003cbr\u003e **EFEK SAMPING OTOMATIS:** \u003cbr\u003e 1. Jika di-` + "`" + `verified` + "`" + `, sistem menghitung uang sah dan mengubah ` + "`" + `payment_status` + "`" + ` Order ke ` + "`" + `partial` + "`" + ` atau ` + "`" + `paid` + "`" + `. \u003cbr\u003e 2. Uang baru resmi masuk ke Kas / Laporan Akuntansi.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Verify Payment (Finance Approval)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status Verifikasi (verified / rejected)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentVerifyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/products": {
             "get": {
-                "description": "Mengambil daftar seluruh produk dengan pagination",
+                "description": "Mengambil daftar seluruh produk dengan pagination, filter kategori, harga, dan sorting",
                 "produces": [
                     "application/json"
                 ],
@@ -2445,6 +2510,38 @@ const docTemplate = `{
                         "description": "Batas Data per Halaman",
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pencarian nama/deskripsi",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Kategori ID (UUID)",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Filter Harga Minimal",
+                        "name": "min_price",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Filter Harga Maksimal",
+                        "name": "max_price",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Urutan Data (popular, price_low, price_high, newest)",
+                        "name": "sort_by",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2463,7 +2560,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Menambahkan produk baru ke dalam katalog beserta daftar gambarnya",
+                "description": "Menambahkan produk baru ke dalam katalog beserta opsi kain, warna, grosir, dan template canvas",
                 "consumes": [
                     "application/json"
                 ],
@@ -2507,6 +2604,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/products/slug/{slug}": {
+            "get": {
+                "description": "Mengambil detail data produk berdasarkan Slug URL",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get Product By Slug",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product Slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/products/{id}": {
             "get": {
                 "description": "Mengambil detail data produk berdasarkan ID",
@@ -2516,7 +2660,7 @@ const docTemplate = `{
                 "tags": [
                     "Products"
                 ],
-                "summary": "Get Product",
+                "summary": "Get Product By ID",
                 "parameters": [
                     {
                         "type": "string",
@@ -2554,7 +2698,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Memperbarui data produk (nama, harga, kategori, dan daftar gambar)",
+                "description": "Memperbarui data produk (kain, warna, grosir, dan template canvas)",
                 "consumes": [
                     "application/json"
                 ],
@@ -4136,6 +4280,37 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorRequest": {
+            "type": "object",
+            "required": [
+                "hex_code",
+                "name"
+            ],
+            "properties": {
+                "hex_code": {
+                    "type": "string",
+                    "example": "#4b5320"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Olive"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorResponse": {
+            "type": "object",
+            "properties": {
+                "hex_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest": {
             "type": "object",
             "required": [
@@ -4543,7 +4718,7 @@ const docTemplate = `{
                 },
                 "payment_date": {
                     "type": "string",
-                    "example": "2023-10-02T10:00:00Z"
+                    "example": "2026-10-02T10:00:00Z"
                 },
                 "payment_type": {
                     "type": "string",
@@ -4576,7 +4751,7 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string",
-                    "example": "2023-10-02T10:05:00Z"
+                    "example": "2026-10-02T10:05:00Z"
                 },
                 "id": {
                     "type": "string",
@@ -4591,7 +4766,7 @@ const docTemplate = `{
                 },
                 "payment_date": {
                     "type": "string",
-                    "example": "2023-10-02T10:00:00Z"
+                    "example": "2026-10-02T10:00:00Z"
                 },
                 "payment_type": {
                     "type": "string",
@@ -4601,9 +4776,25 @@ const docTemplate = `{
                     "type": "string",
                     "example": "TRX-0987654321"
                 },
+                "status": {
+                    "description": "pending, verified, rejected",
+                    "type": "string",
+                    "example": "pending"
+                },
                 "updated_at": {
                     "type": "string",
-                    "example": "2023-10-02T10:05:00Z"
+                    "example": "2026-10-02T10:05:00Z"
+                },
+                "verified_at": {
+                    "type": "string",
+                    "example": "2026-10-02T11:00:00Z"
+                },
+                "verified_by": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse"
+                },
+                "verified_by_id": {
+                    "type": "string",
+                    "example": "user-finance-uuid"
                 }
             }
         },
@@ -4641,6 +4832,22 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentVerifyRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "verified",
+                        "rejected"
+                    ],
+                    "example": "verified"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductCreateRequest": {
             "type": "object",
             "required": [
@@ -4651,7 +4858,7 @@ const docTemplate = `{
             "properties": {
                 "base_price": {
                     "type": "number",
-                    "example": 35000
+                    "example": 185000
                 },
                 "category_id": {
                     "type": "string",
@@ -4659,7 +4866,24 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string",
-                    "example": "Kaos polos bahan cotton combed 30s kualitas premium"
+                    "example": "Kemeja taktikal bahan ripstop cotton 65/35"
+                },
+                "design_model": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest"
+                },
+                "fabric_summary": {
+                    "type": "string",
+                    "example": "Ripstop"
+                },
+                "fabrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest"
+                    }
+                },
+                "gsm_info": {
+                    "type": "string",
+                    "example": "210gsm"
                 },
                 "image_urls": {
                     "type": "array",
@@ -4667,13 +4891,110 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "[\"https://supa.../1.jpg\"",
-                        " \"https://supa.../2.jpg\"]"
+                        "[\"https://supa.../1.jpg\"]"
+                    ]
+                },
+                "key_features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"Bahan ripstop anti robek\"",
+                        " \"Dual chest pocket velcro\"]"
                     ]
                 },
                 "name": {
                     "type": "string",
-                    "example": "Kaos Polos Cotton Combed 30s"
+                    "example": "Kemeja Taktikal Premium 7200"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "kemeja-taktikal-premium-7200"
+                },
+                "wholesale": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceRequest"
+                    }
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "base_price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 185000
+                },
+                "care_instruction": {
+                    "type": "string",
+                    "example": "Cuci mesin air dingin, jangan diputihkan"
+                },
+                "colors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorRequest"
+                    }
+                },
+                "composition": {
+                    "type": "string",
+                    "example": "65% Cotton / 35% Polyester"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Kuat \u0026 anti robek, 210gsm"
+                },
+                "is_default": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Ripstop Cotton 65/35"
+                },
+                "price_adjustment": {
+                    "type": "number",
+                    "example": 0
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricResponse": {
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "number"
+                },
+                "care_instruction": {
+                    "type": "string"
+                },
+                "colors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorResponse"
+                    }
+                },
+                "composition": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_adjustment": {
+                    "type": "number"
                 }
             }
         },
@@ -4691,12 +5012,120 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "type",
+                "views"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Template kemeja taktikal 2 saku"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Series 1 — Lengan Panjang"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "long_sleeve"
+                },
+                "views": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewRequest"
+                    }
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "views": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewResponse"
+                    }
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewRequest": {
+            "type": "object",
+            "required": [
+                "art_url",
+                "mask_url",
+                "side"
+            ],
+            "properties": {
+                "art_url": {
+                    "type": "string",
+                    "example": "https://supa.../front-art.png"
+                },
+                "height": {
+                    "type": "integer",
+                    "example": 1920
+                },
+                "mask_url": {
+                    "type": "string",
+                    "example": "https://supa.../front-mask.png"
+                },
+                "side": {
+                    "type": "string",
+                    "enum": [
+                        "front",
+                        "back"
+                    ],
+                    "example": "front"
+                },
+                "width": {
+                    "type": "integer",
+                    "example": 1756
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelViewResponse": {
+            "type": "object",
+            "properties": {
+                "art_url": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "mask_url": {
+                    "type": "string"
+                },
+                "side": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductResponse": {
             "type": "object",
             "properties": {
                 "base_price": {
                     "type": "number",
-                    "example": 35000
+                    "example": 185000
                 },
                 "category": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryResponse"
@@ -4706,12 +5135,28 @@ const docTemplate = `{
                     "example": "123e4567-e89b-12d3-a456-426614174000"
                 },
                 "created_at": {
-                    "type": "string",
-                    "example": "2023-10-01T15:00:00Z"
+                    "type": "string"
                 },
                 "description": {
                     "type": "string",
-                    "example": "Kaos polos bahan cotton combed 30s kualitas premium"
+                    "example": "Kemeja taktikal bahan ripstop cotton"
+                },
+                "design_model": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelResponse"
+                },
+                "fabric_summary": {
+                    "type": "string",
+                    "example": "Ripstop"
+                },
+                "fabrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricResponse"
+                    }
+                },
+                "gsm_info": {
+                    "type": "string",
+                    "example": "210gsm"
                 },
                 "id": {
                     "type": "string",
@@ -4723,13 +5168,40 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse"
                     }
                 },
+                "key_features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "name": {
                     "type": "string",
-                    "example": "Kaos Polos Cotton Combed 30s"
+                    "example": "Kemeja Taktikal Premium 7200"
+                },
+                "rating": {
+                    "type": "number",
+                    "example": 4.9
+                },
+                "review_count": {
+                    "type": "integer",
+                    "example": 318
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "kemeja-taktikal-premium-7200"
+                },
+                "sold_count": {
+                    "type": "integer",
+                    "example": 1240
                 },
                 "updated_at": {
-                    "type": "string",
-                    "example": "2023-10-01T15:00:00Z"
+                    "type": "string"
+                },
+                "wholesale": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceResponse"
+                    }
                 }
             }
         },
@@ -4738,7 +5210,7 @@ const docTemplate = `{
             "properties": {
                 "base_price": {
                     "type": "number",
-                    "example": 45000
+                    "example": 190000
                 },
                 "category_id": {
                     "type": "string",
@@ -4746,21 +5218,50 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string",
-                    "example": "Versi lengan panjang"
+                    "example": "Versi update"
+                },
+                "design_model": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest"
+                },
+                "fabric_summary": {
+                    "type": "string",
+                    "example": "Ripstop Cotton"
+                },
+                "fabrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest"
+                    }
+                },
+                "gsm_info": {
+                    "type": "string",
+                    "example": "220gsm"
                 },
                 "image_urls": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    },
-                    "example": [
-                        "[\"https://supa.../1.jpg\"",
-                        " \"https://supa.../2.jpg\"]"
-                    ]
+                    }
+                },
+                "key_features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string",
-                    "example": "Kaos Polos Lengan Panjang"
+                    "example": "Kemeja Taktikal Premium 7200 V2"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "kemeja-taktikal-premium-7200-v2"
+                },
+                "wholesale": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceRequest"
+                    }
                 }
             }
         },
@@ -5056,6 +5557,51 @@ const docTemplate = `{
                         "sales"
                     ],
                     "example": "admin"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceRequest": {
+            "type": "object",
+            "required": [
+                "min_qty",
+                "unit_price"
+            ],
+            "properties": {
+                "fabric_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                },
+                "max_qty": {
+                    "type": "integer",
+                    "example": 24
+                },
+                "min_qty": {
+                    "type": "integer",
+                    "example": 6
+                },
+                "unit_price": {
+                    "type": "number",
+                    "example": 175000
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceResponse": {
+            "type": "object",
+            "properties": {
+                "fabric_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "max_qty": {
+                    "type": "integer"
+                },
+                "min_qty": {
+                    "type": "integer"
+                },
+                "unit_price": {
+                    "type": "number"
                 }
             }
         },

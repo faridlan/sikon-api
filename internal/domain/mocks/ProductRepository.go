@@ -117,6 +117,36 @@ func (_m *ProductRepository) GetByID(ctx context.Context, id string) (*domain.Pr
 	return r0, r1
 }
 
+// GetBySlug provides a mock function with given fields: ctx, slug
+func (_m *ProductRepository) GetBySlug(ctx context.Context, slug string) (*domain.Product, error) {
+	ret := _m.Called(ctx, slug)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBySlug")
+	}
+
+	var r0 *domain.Product
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Product, error)); ok {
+		return rf(ctx, slug)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Product); ok {
+		r0 = rf(ctx, slug)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Product)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, slug)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Update provides a mock function with given fields: ctx, product
 func (_m *ProductRepository) Update(ctx context.Context, product *domain.Product) error {
 	ret := _m.Called(ctx, product)

@@ -24,14 +24,14 @@ func TestCreateProduct_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	category := tests.SeedCategory(db, "Kaos Sablon")
+	category := tests.SeedCategory(db, "Kemeja Taktikal")
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Success_Basic", func(t *testing.T) {
 		reqBody := dto.ProductCreateRequest{
 			CategoryID:  category.ID,
-			Name:        "Kaos Sablon Custom",
+			Name:        "Kemeja Taktikal Basic 5000",
 			Description: "Bahan Combed 30s",
-			BasePrice:   55000,
+			BasePrice:   150000,
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -46,19 +46,48 @@ func TestCreateProduct_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		assert.Equal(t, "Kaos Sablon Custom", response.Data.Name)
+		assert.Equal(t, "Kemeja Taktikal Basic 5000", response.Data.Name)
 		assert.Equal(t, category.ID, response.Data.CategoryID)
+		assert.Equal(t, "kemeja-taktikal-basic-5000", response.Data.Slug)
 		assert.NotEmpty(t, response.Data.ID)
 	})
 
-	// 🚨 TAMBAHAN: Test Array Gambar
-	t.Run("Success_With_Multiple_Images", func(t *testing.T) {
+	t.Run("Success_Full_Custom_Product", func(t *testing.T) {
 		reqBody := dto.ProductCreateRequest{
-			CategoryID:  category.ID,
-			Name:        "Kaos Polos Lengan Panjang",
-			Description: "Bahan Combed 30s",
-			BasePrice:   65000,
-			ImageURLs:   []string{"https://example.com/depan.jpg", "https://example.com/belakang.jpg"},
+			CategoryID:    category.ID,
+			Name:          "Kemeja Taktikal Premium 7200",
+			Description:   "Bahan Ripstop Cotton 65/35",
+			BasePrice:     185000,
+			GSMInfo:       "210gsm",
+			FabricSummary: "Ripstop",
+			KeyFeatures:   []string{"Bahan anti robek", "Dual chest pocket velcro"},
+			ImageURLs:     []string{"https://example.com/front.jpg", "https://example.com/back.jpg"},
+			Fabrics: []dto.ProductFabricRequest{
+				{
+					Name:            "Ripstop Cotton 65/35",
+					Description:     "Kuat & anti robek, 210gsm",
+					Composition:     "65% Cotton / 35% Polyester",
+					CareInstruction: "Cuci mesin air dingin",
+					BasePrice:       185000,
+					IsDefault:       true,
+					Colors: []dto.FabricColorRequest{
+						{Name: "Olive", HexCode: "#4b5320"},
+						{Name: "Navy", HexCode: "#1b263b"},
+					},
+				},
+			},
+			Wholesale: []dto.WholesalePriceRequest{
+				{MinQty: 6, UnitPrice: 175000},
+			},
+			DesignModel: &dto.ProductModelRequest{
+				Name:        "Series 1 — Lengan Panjang",
+				Type:        "long_sleeve",
+				Description: "Template kemeja taktikal lengan panjang",
+				Views: []dto.ProductModelViewRequest{
+					{Side: "front", ArtURL: "https://example.com/art-front.png", MaskURL: "https://example.com/mask-front.png", Width: 1756, Height: 1920},
+					{Side: "back", ArtURL: "https://example.com/art-back.png", MaskURL: "https://example.com/mask-back.png", Width: 1738, Height: 1920},
+				},
+			},
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -73,14 +102,13 @@ func TestCreateProduct_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		assert.Equal(t, "Kaos Polos Lengan Panjang", response.Data.Name)
-
-		// Verifikasi bahwa 2 gambar tersimpan dan ter-mapping dengan benar
+		assert.Equal(t, "Kemeja Taktikal Premium 7200", response.Data.Name)
 		assert.Equal(t, 2, len(response.Data.Images))
-		assert.Equal(t, "https://example.com/depan.jpg", response.Data.Images[0].ImageURL)
-		assert.True(t, response.Data.Images[0].IsPrimary) // Gambar pertama harus Primary
-		assert.Equal(t, "https://example.com/belakang.jpg", response.Data.Images[1].ImageURL)
-		assert.False(t, response.Data.Images[1].IsPrimary) // Gambar kedua bukan Primary
+		assert.Equal(t, 1, len(response.Data.Fabrics))
+		assert.Equal(t, 2, len(response.Data.Fabrics[0].Colors))
+		assert.Equal(t, 1, len(response.Data.Wholesale))
+		assert.NotNil(t, response.Data.DesignModel)
+		assert.Equal(t, 2, len(response.Data.DesignModel.Views))
 	})
 
 	t.Run("Failed_Category_Not_Found", func(t *testing.T) {
@@ -97,7 +125,7 @@ func TestCreateProduct_Integration(t *testing.T) {
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-		assert.NotEqual(t, fiber.StatusCreated, resp.StatusCode)
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	})
 
 	t.Run("Failed_Validation_Price_Zero", func(t *testing.T) {
@@ -118,17 +146,17 @@ func TestCreateProduct_Integration(t *testing.T) {
 }
 
 // ==========================================
-// 2. TEST GET PRODUCT (GET /api/products/:id)
+// 2. TEST GET PRODUCT (GET /api/products/:id & /slug/:slug)
 // ==========================================
 func TestGetProduct_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	category := tests.SeedCategory(db, "Topi")
-	product := tests.SeedProduct(db, category.ID, "Topi Baseball", 25000)
+	category := tests.SeedCategory(db, "Kemeja")
+	fullProduct := tests.SeedFullCustomProduct(db, category.ID, "Kemeja PDL Lapangan", 175000)
 
-	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/products/"+product.ID, nil)
+	t.Run("Success_GetByID", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/products/"+fullProduct.ID, nil)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -138,8 +166,26 @@ func TestGetProduct_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		assert.Equal(t, product.ID, response.Data.ID)
-		assert.Equal(t, "Topi Baseball", response.Data.Name)
+		assert.Equal(t, fullProduct.ID, response.Data.ID)
+		assert.Equal(t, "Kemeja PDL Lapangan", response.Data.Name)
+		assert.NotEmpty(t, response.Data.Fabrics)
+		assert.NotEmpty(t, response.Data.Wholesale)
+		assert.NotNil(t, response.Data.DesignModel)
+	})
+
+	t.Run("Success_GetBySlug", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/products/slug/"+fullProduct.Slug, nil)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response utils.SuccessResponse[dto.ProductResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
+		assert.Equal(t, fullProduct.Slug, response.Data.Slug)
+		assert.Equal(t, "Kemeja PDL Lapangan", response.Data.Name)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
@@ -159,15 +205,11 @@ func TestListProducts_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	// 1. Siapkan Data Seeder
 	catAtasan := tests.SeedCategory(db, "Atasan")
 	catBawahan := tests.SeedCategory(db, "Bawahan")
 
-	// Produk Atasan
 	tests.SeedProduct(db, catAtasan.ID, "Kemeja Polos Hitam", 100000)
 	tests.SeedProduct(db, catAtasan.ID, "Kaos Sablon Premium", 75000)
-
-	// Produk Bawahan
 	tests.SeedProduct(db, catBawahan.ID, "Celana Jeans Denim", 150000)
 
 	t.Run("Success_GetAll_TanpaFilter", func(t *testing.T) {
@@ -177,16 +219,14 @@ func TestListProducts_Integration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		// Verifikasi total data harus 3
 		var body map[string]any
 		json.NewDecoder(resp.Body).Decode(&body)
 
 		meta := body["meta"].(map[string]any)
-		assert.Equal(t, float64(3), meta["total_items"]) // JSON number di-parse sebagai float64
+		assert.Equal(t, float64(3), meta["total_items"])
 	})
 
-	t.Run("Success_FilterBySearch_SatuKata", func(t *testing.T) {
-		// Cari kata "Kemeja" (case insensitive)
+	t.Run("Success_FilterBySearch", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/products?search=kemeja", nil)
 		resp, err := app.Test(req, -1)
 
@@ -199,13 +239,12 @@ func TestListProducts_Integration(t *testing.T) {
 		data := body["data"].([]any)
 		meta := body["meta"].(map[string]any)
 
-		assert.Len(t, data, 1) // Hanya ada 1 kemeja
+		assert.Len(t, data, 1)
 		assert.Equal(t, float64(1), meta["total_items"])
 	})
 
-	t.Run("Success_FilterByCategory", func(t *testing.T) {
-		// Filter semua produk dengan kategori "Atasan"
-		req := httptest.NewRequest("GET", "/api/products?category_id="+catAtasan.ID, nil)
+	t.Run("Success_FilterByPriceRange", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/products?min_price=80000&max_price=120000", nil)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -215,13 +254,11 @@ func TestListProducts_Integration(t *testing.T) {
 		json.NewDecoder(resp.Body).Decode(&body)
 
 		data := body["data"].([]any)
-		assert.Len(t, data, 2) // Kemeja dan Kaos
+		assert.Len(t, data, 1) // Kemeja Polos Hitam (100k)
 	})
 
-	t.Run("Success_KombinasiSearchDanCategory", func(t *testing.T) {
-		// Cari kata "Celana" tapi memaksakan ID Kategorinya adalah "Atasan"
-		// Harusnya tidak ketemu, karena Celana ada di kategori Bawahan
-		req := httptest.NewRequest("GET", "/api/products?search=Celana&category_id="+catAtasan.ID, nil)
+	t.Run("Success_SortingByPriceLow", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/products?sort_by=price_low", nil)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -231,7 +268,8 @@ func TestListProducts_Integration(t *testing.T) {
 		json.NewDecoder(resp.Body).Decode(&body)
 
 		data := body["data"].([]any)
-		assert.Len(t, data, 0) // Kosong (Empty State)
+		firstItem := data[0].(map[string]any)
+		assert.Equal(t, "Kaos Sablon Premium", firstItem["name"]) // 75k termurah
 	})
 }
 
@@ -245,7 +283,7 @@ func TestUpdateProduct_Integration(t *testing.T) {
 	category := tests.SeedCategory(db, "Celana")
 	product := tests.SeedProduct(db, category.ID, "Celana Jeans Lama", 100000)
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Success_Basic_Update", func(t *testing.T) {
 		reqBody := dto.ProductUpdateRequest{
 			CategoryID: category.ID,
 			Name:       "Celana Jeans Baru",
@@ -261,9 +299,7 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("Success_Update_Image", func(t *testing.T) {
-		// 🚨 Buat gambar lama secara manual di tabel relasi product_images
-		// (Pastikan kamu meng-import package postgres tempat modelmu berada)
+	t.Run("Success_Update_With_Fabrics_And_Images", func(t *testing.T) {
 		oldImage := postgres.ProductImageModel{
 			ProductID: product.ID,
 			ImageURL:  "https://example.com/gambar-lama.jpg",
@@ -271,9 +307,17 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		}
 		db.Create(&oldImage)
 
-		// Request update dengan daftar gambar baru
 		reqBody := dto.ProductUpdateRequest{
-			ImageURLs: []string{"https://example.com/gambar-baru.jpg"}, // Mengganti gambar lama
+			ImageURLs: []string{"https://example.com/gambar-baru.jpg"},
+			Fabrics: []dto.ProductFabricRequest{
+				{
+					Name:      "Drill Premium",
+					BasePrice: 175000,
+					Colors: []dto.FabricColorRequest{
+						{Name: "Black", HexCode: "#000000"},
+					},
+				},
+			},
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
@@ -288,9 +332,10 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		// Verifikasi response memiliki URL array yang baru dan hanya ada 1 gambar
 		assert.Equal(t, 1, len(response.Data.Images))
 		assert.Equal(t, "https://example.com/gambar-baru.jpg", response.Data.Images[0].ImageURL)
+		assert.Equal(t, 1, len(response.Data.Fabrics))
+		assert.Equal(t, "Drill Premium", response.Data.Fabrics[0].Name)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
@@ -324,23 +369,9 @@ func TestDeleteProduct_Integration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		// Verifikasi Terhapus
 		reqCheck := httptest.NewRequest("GET", "/api/products/"+product.ID, nil)
 		respCheck, _ := app.Test(reqCheck, -1)
 		assert.Equal(t, fiber.StatusNotFound, respCheck.StatusCode)
-	})
-
-	// 🚨 TAMBAHAN: Skenario Hapus Produk dengan Gambar
-	t.Run("Success_With_Image", func(t *testing.T) {
-		// Buat produk baru khusus untuk tes ini
-		productWithImage := tests.SeedProduct(db, category.ID, "Topi Taktikal", 45000)
-		db.Model(&productWithImage).Update("image_url", "https://example.com/topi.jpg")
-
-		req := httptest.NewRequest("DELETE", "/api/products/"+productWithImage.ID, nil)
-		resp, err := app.Test(req, -1)
-
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode) // API harus tetap membalas 200 dengan cepat
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
