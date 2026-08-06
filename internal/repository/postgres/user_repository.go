@@ -23,7 +23,7 @@ func (r *userRepository) Create(ctx context.Context, user *domain.User) error {
 
 	err := r.db.WithContext(ctx).Create(model).Error
 	if err != nil {
-		return TranslateError(err) // Harus di-return agar fungsinya berhenti dan melempar error
+		return TranslateError(err)
 	}
 
 	user.ID = model.ID
@@ -69,13 +69,17 @@ func (r *userRepository) Fetch(ctx context.Context, limit, offset int, filter do
 		query = query.Where("role = ?", filter.Role)
 	}
 
+	// 3. Filter Status Aktif (jika di-set)
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+
 	err := query.Count(&total).Error
 	if err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	err = query.Limit(limit).Offset(offset).Find(&models).Error
-
+	err = query.Limit(limit).Offset(offset).Order("sort_order ASC, created_at DESC").Find(&models).Error
 	if err != nil {
 		return nil, 0, TranslateError(err)
 	}
@@ -88,10 +92,31 @@ func (r *userRepository) Fetch(ctx context.Context, limit, offset int, filter do
 	return users, total, nil
 }
 
+// GetPublicSalesList mengambil khusus marketing/sales aktif untuk ditampilkan di Landing Page
+func (r *userRepository) GetPublicSalesList(ctx context.Context) ([]domain.User, error) {
+	var models []UserModel
+
+	err := r.db.WithContext(ctx).
+		Where("role = ? AND is_active = ?", domain.RoleSales, true).
+		Order("sort_order ASC, created_at ASC").
+		Find(&models).Error
+
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+
+	users := make([]domain.User, len(models))
+	for i, model := range models {
+		users[i] = *model.ToDomain()
+	}
+
+	return users, nil
+}
+
 func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
 	model := FromUserDomain(user)
 
-	db := GetTx(ctx, r.db) // Gunakan GetTx untuk mendukung transaksi
+	db := GetTx(ctx, r.db)
 
 	err := db.WithContext(ctx).Model(&UserModel{ID: model.ID}).Updates(model).Error
 	if err != nil {

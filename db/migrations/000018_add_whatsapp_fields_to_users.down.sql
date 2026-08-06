@@ -1,0 +1,7 @@
+DROP INDEX IF EXISTS idx_users_role_is_active;
+
+ALTER TABLE users
+DROP COLUMN IF EXISTS sort_order,
+DROP COLUMN IF EXISTS is_active,
+DROP COLUMN IF EXISTS status_text,
+DROP COLUMN IF EXISTS phone;

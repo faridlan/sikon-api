@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// Enum untuk Role
 type Role string
 
 const (
@@ -13,54 +12,64 @@ const (
 	RoleSales Role = "sales"
 )
 
-// User Entity (Tanpa tag GORM, murni untuk layer domain)
 type User struct {
-	ID        string
-	Name      string
-	Email     string
-	Password  string
-	Role      Role
-	ImageURL  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         string
+	Name       string
+	Email      string
+	Password   string
+	Role       Role
+	ImageURL   string
+	Phone      string // Nomor WhatsApp (e.g. "6281200000001")
+	StatusText string // Label status (e.g. "Online sekarang")
+	IsActive   bool   // Status keaktifan
+	SortOrder  int    // Urutan prioritas rekomendasi
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 type UserFilter struct {
-	Search string // Opsional: jika nanti butuh cari nama user
-	Role   string // Filter spesifik untuk role (sales, admin, dll)
+	Search   string
+	Role     string
+	IsActive *bool // Pointer agar bisa dilacak jika nil
 }
 
-// UserRepository mendefinisikan kontrak untuk berinteraksi dengan database
 type UserRepository interface {
 	Create(ctx context.Context, user *User) error
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	Fetch(ctx context.Context, limit, offset int, filter UserFilter) ([]User, int64, error)
-	Update(ctx context.Context, user *User) error // Tambahan Update
-	Delete(ctx context.Context, id string) error  // Tambahan Delete
+	GetPublicSalesList(ctx context.Context) ([]User, error) // 👈 Repository Khusus Landing Page
+	Update(ctx context.Context, user *User) error
+	Delete(ctx context.Context, id string) error
 }
 
-// Input struct untuk Usecase
 type UserRegisterInput struct {
-	Name     string
-	Email    string
-	Password string
-	Role     Role
-	ImageURL string
+	Name       string
+	Email      string
+	Password   string
+	Role       Role
+	ImageURL   string
+	Phone      string
+	StatusText string
+	IsActive   bool
+	SortOrder  int
 }
 
 type UserUpdateInput struct {
-	Name     string
-	Role     Role
-	ImageURL string
-	// Sengaja tidak memasukan Email dan Password di sini karena biasanya butuh flow khusus (seperti verifikasi)
+	Name       string
+	Role       Role
+	ImageURL   string
+	Phone      string
+	StatusText string
+	IsActive   *bool
+	SortOrder  *int
 }
 
-// UserUsecase mendefinisikan kontrak untuk bisnis logika
 type UserUsecase interface {
 	Register(ctx context.Context, input UserRegisterInput) (*User, error)
 	GetProfile(ctx context.Context, userID string) (*User, error)
 	ListUsers(c context.Context, query PaginationQuery, filter UserFilter) ([]User, PaginationMeta, error)
-	UpdateUser(ctx context.Context, id string, input UserUpdateInput) (*User, error) // Tambahan Update
-	DeleteUser(ctx context.Context, id string) error                                 // Tambahan Delete
+	GetPublicSalesList(ctx context.Context) ([]User, error) // 👈 Usecase Khusus Public
+	UpdateUser(ctx context.Context, id string, input UserUpdateInput) (*User, error)
+	DeleteUser(ctx context.Context, id string) error
 }
