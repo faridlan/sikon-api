@@ -128,8 +128,8 @@ func main() {
 	reportHandler := myHttp.NewReportHandler(reportUsecase)
 	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase) // Inisialisasi handler Batch PO
 	uploadHandler := myHttp.NewUploadHandler(uploadUsecase)
-	expenseHandler := myHttp.NewExpenseHandler(expenseUsecase) // Inisialisasi handler Expense
-	seederHandler := myHttp.NewSeederHandler(db)               // Inisialisasi handler Seeder
+	expenseHandler := myHttp.NewExpenseHandler(expenseUsecase)   // Inisialisasi handler Expense
+	seederHandler := myHttp.NewSeederHandler(db, storageService) // Inisialisasi handler Seeder
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER

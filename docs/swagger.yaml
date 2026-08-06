@@ -1259,6 +1259,21 @@ definitions:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DailyTrendResponse'
         type: array
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.PublicSalesResponse:
+    properties:
+      id:
+        type: string
+      image_url:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      status_text:
+        type: string
+      whatsapp_url:
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse:
     properties:
       customer_name:
@@ -1352,6 +1367,8 @@ definitions:
       image_url:
         example: https://example.com/image.jpg
         type: string
+      is_active:
+        type: boolean
       name:
         example: Budi Haryanto
         type: string
@@ -1359,11 +1376,19 @@ definitions:
         example: rahasia123
         minLength: 6
         type: string
+      phone:
+        example: "6281200000001"
+        type: string
       role:
         enum:
         - admin
         - sales
         example: sales
+        type: string
+      sort_order:
+        type: integer
+      status_text:
+        example: Online sekarang
         type: string
     required:
     - email
@@ -1374,40 +1399,50 @@ definitions:
   github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse:
     properties:
       created_at:
-        example: "2023-10-01T15:00:00Z"
         type: string
       email:
-        example: budi@sikon.com
         type: string
       id:
-        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       image_url:
-        example: https://example.com/image.jpg
         type: string
+      is_active:
+        type: boolean
       name:
-        example: Budi Haryanto
+        type: string
+      phone:
         type: string
       role:
-        example: sales
+        type: string
+      sort_order:
+        type: integer
+      status_text:
         type: string
       updated_at:
-        example: "2023-10-01T15:00:00Z"
         type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.UserUpdateRequest:
     properties:
       image_url:
-        example: https://example.com/image_updated.jpg
         type: string
+      is_active:
+        type: boolean
       name:
         example: Budi Haryanto Update
+        type: string
+      phone:
+        example: "6281200000001"
         type: string
       role:
         enum:
         - admin
         - sales
         example: admin
+        type: string
+      sort_order:
+        type: integer
+      status_text:
+        example: Online sekarang
         type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.WholesalePriceRequest:
@@ -1610,6 +1645,15 @@ definitions:
       data:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentResponse'
+        type: array
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PublicSalesResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PublicSalesResponse'
         type: array
       message:
         type: string
@@ -4064,7 +4108,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Memperbarui nama atau role dari user
+      description: Memperbarui nama, role, foto, atau informasi WhatsApp marketing
+        dari user
       parameters:
       - description: User ID (UUID)
         in: path
@@ -4099,6 +4144,24 @@ paths:
       summary: Update User
       tags:
       - Users
+  /users/public/sales:
+    get:
+      description: Mengambil daftar tim marketing aktif untuk landing page / widget
+        WhatsApp
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PublicSalesResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Get Public Sales Marketing Directory
+      tags:
+      - Public
   /users/register:
     post:
       consumes:

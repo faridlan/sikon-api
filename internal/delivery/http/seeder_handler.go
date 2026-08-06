@@ -1,8 +1,15 @@
 package http
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"math/rand"
+	"mime/multipart"
+	"net/textproto"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -20,18 +27,88 @@ type SeederHandler interface {
 }
 
 type seederHandler struct {
-	db *gorm.DB
+	db             *gorm.DB
+	storageService domain.StorageService
 }
 
-func NewSeederHandler(db *gorm.DB) SeederHandler {
-	return &seederHandler{db: db}
+func NewSeederHandler(db *gorm.DB, storage domain.StorageService) SeederHandler {
+	return &seederHandler{
+		db:             db,
+		storageService: storage,
+	}
+}
+
+// Helper lokal untuk membaca file dari folder lokal dan mengunggahnya ke Supabase
+// Helper lokal untuk membaca file dari folder lokal dan mengunggahnya ke Supabase
+func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath string, targetFolder string) (string, error) {
+	// 1. Cek & Buka file fisik dari disk
+	resolvedPath := localFilePath
+	if _, err := os.Stat(resolvedPath); os.IsNotExist(err) {
+		resolvedPath = filepath.Join("..", "..", localFilePath)
+		if _, err := os.Stat(resolvedPath); os.IsNotExist(err) {
+			return "", fmt.Errorf("file tidak ditemukan di [%s]", localFilePath)
+		}
+	}
+
+	fileBytes, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return "", fmt.Errorf("gagal membaca file %s: %w", resolvedPath, err)
+	}
+
+	ext := filepath.Ext(resolvedPath)
+	filename := filepath.Base(resolvedPath)
+	fileNameOnly := strings.TrimSuffix(filename, ext)
+
+	contentType := "image/png"
+	if strings.ToLower(ext) == ".jpg" || strings.ToLower(ext) == ".jpeg" {
+		contentType = "image/jpeg"
+	}
+
+	// 2. Buat buffer multipart form in-memory agar fileHeader.Open() berhasil
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	hHeaders := make(textproto.MIMEHeader)
+	hHeaders.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
+	hHeaders.Set("Content-Type", contentType)
+
+	part, err := writer.CreatePart(hHeaders)
+	if err != nil {
+		return "", fmt.Errorf("gagal membuat multipart part: %w", err)
+	}
+	if _, err := part.Write(fileBytes); err != nil {
+		return "", fmt.Errorf("gagal menulis bytes ke multipart: %w", err)
+	}
+	_ = writer.Close()
+
+	// 3. Parse kembali ke multipart.Form untuk mendapatkan *multipart.FileHeader yang VALID
+	reader := multipart.NewReader(body, writer.Boundary())
+	form, err := reader.ReadForm(10 << 20) // 10MB limit
+	if err != nil {
+		return "", fmt.Errorf("gagal parsing form header: %w", err)
+	}
+	defer form.RemoveAll()
+
+	files := form.File["file"]
+	if len(files) == 0 {
+		return "", fmt.Errorf("gagal mengekstrak file header dari memory")
+	}
+
+	// 4. Upload via Storage Service
+	uniqueFileName := fmt.Sprintf("%s_%s", fileNameOnly, uuid.NewString()[:8])
+	uploadedURL, err := h.storageService.UploadFile(ctx, files[0], targetFolder, uniqueFileName)
+	if err != nil {
+		return "", fmt.Errorf("gagal upload ke supabase: %w", err)
+	}
+
+	return uploadedURL, nil
 }
 
 // @Summary Hapus Semua Data Seeder
 // @Tags Seeder
 // @Router /seeder/clear [post]
 func (h *seederHandler) Clear(c *fiber.Ctx) error {
-	// Hapus Relasi Produk Baru
+	// Hapus Relasi Produk
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductModelViewModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.DesignerModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.WholesalePriceModel{})
@@ -59,9 +136,11 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 // @Tags Seeder
 // @Router /seeder/generate [post]
 func (h *seederHandler) Generate(c *fiber.Ctx) error {
-	// --- 1. SETUP MASTER DATA ---
+	ctx := c.Context()
 
-	// A. User Admin Dummy
+	// --- 1. SETUP MASTER DATA USER & BANK ---
+
+	// Admin Dummy
 	adminDummy := postgresRepo.UserModel{
 		ID:         uuid.NewString(),
 		Name:       "Super Admin (Dummy)",
@@ -78,7 +157,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		h.db.Create(&adminDummy)
 	}
 
-	// B. User Sales Dummies (Disertai No WhatsApp & Status)
+	// Sales Dummies
 	salesDummies := []postgresRepo.UserModel{
 		{
 			ID:         uuid.NewString(),
@@ -145,177 +224,228 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 	h.db.Create(&bankAccount)
 
-	cat := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Kemeja Taktikal"}
-	h.db.Create(&cat)
+	// --- 2. SETUP 4 KATEGORI ---
+	catKemeja := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Kemeja"}
+	catRompi := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Rompi"}
+	catCelana := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Celana"}
+	catPolo := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Polo"}
 
-	// --- SETUP SEEDER PRODUK KATALOG & CANVAS DESIGNER REALISTIS ---
+	h.db.Create(&catKemeja)
+	h.db.Create(&catRompi)
+	h.db.Create(&catCelana)
+	h.db.Create(&catPolo)
 
-	prod1ID := uuid.NewString()
-	prod2ID := uuid.NewString()
+	// --- 3. UPLOAD GAMBAR DARI ASSETS KE SUPABASE STORAGE (DRY & TERSTRUKTUR) ---
+	var (
+		imgKemejaURL, imgRompiURL, imgCelanaURL, imgPoloURL        string
+		maskFrontLong, maskBackLong, maskFrontShort, maskBackShort string
+		s1FrontLong, s1BackLong, s1FrontShort, s1BackShort         string
+		s2FrontLong, s2BackLong, s2FrontShort, s2BackShort         string
+	)
 
-	// Fabric IDs
-	fab1Prod1 := uuid.NewString()
-	fab2Prod1 := uuid.NewString()
-	fab1Prod2 := uuid.NewString()
+	jobs := []struct {
+		path   string
+		folder string
+		target *string
+	}{
+		// Products
+		{"assets/Product/kemeja.jpg", "products", &imgKemejaURL},
+		{"assets/Product/rompi.jpg", "products", &imgRompiURL},
+		{"assets/Product/celana.jpg", "products", &imgCelanaURL},
+		{"assets/Product/polo.jpg", "products", &imgPoloURL},
 
-	// Designer Model IDs
+		// Mockups - Masks
+		{"assets/Mockup/front-mask-long.png", "mockups", &maskFrontLong},
+		{"assets/Mockup/back-mask-long.png", "mockups", &maskBackLong},
+		{"assets/Mockup/front-mask-short.png", "mockups", &maskFrontShort},
+		{"assets/Mockup/back-mask-short.png", "mockups", &maskBackShort},
+
+		// Mockups - Series 1
+		{"assets/Mockup/series1-front-long.png", "mockups", &s1FrontLong},
+		{"assets/Mockup/series1-back-long.png", "mockups", &s1BackLong},
+		{"assets/Mockup/series1-front-short.png", "mockups", &s1FrontShort},
+		{"assets/Mockup/series1-back-short.png", "mockups", &s1BackShort},
+
+		// Mockups - Series 2
+		{"assets/Mockup/series2-front-long.png", "mockups", &s2FrontLong},
+		{"assets/Mockup/series2-back-long.png", "mockups", &s2BackLong},
+		{"assets/Mockup/series2-front-short.png", "mockups", &s2FrontShort},
+		{"assets/Mockup/series2-back-short.png", "mockups", &s2BackShort},
+	}
+
+	for _, job := range jobs {
+		url, err := h.uploadLocalFile(ctx, job.path, job.folder)
+		if err != nil {
+			return utils.SendError(c, fiber.StatusInternalServerError, fmt.Sprintf("Gagal upload seeder file [%s]: %v", job.path, err))
+		}
+		*job.target = url
+	}
+
+	// --- 4. SETUP PRODUK DUMMY ---
+
+	// A. Produk Rompi
+	prodRompiID := uuid.NewString()
+	prodRompi := postgresRepo.ProductModel{
+		ID:            prodRompiID,
+		CategoryID:    catRompi.ID,
+		Name:          "Dummy Prod Rompi Taktikal Lapangan",
+		Description:   "Rompi lapis banyak saku untuk kebutuhan outdoor dan teknisi.",
+		BasePrice:     140000,
+		Slug:          "dummy-prod-rompi-taktikal-lapangan",
+		GSMInfo:       "240gsm",
+		FabricSummary: "Ripstop Cotton",
+		Rating:        4.7,
+		SoldCount:     320,
+		ReviewCount:   85,
+		Images: []postgresRepo.ProductImageModel{
+			{ID: uuid.NewString(), ProductID: prodRompiID, ImageURL: imgRompiURL, IsPrimary: true},
+		},
+	}
+
+	// B. Produk Celana
+	prodCelanaID := uuid.NewString()
+	prodCelana := postgresRepo.ProductModel{
+		ID:            prodCelanaID,
+		CategoryID:    catCelana.ID,
+		Name:          "Dummy Prod Celana PDL Taktikal",
+		Description:   "Celana cargo PDL dengan jahitan ganda & kantong ekstra.",
+		BasePrice:     170000,
+		Slug:          "dummy-prod-celana-pdl-taktikal",
+		GSMInfo:       "260gsm",
+		FabricSummary: "Nagata Drill",
+		Rating:        4.8,
+		SoldCount:     510,
+		ReviewCount:   140,
+		Images: []postgresRepo.ProductImageModel{
+			{ID: uuid.NewString(), ProductID: prodCelanaID, ImageURL: imgCelanaURL, IsPrimary: true},
+		},
+	}
+
+	// C. Produk Polo
+	prodPoloID := uuid.NewString()
+	prodPolo := postgresRepo.ProductModel{
+		ID:            prodPoloID,
+		CategoryID:    catPolo.ID,
+		Name:          "Dummy Prod Kaos Polo Wangky Custom",
+		Description:   "Kaos polo berkerah bahan lacoste combed adem dan elegan.",
+		BasePrice:     95000,
+		Slug:          "dummy-prod-kaos-polo-wangky-custom",
+		GSMInfo:       "220gsm",
+		FabricSummary: "Lacoste CVC",
+		Rating:        4.9,
+		SoldCount:     890,
+		ReviewCount:   210,
+		Images: []postgresRepo.ProductImageModel{
+			{ID: uuid.NewString(), ProductID: prodPoloID, ImageURL: imgPoloURL, IsPrimary: true},
+		},
+	}
+
+	// D. Produk Kemeja Series 1 (Lengkap Canvas Designer)
+	prodKemeja1ID := uuid.NewString()
 	dm1ID := uuid.NewString()
-	dm2ID := uuid.NewString()
+	fab1Kemeja1 := uuid.NewString()
 
-	product1 := postgresRepo.ProductModel{
-		ID:            prod1ID,
-		CategoryID:    cat.ID,
-		Name:          "Dummy Prod Kemeja Taktikal Premium 7200",
-		Description:   "Kemeja taktikal lengan panjang, 2 saku flap velcro, ventilasi punggung",
+	prodKemeja1 := postgresRepo.ProductModel{
+		ID:            prodKemeja1ID,
+		CategoryID:    catKemeja.ID,
+		Name:          "Dummy Prod Kemeja Series 1",
+		Description:   "Kemeja taktikal Series 1 dengan template customizer canvas.",
 		BasePrice:     185000,
-		Slug:          "dummy-prod-kemeja-taktikal-premium-7200",
+		Slug:          "dummy-prod-kemeja-series-1",
 		GSMInfo:       "210gsm",
 		FabricSummary: "Ripstop Cotton",
 		Rating:        4.9,
-		SoldCount:     1240,
-		ReviewCount:   318,
-		KeyFeatures:   `["Bahan ripstop anti robek", "Dual chest pocket velcro", "Pen slot di lengan", "Ventilasi punggung", "Bisa custom bordir & patch"]`,
+		SoldCount:     1200,
+		ReviewCount:   300,
 		Images: []postgresRepo.ProductImageModel{
-			{ID: uuid.NewString(), ProductID: prod1ID, ImageURL: "https://raw.githubusercontent.com/faridlan/assets/main/mockups/series1-front-long.png", IsPrimary: true},
-			{ID: uuid.NewString(), ProductID: prod1ID, ImageURL: "https://raw.githubusercontent.com/faridlan/assets/main/mockups/series1-back-long.png", IsPrimary: false},
+			{ID: uuid.NewString(), ProductID: prodKemeja1ID, ImageURL: imgKemejaURL, IsPrimary: true},
 		},
 		Fabrics: []postgresRepo.ProductFabricModel{
 			{
-				ID:              fab1Prod1,
-				ProductID:       prod1ID,
-				Name:            "Ripstop Cotton 65/35",
-				Description:     "Kuat & anti robek, 210gsm",
-				Composition:     "65% Cotton / 35% Polyester",
-				CareInstruction: "Cuci mesin air dingin, jangan diputihkan, setrika suhu sedang",
-				BasePrice:       185000,
-				PriceAdjustment: 0,
-				IsDefault:       true,
+				ID:        fab1Kemeja1,
+				ProductID: prodKemeja1ID,
+				Name:      "Ripstop Cotton Premium",
+				BasePrice: 185000,
+				IsDefault: true,
 				Colors: []postgresRepo.FabricColorModel{
-					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Olive", HexCode: "#4b5320"},
-					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Navy", HexCode: "#1b263b"},
-					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Black", HexCode: "#000000"},
-					{ID: uuid.NewString(), FabricID: fab1Prod1, Name: "Khaki", HexCode: "#c2b280"},
+					{ID: uuid.NewString(), FabricID: fab1Kemeja1, Name: "Olive", HexCode: "#4b5320"},
+					{ID: uuid.NewString(), FabricID: fab1Kemeja1, Name: "Black", HexCode: "#000000"},
 				},
 			},
-			{
-				ID:              fab2Prod1,
-				ProductID:       prod1ID,
-				Name:            "Nagata Drill Premium",
-				Description:     "Tebal & kokoh, 260gsm",
-				Composition:     "100% Cotton",
-				CareInstruction: "Cuci mesin air dingin, setrika suhu sedang",
-				BasePrice:       200000,
-				PriceAdjustment: 15000,
-				IsDefault:       false,
-				Colors: []postgresRepo.FabricColorModel{
-					{ID: uuid.NewString(), FabricID: fab2Prod1, Name: "Black", HexCode: "#000000"},
-					{ID: uuid.NewString(), FabricID: fab2Prod1, Name: "Navy", HexCode: "#1b263b"},
-				},
-			},
-		},
-		Wholesale: []postgresRepo.WholesalePriceModel{
-			{ID: uuid.NewString(), ProductID: prod1ID, FabricID: &fab1Prod1, MinQty: 6, MaxQty: pointerInt(23), UnitPrice: 175000},
-			{ID: uuid.NewString(), ProductID: prod1ID, FabricID: &fab1Prod1, MinQty: 24, MaxQty: nil, UnitPrice: 165000},
 		},
 		DesignModel: &postgresRepo.DesignerModel{
 			ID:          dm1ID,
-			ProductID:   prod1ID,
-			Name:        "Series 1 — Lengan Panjang",
+			ProductID:   prodKemeja1ID,
+			Name:        "Kemeja Series 1 — Template Canvas",
 			Type:        "long_sleeve",
-			Description: "Template kemeja taktikal 2 saku flap",
+			Description: "Template mockup custom kemeja series 1",
 			Views: []postgresRepo.ProductModelViewModel{
-				{
-					ID:             uuid.NewString(),
-					ProductModelID: dm1ID,
-					Side:           "front",
-					ArtURL:         "/mockups/series1-front-long.png",
-					MaskURL:        "/mockups/series1-front-mask-long.png",
-					Width:          1756,
-					Height:         1920,
-				},
-				{
-					ID:             uuid.NewString(),
-					ProductModelID: dm1ID,
-					Side:           "back",
-					ArtURL:         "/mockups/series1-back-long.png",
-					MaskURL:        "/mockups/series1-back-mask-long.png",
-					Width:          1738,
-					Height:         1920,
-				},
+				{ID: uuid.NewString(), ProductModelID: dm1ID, Side: "front", ArtURL: s1FrontLong, MaskURL: maskFrontLong, Width: 1756, Height: 1920},
+				{ID: uuid.NewString(), ProductModelID: dm1ID, Side: "back", ArtURL: s1BackLong, MaskURL: maskBackLong, Width: 1738, Height: 1920},
+				{ID: uuid.NewString(), ProductModelID: dm1ID, Side: "front_short", ArtURL: s1FrontShort, MaskURL: maskFrontShort, Width: 1727, Height: 1920},
+				{ID: uuid.NewString(), ProductModelID: dm1ID, Side: "back_short", ArtURL: s1BackShort, MaskURL: maskBackShort, Width: 1708, Height: 1920},
 			},
 		},
 	}
 
-	product2 := postgresRepo.ProductModel{
-		ID:            prod2ID,
-		CategoryID:    cat.ID,
-		Name:          "Dummy Prod Kemeja PDL Lengan Pendek 5000",
-		Description:   "Kemeja taktikal lengan pendek, ringan & dingin untuk aktivitas lapangan",
-		BasePrice:     165000,
-		Slug:          "dummy-prod-kemeja-pdl-lengan-pendek-5000",
-		GSMInfo:       "190gsm",
+	// E. Produk Kemeja Series 2 (Lengkap Canvas Designer)
+	prodKemeja2ID := uuid.NewString()
+	dm2ID := uuid.NewString()
+	fab1Kemeja2 := uuid.NewString()
+
+	prodKemeja2 := postgresRepo.ProductModel{
+		ID:            prodKemeja2ID,
+		CategoryID:    catKemeja.ID,
+		Name:          "Dummy Prod Kemeja Series 2",
+		Description:   "Kemeja taktikal Series 2 dengan variasi saku & desain canvas baru.",
+		BasePrice:     190000,
+		Slug:          "dummy-prod-kemeja-series-2",
+		GSMInfo:       "220gsm",
 		FabricSummary: "American Drill",
 		Rating:        4.8,
-		SoldCount:     760,
-		ReviewCount:   180,
-		KeyFeatures:   `["Bahan halus & dingin", "Jahitan double stitch", "Tahan cuci berulang"]`,
+		SoldCount:     950,
+		ReviewCount:   220,
 		Images: []postgresRepo.ProductImageModel{
-			{ID: uuid.NewString(), ProductID: prod2ID, ImageURL: "https://raw.githubusercontent.com/faridlan/assets/main/mockups/series1-front-short.png", IsPrimary: true},
+			{ID: uuid.NewString(), ProductID: prodKemeja2ID, ImageURL: imgKemejaURL, IsPrimary: true},
 		},
 		Fabrics: []postgresRepo.ProductFabricModel{
 			{
-				ID:              fab1Prod2,
-				ProductID:       prod2ID,
-				Name:            "American Drill",
-				Description:     "Halus & nyaman, 230gsm",
-				Composition:     "80% Cotton / 20% Polyester",
-				CareInstruction: "Cuci mesin air dingin",
-				BasePrice:       165000,
-				PriceAdjustment: 0,
-				IsDefault:       true,
+				ID:        fab1Kemeja2,
+				ProductID: prodKemeja2ID,
+				Name:      "American Drill High",
+				BasePrice: 190000,
+				IsDefault: true,
 				Colors: []postgresRepo.FabricColorModel{
-					{ID: uuid.NewString(), FabricID: fab1Prod2, Name: "Olive", HexCode: "#4b5320"},
-					{ID: uuid.NewString(), FabricID: fab1Prod2, Name: "Black", HexCode: "#000000"},
+					{ID: uuid.NewString(), FabricID: fab1Kemeja2, Name: "Navy", HexCode: "#1b263b"},
+					{ID: uuid.NewString(), FabricID: fab1Kemeja2, Name: "Khaki", HexCode: "#c2b280"},
 				},
 			},
 		},
-		Wholesale: []postgresRepo.WholesalePriceModel{
-			{ID: uuid.NewString(), ProductID: prod2ID, FabricID: nil, MinQty: 12, MaxQty: nil, UnitPrice: 155000},
-		},
 		DesignModel: &postgresRepo.DesignerModel{
 			ID:          dm2ID,
-			ProductID:   prod2ID,
-			Name:        "Series 1 — Lengan Pendek",
-			Type:        "short_sleeve",
-			Description: "Template kemeja taktikal lengan pendek",
+			ProductID:   prodKemeja2ID,
+			Name:        "Kemeja Series 2 — Template Canvas",
+			Type:        "long_sleeve",
+			Description: "Template mockup custom kemeja series 2",
 			Views: []postgresRepo.ProductModelViewModel{
-				{
-					ID:             uuid.NewString(),
-					ProductModelID: dm2ID,
-					Side:           "front",
-					ArtURL:         "/mockups/series1-front-short.png",
-					MaskURL:        "/mockups/series1-front-mask-short.png",
-					Width:          1727,
-					Height:         1920,
-				},
-				{
-					ID:             uuid.NewString(),
-					ProductModelID: dm2ID,
-					Side:           "back",
-					ArtURL:         "/mockups/series1-back-short.png",
-					MaskURL:        "/mockups/series1-back-mask-short.png",
-					Width:          1708,
-					Height:         1920,
-				},
+				{ID: uuid.NewString(), ProductModelID: dm2ID, Side: "front", ArtURL: s2FrontLong, MaskURL: maskFrontLong, Width: 1756, Height: 1920},
+				{ID: uuid.NewString(), ProductModelID: dm2ID, Side: "back", ArtURL: s2BackLong, MaskURL: maskBackLong, Width: 1738, Height: 1920},
+				{ID: uuid.NewString(), ProductModelID: dm2ID, Side: "front_short", ArtURL: s2FrontShort, MaskURL: maskFrontShort, Width: 1727, Height: 1920},
+				{ID: uuid.NewString(), ProductModelID: dm2ID, Side: "back_short", ArtURL: s2BackShort, MaskURL: maskBackShort, Width: 1708, Height: 1920},
 			},
 		},
 	}
 
-	h.db.Create(&product1)
-	h.db.Create(&product2)
-	products := []postgresRepo.ProductModel{product1, product2}
+	// Simpan Semua Produk Ke Database
+	h.db.Create(&prodRompi)
+	h.db.Create(&prodCelana)
+	h.db.Create(&prodPolo)
+	h.db.Create(&prodKemeja1)
+	h.db.Create(&prodKemeja2)
 
-	// D. Buat Customers dan distribusikan secara ADIL (Round-Robin)
+	products := []postgresRepo.ProductModel{prodRompi, prodCelana, prodPolo, prodKemeja1, prodKemeja2}
+
+	// --- 5. SETUP CUSTOMERS (Round-Robin Sales) ---
 	var customers []postgresRepo.CustomerModel
 	customerNames := []string{"Dummy Cust PT A", "Dummy Cust PT B", "Dummy Cust Personal C", "Dummy Cust CV D", "Dummy Cust Personal E", "Dummy Cust CV F"}
 
@@ -332,7 +462,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		customers = append(customers, cust)
 	}
 
-	// E. Buat Kategori Pengeluaran
+	// --- 6. SETUP EXPENSE CATEGORIES ---
 	expenseCats := []postgresRepo.ExpenseCategoryModel{
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Belanja Kain & Benang", Type: "hpp"},
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Ongkos Jahit (CMT)", Type: "hpp"},
@@ -343,7 +473,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		h.db.Create(&ec)
 	}
 
-	// --- 2. SETUP BATCH PO ---
+	// --- 7. SETUP BATCH PO ---
 	poSchedules := []struct {
 		Name   string
 		Month  int
@@ -379,7 +509,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		batchPOs = append(batchPOs, po)
 	}
 
-	// --- 3. LOOPING TRANSAKSI HARIAN ---
+	// --- 8. LOOPING TRANSAKSI HARIAN ---
 	startDate, _ := time.Parse("2006-01-02", "2026-06-27")
 	endDate, _ := time.Parse("2006-01-02", "2026-08-03")
 
@@ -500,12 +630,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		}
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder secara lengkap (Admin, Sales, Products, Fabrics, Designer Models, Orders, Payments, & Expenses)!", fiber.Map{
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder lengkap dengan Upload Gambar Produk & Canvas Mockup!", fiber.Map{
 		"total_orders_generated":   orderCounter - 1,
 		"total_expenses_generated": expenseCounter,
 	})
-}
-
-func pointerInt(v int) *int {
-	return &v
 }
