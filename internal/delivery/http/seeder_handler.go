@@ -61,10 +61,69 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	// --- 1. SETUP MASTER DATA ---
 
+	// A. User Admin Dummy
+	adminDummy := postgresRepo.UserModel{
+		ID:         uuid.NewString(),
+		Name:       "Super Admin (Dummy)",
+		Email:      "admin_dummy@sikon.com",
+		Password:   "password123",
+		Role:       "admin",
+		Phone:      "6281100000000",
+		StatusText: "Online sekarang",
+		IsActive:   true,
+		SortOrder:  0,
+	}
+	var existingAdmin postgresRepo.UserModel
+	if err := h.db.Where("email = ?", adminDummy.Email).First(&existingAdmin).Error; err != nil {
+		h.db.Create(&adminDummy)
+	}
+
+	// B. User Sales Dummies (Disertai No WhatsApp & Status)
 	salesDummies := []postgresRepo.UserModel{
-		{ID: uuid.NewString(), Name: "Budi (Sales Dummy)", Email: "budi_dummy@sikon.com", Password: "password123", Role: "sales"},
-		{ID: uuid.NewString(), Name: "Andi (Sales Dummy)", Email: "andi_dummy@sikon.com", Password: "password123", Role: "sales"},
-		{ID: uuid.NewString(), Name: "Cici (Sales Dummy)", Email: "cici_dummy@sikon.com", Password: "password123", Role: "sales"},
+		{
+			ID:         uuid.NewString(),
+			Name:       "Rina Pratiwi (Sales Dummy)",
+			Email:      "rina_dummy@sikon.com",
+			Password:   "password123",
+			Role:       "sales",
+			Phone:      "6281200000001",
+			StatusText: "Online sekarang",
+			IsActive:   true,
+			SortOrder:  1,
+		},
+		{
+			ID:         uuid.NewString(),
+			Name:       "Dimas Aditya (Sales Dummy)",
+			Email:      "dimas_dummy@sikon.com",
+			Password:   "password123",
+			Role:       "sales",
+			Phone:      "6281200000002",
+			StatusText: "Online sekarang",
+			IsActive:   true,
+			SortOrder:  2,
+		},
+		{
+			ID:         uuid.NewString(),
+			Name:       "Sari Lestari (Sales Dummy)",
+			Email:      "sari_dummy@sikon.com",
+			Password:   "password123",
+			Role:       "sales",
+			Phone:      "6281200000003",
+			StatusText: "Balas dalam 1 jam",
+			IsActive:   true,
+			SortOrder:  3,
+		},
+		{
+			ID:         uuid.NewString(),
+			Name:       "Bagus Setiawan (Sales Dummy)",
+			Email:      "bagus_dummy@sikon.com",
+			Password:   "password123",
+			Role:       "sales",
+			Phone:      "6281200000004",
+			StatusText: "Online sekarang",
+			IsActive:   true,
+			SortOrder:  4,
+		},
 	}
 
 	var activeSalesIDs []string
@@ -441,7 +500,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		}
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder secara lengkap (Products, Fabrics, Designer Models, Orders, Payments, & Expenses)!", fiber.Map{
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder secara lengkap (Admin, Sales, Products, Fabrics, Designer Models, Orders, Payments, & Expenses)!", fiber.Map{
 		"total_orders_generated":   orderCounter - 1,
 		"total_expenses_generated": expenseCounter,
 	})

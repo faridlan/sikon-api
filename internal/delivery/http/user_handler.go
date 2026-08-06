@@ -12,6 +12,7 @@ type UserHandler interface {
 	Register(c *fiber.Ctx) error
 	GetProfile(c *fiber.Ctx) error
 	ListUsers(c *fiber.Ctx) error
+	GetPublicSalesList(c *fiber.Ctx) error
 	UpdateUser(c *fiber.Ctx) error
 	DeleteUser(c *fiber.Ctx) error
 }
@@ -20,8 +21,7 @@ type userHandler struct {
 	userUsecase domain.UserUsecase
 }
 
-// Constructor kini hanya mengembalikan instance handler tanpa menerima router
-func NewUserHandler(uu domain.UserUsecase) *userHandler {
+func NewUserHandler(uu domain.UserUsecase) UserHandler {
 	return &userHandler{
 		userUsecase: uu,
 	}
@@ -49,12 +49,21 @@ func (h *userHandler) Register(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+
 	domainReq := domain.UserRegisterInput{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: req.Password,
-		Role:     domain.Role(req.Role),
-		ImageURL: req.ImageURL,
+		Name:       req.Name,
+		Email:      req.Email,
+		Password:   req.Password,
+		Role:       domain.Role(req.Role),
+		ImageURL:   req.ImageURL,
+		Phone:      req.Phone,
+		StatusText: req.StatusText,
+		IsActive:   isActive,
+		SortOrder:  req.SortOrder,
 	}
 
 	user, err := h.userUsecase.Register(c.Context(), domainReq)
@@ -122,8 +131,24 @@ func (h *userHandler) ListUsers(c *fiber.Ctx) error {
 	return utils.SendSuccessPaginated(c, "Berhasil mengambil daftar user", dto.ToUserResponseList(users), meta)
 }
 
+// @Summary Get Public Sales Marketing Directory
+// @Description Mengambil daftar tim marketing aktif untuk landing page / widget WhatsApp
+// @Tags Public
+// @Produce json
+// @Success 200 {object} utils.SuccessResponse[[]dto.PublicSalesResponse]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /users/public/sales [get]
+func (h *userHandler) GetPublicSalesList(c *fiber.Ctx) error {
+	salesList, err := h.userUsecase.GetPublicSalesList(c.Context())
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil daftar tim marketing", dto.ToPublicSalesResponseList(salesList))
+}
+
 // @Summary Update User
-// @Description Memperbarui nama atau role dari user
+// @Description Memperbarui nama, role, foto, atau informasi WhatsApp marketing dari user
 // @Tags Users
 // @Accept json
 // @Produce json
@@ -150,9 +175,13 @@ func (h *userHandler) UpdateUser(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.UserUpdateInput{
-		Name:     req.Name,
-		Role:     domain.Role(req.Role),
-		ImageURL: req.ImageURL,
+		Name:       req.Name,
+		Role:       domain.Role(req.Role),
+		ImageURL:   req.ImageURL,
+		Phone:      req.Phone,
+		StatusText: req.StatusText,
+		IsActive:   req.IsActive,
+		SortOrder:  req.SortOrder,
 	}
 
 	user, err := h.userUsecase.UpdateUser(c.Context(), id, domainReq)

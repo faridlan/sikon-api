@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors" // Tambahan import
+	"errors"
 	"math"
 	"time"
 
@@ -17,7 +17,6 @@ type userUsecase struct {
 	contextTimeout time.Duration
 }
 
-// NewUserUsecase adalah constructor
 func NewUserUsecase(ur domain.UserRepository, ss domain.StorageService, tm domain.TransactionManager, timeout time.Duration) domain.UserUsecase {
 	return &userUsecase{
 		userRepo:       ur,
@@ -31,7 +30,7 @@ func (u *userUsecase) Register(c context.Context, input domain.UserRegisterInput
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	_, err := u.userRepo.GetByEmail(ctx, input.Email) // Cek dulu apakah email sudah terdaftar
+	_, err := u.userRepo.GetByEmail(ctx, input.Email)
 	if err == nil {
 		return nil, domain.NewError(domain.ErrConflict, "Email sudah terdaftar")
 	}
@@ -45,12 +44,21 @@ func (u *userUsecase) Register(c context.Context, input domain.UserRegisterInput
 		return nil, domain.NewError(domain.ErrInternalServerError, "Gagal memproses password")
 	}
 
+	statusText := input.StatusText
+	if statusText == "" {
+		statusText = "Online sekarang"
+	}
+
 	user := &domain.User{
-		Name:     input.Name,
-		Email:    input.Email,
-		Password: string(hashedPassword),
-		Role:     input.Role,
-		ImageURL: input.ImageURL,
+		Name:       input.Name,
+		Email:      input.Email,
+		Password:   string(hashedPassword),
+		Role:       input.Role,
+		ImageURL:   input.ImageURL,
+		Phone:      input.Phone,
+		StatusText: statusText,
+		IsActive:   input.IsActive,
+		SortOrder:  input.SortOrder,
 	}
 
 	if err := u.userRepo.Create(ctx, user); err != nil {
@@ -66,7 +74,6 @@ func (u *userUsecase) GetProfile(c context.Context, userID string) (*domain.User
 
 	user, err := u.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		// PENAMBAHAN IF STATEMENT
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.NewError(domain.ErrNotFound, "User tidak ditemukan")
 		}
@@ -100,13 +107,25 @@ func (u *userUsecase) ListUsers(c context.Context, query domain.PaginationQuery,
 	return users, meta, nil
 }
 
+// GetPublicSalesList melayani request publik tanpa autentikasi untuk widget WhatsApp Sales
+func (u *userUsecase) GetPublicSalesList(c context.Context) ([]domain.User, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	users, err := u.userRepo.GetPublicSalesList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
 func (u *userUsecase) UpdateUser(c context.Context, id string, input domain.UserUpdateInput) (*domain.User, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
 	existingUser, err := u.userRepo.GetByID(ctx, id)
 	if err != nil {
-		// PENAMBAHAN IF STATEMENT
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.NewError(domain.ErrNotFound, "User tidak ditemukan")
 		}
@@ -116,19 +135,28 @@ func (u *userUsecase) UpdateUser(c context.Context, id string, input domain.User
 	if input.Name != "" {
 		existingUser.Name = input.Name
 	}
-
 	if input.Role != "" {
 		existingUser.Role = input.Role
 	}
+	if input.Phone != "" {
+		existingUser.Phone = input.Phone
+	}
+	if input.StatusText != "" {
+		existingUser.StatusText = input.StatusText
+	}
+	if input.IsActive != nil {
+		existingUser.IsActive = *input.IsActive
+	}
+	if input.SortOrder != nil {
+		existingUser.SortOrder = *input.SortOrder
+	}
 
 	oldImageURL := existingUser.ImageURL
-
 	if input.ImageURL != "" {
 		existingUser.ImageURL = input.ImageURL
 	}
 
 	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
-		// Update user di dalam transaksi
 		if err := u.userRepo.Update(txCtx, existingUser); err != nil {
 			return err
 		}
@@ -140,11 +168,7 @@ func (u *userUsecase) UpdateUser(c context.Context, id string, input domain.User
 	}
 
 	if input.ImageURL != "" && oldImageURL != "" && oldImageURL != input.ImageURL {
-		// Hapus file lama dari storage
-		if err := u.storageService.DeleteFile(ctx, oldImageURL); err != nil {
-			// Opsional: Log error di sini agar tidak menggagalkan response user jika transaksi DB sudah sukses
-			return nil, domain.NewError(domain.ErrInternalServerError, "Gagal menghapus file lama dari storage")
-		}
+		_ = u.storageService.DeleteFile(ctx, oldImageURL)
 	}
 
 	return existingUser, nil
@@ -154,7 +178,6 @@ func (u *userUsecase) DeleteUser(c context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// 1. Tangkap data user ke variabel existingUser
 	existingUser, err := u.userRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
@@ -163,20 +186,13 @@ func (u *userUsecase) DeleteUser(c context.Context, id string) error {
 		return err
 	}
 
-	// 2. Hapus data user dari database terlebih dahulu
 	err = u.userRepo.Delete(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	// 3. Cek apakah user memiliki file gambar, jika ada baru hapus dari storage
 	if existingUser.ImageURL != "" {
-		// Gunakan existingUser.ImageURL, BUKAN id user
-		if err := u.storageService.DeleteFile(ctx, existingUser.ImageURL); err != nil {
-			// Opsional: Kamu bisa memilih untuk mengembalikan error, atau hanya me-log error ini
-			// agar user tetap terhapus walaupun file lamanya gagal dibersihkan.
-			return domain.NewError(domain.ErrInternalServerError, "Gagal menghapus file gambar dari storage")
-		}
+		_ = u.storageService.DeleteFile(ctx, existingUser.ImageURL)
 	}
 
 	return nil

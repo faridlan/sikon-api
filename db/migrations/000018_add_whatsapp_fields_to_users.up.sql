@@ -1,0 +1,7 @@
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS phone VARCHAR(50),
+ADD COLUMN IF NOT EXISTS status_text VARCHAR(100) DEFAULT 'Online sekarang',
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_users_role_is_active ON users (role, is_active);
