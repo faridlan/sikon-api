@@ -3359,6 +3359,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/public/sales": {
+            "get": {
+                "description": "Mengambil daftar tim marketing aktif untuk landing page / widget WhatsApp",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Get Public Sales Marketing Directory",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PublicSalesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users/register": {
             "post": {
                 "description": "Mendaftarkan pengguna baru (Admin/Sales) ke dalam sistem SIKOn",
@@ -3458,7 +3484,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Memperbarui nama atau role dari user",
+                "description": "Memperbarui nama, role, foto, atau informasi WhatsApp marketing dari user",
                 "consumes": [
                     "application/json"
                 ],
@@ -5344,6 +5370,29 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.PublicSalesResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "status_text": {
+                    "type": "string"
+                },
+                "whatsapp_url": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.ReceivableDetailResponse": {
             "type": "object",
             "properties": {
@@ -5487,6 +5536,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/image.jpg"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string",
                     "example": "Budi Haryanto"
@@ -5496,6 +5548,10 @@ const docTemplate = `{
                     "minLength": 6,
                     "example": "rahasia123"
                 },
+                "phone": {
+                    "type": "string",
+                    "example": "6281200000001"
+                },
                 "role": {
                     "type": "string",
                     "enum": [
@@ -5503,6 +5559,13 @@ const docTemplate = `{
                         "sales"
                     ],
                     "example": "sales"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status_text": {
+                    "type": "string",
+                    "example": "Online sekarang"
                 }
             }
         },
@@ -5510,32 +5573,37 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string",
-                    "example": "2023-10-01T15:00:00Z"
+                    "type": "string"
                 },
                 "email": {
-                    "type": "string",
-                    "example": "budi@sikon.com"
+                    "type": "string"
                 },
                 "id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                    "type": "string"
                 },
                 "image_url": {
-                    "type": "string",
-                    "example": "https://example.com/image.jpg"
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
                 },
                 "name": {
-                    "type": "string",
-                    "example": "Budi Haryanto"
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
                 },
                 "role": {
-                    "type": "string",
-                    "example": "sales"
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status_text": {
+                    "type": "string"
                 },
                 "updated_at": {
-                    "type": "string",
-                    "example": "2023-10-01T15:00:00Z"
+                    "type": "string"
                 }
             }
         },
@@ -5543,12 +5611,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "image_url": {
-                    "type": "string",
-                    "example": "https://example.com/image_updated.jpg"
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string",
                     "example": "Budi Haryanto Update"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "6281200000001"
                 },
                 "role": {
                     "type": "string",
@@ -5557,6 +5631,13 @@ const docTemplate = `{
                         "sales"
                     ],
                     "example": "admin"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status_text": {
+                    "type": "string",
+                    "example": "Online sekarang"
                 }
             }
         },
@@ -5865,6 +5946,20 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PaymentResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PublicSalesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PublicSalesResponse"
                     }
                 },
                 "message": {

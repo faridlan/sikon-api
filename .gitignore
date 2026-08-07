@@ -33,3 +33,5 @@ Thumbs.db
 
 # Database Data (Just in case you map a local volume for Postgres later)
 /postgres-data/
+
+assets

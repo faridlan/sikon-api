@@ -121,7 +121,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		BatchPOHandler:      myHttp.NewBatchPOHandler(batchPOUsecase),
 		UploadHandler:       myHttp.NewUploadHandler(uploadUsecase),
 		ExpenseHandler:      myHttp.NewExpenseHandler(expenseUsecase),
-		SeederHandler:       myHttp.NewSeederHandler(db),
+		SeederHandler:       myHttp.NewSeederHandler(db, storageService),
 	}
 
 	app := fiber.New()
