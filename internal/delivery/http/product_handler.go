@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"strconv"
@@ -38,6 +38,8 @@ func NewProductHandler(pu domain.ProductUsecase) ProductHandler {
 // @Success 201 {object} utils.SuccessResponse[dto.ProductResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /products [post]
 func (h *productHandler) CreateProduct(c *fiber.Ctx) error {
 	var req dto.ProductCreateRequest
@@ -69,6 +71,8 @@ func (h *productHandler) CreateProduct(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /products/{id} [get]
 func (h *productHandler) GetProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -121,6 +125,8 @@ func (h *productHandler) GetProductBySlug(c *fiber.Ctx) error {
 // @Param sort_by query string false "Urutan Data (popular, price_low, price_high, newest)"
 // @Success 200 {object} utils.PaginatedResponse[dto.ProductResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /products [get]
 func (h *productHandler) ListProducts(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
@@ -158,6 +164,8 @@ func (h *productHandler) ListProducts(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /products/{id} [put]
 func (h *productHandler) UpdateProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -192,6 +200,8 @@ func (h *productHandler) UpdateProduct(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /products/{id} [delete]
 func (h *productHandler) DeleteProduct(c *fiber.Ctx) error {
 	id := c.Params("id")

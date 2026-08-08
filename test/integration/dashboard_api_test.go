@@ -3,7 +3,6 @@ package integration_test
 import (
 	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -54,7 +54,7 @@ func TestGetDashboardSummary_Integration(t *testing.T) {
 	*/
 
 	t.Run("Success_Get_All_Time_Summary", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/dashboard/summary", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/dashboard/summary", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -81,7 +81,7 @@ func TestGetDashboardSummary_Integration(t *testing.T) {
 		todayStr := time.Now().Format("2006-01-02")
 		url := "/api/dashboard/summary?start_date=" + todayStr + "&end_date=" + todayStr
 
-		req := httptest.NewRequest("GET", url, nil)
+		req := tests.AuthenticatedRequest("GET", url, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -103,7 +103,7 @@ func TestGetDashboardSummary_Integration(t *testing.T) {
 		// Menguji filter dengan rentang tanggal di mana TIDAK ADA transaksi (Misal tahun 2000)
 		url := "/api/dashboard/summary?start_date=2000-01-01&end_date=2000-12-31"
 
-		req := httptest.NewRequest("GET", url, nil)
+		req := tests.AuthenticatedRequest("GET", url, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -155,7 +155,7 @@ func TestGetSalesReport_Integration(t *testing.T) {
 	*/
 
 	t.Run("Success_Get_Report_No_Filter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/dashboard/sales-report", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/dashboard/sales-report", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -181,7 +181,7 @@ func TestGetSalesReport_Integration(t *testing.T) {
 		// Filter menggunakan tanggal tahun 2000 di mana tidak ada data yang di-seed
 		url := "/api/dashboard/sales-report?start_date=2000-01-01&end_date=2000-01-31"
 
-		req := httptest.NewRequest("GET", url, nil)
+		req := tests.AuthenticatedRequest("GET", url, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -235,7 +235,7 @@ func TestGetReceivablesReport_Integration(t *testing.T) {
 	// Biarpun unpaid, order batal tidak ditagih lagi.
 
 	t.Run("Success_Get_Receivables_Report", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/dashboard/receivables-report", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/dashboard/receivables-report", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)

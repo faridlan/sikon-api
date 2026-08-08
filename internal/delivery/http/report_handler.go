@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"time"
@@ -34,6 +34,7 @@ func NewReportHandler(ru domain.ReportUsecase) ReportHandler {
 // @Param start_date query string false "Tanggal Awal (Format: YYYY-MM-DD)"
 // @Param end_date query string false "Tanggal Akhir (Format: YYYY-MM-DD)"
 // @Success 200 {object} utils.SuccessResponse[dto.AccountingReportResponse]
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /reports/accounting [get]
 func (h *reportHandler) GetAccountingReport(c *fiber.Ctx) error {
 	now := time.Now()
@@ -75,6 +76,7 @@ func (h *reportHandler) GetAccountingReport(c *fiber.Ctx) error {
 // @Param month query int false "Bulan Target PO (1-12) - Default: Bulan saat ini"
 // @Param year query int false "Tahun Target PO - Default: Tahun saat ini"
 // @Success 200 {object} utils.SuccessResponse[dto.ProductionReportResponse]
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /reports/production [get]
 func (h *reportHandler) GetProductionReport(c *fiber.Ctx) error {
 	now := time.Now()
@@ -98,6 +100,7 @@ func (h *reportHandler) GetProductionReport(c *fiber.Ctx) error {
 // @Param po_id path string true "ID dari Batch PO"
 // @Success 200 {object} utils.SuccessResponse[dto.POSummaryResponse]
 // @Failure 400,404,500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /reports/po/{po_id}/summary [get]
 func (h *reportHandler) GetPOSummaryReport(c *fiber.Ctx) error {
 	poID := c.Params("po_id")
@@ -120,6 +123,7 @@ func (h *reportHandler) GetPOSummaryReport(c *fiber.Ctx) error {
 // @Param sort_by query string false "Urutkan data (amount_desc, amount_asc, date_asc, date_desc)"
 // @Success 200 {object} utils.SuccessResponse[[]dto.ReceivableDetailResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /reports/receivables [get]
 func (h *reportHandler) GetReceivablesReport(c *fiber.Ctx) error {
 	filter := domain.ReceivablesFilter{
@@ -149,6 +153,7 @@ func (h *reportHandler) GetReceivablesReport(c *fiber.Ctx) error {
 // @Param date query string false "Tanggal Laporan (Format: YYYY-MM-DD) - Default: Hari ini"
 // @Success 200 {object} utils.SuccessResponse[dto.DailyReportResponse]
 // @Failure 400,500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /reports/daily [get]
 func (h *reportHandler) GetDailyReport(c *fiber.Ctx) error {
 	dateStr := c.Query("date")

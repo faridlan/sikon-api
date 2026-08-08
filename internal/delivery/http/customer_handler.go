@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -36,6 +36,7 @@ func NewCustomerHandler(cu domain.CustomerUsecase) CustomerHandler {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 401 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Security BearerAuth
 // @Router /customers [post]
 func (h *customerHandler) CreateCustomer(c *fiber.Ctx) error {
 	var req dto.CustomerCreateRequest
@@ -76,6 +77,7 @@ func (h *customerHandler) CreateCustomer(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Security BearerAuth
 // @Router /customers/{id} [get]
 func (h *customerHandler) GetCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -106,6 +108,7 @@ func (h *customerHandler) GetCustomer(c *fiber.Ctx) error {
 // @Success 200 {object} utils.PaginatedResponse[dto.CustomerResponse]
 // @Failure 401 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Security BearerAuth
 // @Router /customers [get]
 func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
@@ -142,6 +145,7 @@ func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Security BearerAuth
 // @Router /customers/{id} [put]
 func (h *customerHandler) UpdateCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -182,6 +186,7 @@ func (h *customerHandler) UpdateCustomer(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse
 // @Failure 403 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Security BearerAuth
 // @Router /customers/{id} [delete]
 func (h *customerHandler) DeleteCustomer(c *fiber.Ctx) error {
 	id := c.Params("id")

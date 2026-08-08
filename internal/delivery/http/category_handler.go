@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -35,6 +35,8 @@ func NewCategoryHandler(cu domain.CategoryUsecase) CategoryHandler {
 // @Success 201 {object} utils.SuccessResponse[dto.CategoryResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /categories [post]
 func (h *categoryHandler) CreateCategory(c *fiber.Ctx) error {
 	var req dto.CategoryRequest
@@ -69,6 +71,8 @@ func (h *categoryHandler) CreateCategory(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /categories/{id} [get]
 func (h *categoryHandler) GetCategory(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -92,6 +96,8 @@ func (h *categoryHandler) GetCategory(c *fiber.Ctx) error {
 // @Param limit query int false "Batas Data per Halaman" default(10)
 // @Success 200 {object} utils.PaginatedResponse[dto.CategoryResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /categories [get]
 func (h *categoryHandler) ListCategories(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
@@ -121,6 +127,8 @@ func (h *categoryHandler) ListCategories(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /categories/{id} [put]
 func (h *categoryHandler) UpdateCategory(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -158,6 +166,8 @@ func (h *categoryHandler) UpdateCategory(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /categories/{id} [delete]
 func (h *categoryHandler) DeleteCategory(c *fiber.Ctx) error {
 	id := c.Params("id")

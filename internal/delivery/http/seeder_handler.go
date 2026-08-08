@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"bytes"
@@ -106,6 +106,8 @@ func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath strin
 
 // @Summary Hapus Semua Data Seeder
 // @Tags Seeder
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /seeder/clear [post]
 func (h *seederHandler) Clear(c *fiber.Ctx) error {
 	// Hapus Relasi Produk
@@ -134,6 +136,8 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 
 // @Summary Generate Data Testing Realistis
 // @Tags Seeder
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /seeder/generate [post]
 func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	ctx := c.Context()
@@ -208,6 +212,17 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			StatusText: "Online sekarang",
 			IsActive:   true,
 			SortOrder:  4,
+		},
+		{
+			ID:         uuid.NewString(),
+			Name:       "Jonathan (Accounting Dummy)",
+			Email:      "jonathan_dummy@sikon.com",
+			Password:   string(hashedPassword),
+			Role:       string(domain.RoleAccounting),
+			Phone:      "6281200000004",
+			StatusText: "Online sekarang",
+			IsActive:   true,
+			SortOrder:  5,
 		},
 	}
 
@@ -382,7 +397,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		DesignModel: &postgresRepo.DesignerModel{
 			ID:          dm1ID,
 			ProductID:   prodKemeja1ID,
-			Name:        "Kemeja Series 1 — Template Canvas",
+			Name:        "Kemeja Series 1 â€” Template Canvas",
 			Type:        "long_sleeve",
 			Description: "Template mockup custom kemeja series 1",
 			Views: []postgresRepo.ProductModelViewModel{
@@ -430,7 +445,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		DesignModel: &postgresRepo.DesignerModel{
 			ID:          dm2ID,
 			ProductID:   prodKemeja2ID,
-			Name:        "Kemeja Series 2 — Template Canvas",
+			Name:        "Kemeja Series 2 â€” Template Canvas",
 			Type:        "long_sleeve",
 			Description: "Template mockup custom kemeja series 2",
 			Views: []postgresRepo.ProductModelViewModel{

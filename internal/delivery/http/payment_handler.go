@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -39,6 +39,8 @@ func NewPaymentHandler(pu domain.PaymentUsecase) PaymentHandler {
 // @Failure 404 {object} utils.ErrorResponse "Order atau Bank tidak ditemukan"
 // @Failure 409 {object} utils.ErrorResponse "Pesanan sudah lunas sepenuhnya"
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /payments [post]
 func (h *paymentHandler) ProcessPayment(c *fiber.Ctx) error {
 	var req dto.PaymentCreateRequest
@@ -75,6 +77,8 @@ func (h *paymentHandler) ProcessPayment(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /payments/{id} [get]
 func (h *paymentHandler) GetPayment(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -103,6 +107,8 @@ func (h *paymentHandler) GetPayment(c *fiber.Ctx) error {
 // @Param end_date query string false "Tanggal Akhir Pembayaran (YYYY-MM-DD)"
 // @Success 200 {object} utils.PaginatedResponse[dto.PaymentResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /payments [get]
 func (h *paymentHandler) ListPayments(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
@@ -137,6 +143,8 @@ func (h *paymentHandler) ListPayments(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /payments/{id} [put]
 func (h *paymentHandler) UpdatePayment(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -176,6 +184,8 @@ func (h *paymentHandler) UpdatePayment(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /payments/{id}/verify [patch]
 func (h *paymentHandler) VerifyPayment(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -222,6 +232,8 @@ func (h *paymentHandler) VerifyPayment(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /payments/{id} [delete]
 func (h *paymentHandler) DeletePayment(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -245,6 +257,8 @@ func (h *paymentHandler) DeletePayment(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /payments/order/{order_id} [get]
 func (h *paymentHandler) GetPaymentsByOrderID(c *fiber.Ctx) error {
 	orderID := c.Params("order_id")

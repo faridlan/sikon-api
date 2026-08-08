@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -43,6 +43,7 @@ func NewOrderHandler(ou domain.OrderUsecase) OrderHandler {
 // @Failure 400 {object} utils.ErrorResponse "Data input tidak valid (misal: format UUID salah)"
 // @Failure 404 {object} utils.ErrorResponse "Customer, Sales, atau Produk tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders [post]
 func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -95,6 +96,7 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse "Format UUID tidak valid"
 // @Failure 404 {object} utils.ErrorResponse "Data pesanan tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id} [get]
 func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -127,6 +129,7 @@ func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 // @Param end_date query string false "Tanggal Selesai Pembuatan (Format: YYYY-MM-DD)"
 // @Success 200 {object} utils.PaginatedResponse[dto.OrderResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders [get]
 func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -165,6 +168,7 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id} [put]
 func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -211,6 +215,7 @@ func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.ErrorResponse "Order tidak ditemukan"
 // @Failure 409 {object} utils.ErrorResponse "Transisi status ditolak oleh State Machine"
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/status [patch]
 func (h *orderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -247,6 +252,7 @@ func (h *orderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id} [delete]
 func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -274,6 +280,7 @@ func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/payment-status [patch]
 func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -312,6 +319,7 @@ func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/items [post]
 func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -357,6 +365,7 @@ func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/items/{itemId} [put]
 func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)
@@ -398,6 +407,7 @@ func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/items/{itemId} [delete]
 func (h *orderHandler) DeleteOrderItem(c *fiber.Ctx) error {
 	// ... (Isi fungsi tetap sama)

@@ -78,6 +78,10 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	productsPublic.Get("/slug/:slug", handlers.ProductHandler.GetProductBySlug)
 	productsPublic.Get("/:id", handlers.ProductHandler.GetProduct)
 
+	seederGroup := api.Group("/seeder")
+	seederGroup.Post("/generate", handlers.SeederHandler.Generate)
+	seederGroup.Post("/clear", handlers.SeederHandler.Clear)
+
 	// =========================================================================
 	// PROTECTED ROUTES (Membutuhkan JWT Token)
 	// =========================================================================
@@ -191,7 +195,4 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	uploads := protected.Group("/uploads")
 	uploads.Post("/image", guardInternal, handlers.UploadHandler.UploadImage)
 
-	seederGroup := protected.Group("/seeder")
-	seederGroup.Post("/generate", guardOwner, handlers.SeederHandler.Generate)
-	seederGroup.Post("/clear", guardOwner, handlers.SeederHandler.Clear)
 }

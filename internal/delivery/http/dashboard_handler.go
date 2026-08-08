@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -33,6 +33,7 @@ func NewDashboardHandler(du domain.DashboardUsecase) DashboardHandler {
 // @Param end_date query string false "Filter Tanggal Akhir (Format: YYYY-MM-DD)"
 // @Success 200 {object} utils.SuccessResponse[dto.DashboardSummaryResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /dashboard/summary [get]
 func (h *dashboardHandler) GetSummary(c *fiber.Ctx) error {
 	// Tangkap query param dari URL (otomatis kosong jika tidak dikirim)
@@ -58,6 +59,7 @@ func (h *dashboardHandler) GetSummary(c *fiber.Ctx) error {
 // @Param end_date query string false "Filter Tanggal Akhir (Format: YYYY-MM-DD)"
 // @Success 200 {object} utils.SuccessResponse[[]dto.SalesReportItemResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /dashboard/sales-report [get]
 func (h *dashboardHandler) GetSalesReport(c *fiber.Ctx) error {
 	filter := domain.DashboardFilter{
@@ -82,6 +84,7 @@ func (h *dashboardHandler) GetSalesReport(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Success 200 {object} utils.SuccessResponse[[]dto.ReceivableReportItemResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /dashboard/receivables-report [get]
 func (h *dashboardHandler) GetReceivablesReport(c *fiber.Ctx) error {
 	report, err := h.dashboardUsecase.GetReceivablesReport(c.Context())

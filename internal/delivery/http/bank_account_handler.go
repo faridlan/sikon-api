@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -37,6 +37,8 @@ func NewBankAccountHandler(bu domain.BankAccountUsecase) BankAccountHandler {
 // @Success 201 {object} utils.SuccessResponse[dto.BankAccountResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /bank-accounts [post]
 func (h *bankAccountHandler) CreateAccount(c *fiber.Ctx) error {
 	var req dto.BankAccountCreateRequest
@@ -74,6 +76,8 @@ func (h *bankAccountHandler) CreateAccount(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /bank-accounts/{id} [get]
 func (h *bankAccountHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -97,6 +101,8 @@ func (h *bankAccountHandler) GetByID(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[dto.BankAccountResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /bank-accounts/{id} [put]
 func (h *bankAccountHandler) UpdateAccount(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -136,6 +142,8 @@ func (h *bankAccountHandler) UpdateAccount(c *fiber.Ctx) error {
 // @Param limit query int false "Batas Data per Halaman" default(10)
 // @Success 200 {object} utils.PaginatedResponse[dto.BankAccountResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /bank-accounts [get]
 func (h *bankAccountHandler) ListAccounts(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
@@ -157,6 +165,8 @@ func (h *bankAccountHandler) ListAccounts(c *fiber.Ctx) error {
 // @Produce json
 // @Success 200 {object} utils.SuccessResponse[[]dto.BankAccountResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /bank-accounts/global [get]
 func (h *bankAccountHandler) GetGlobalAccounts(c *fiber.Ctx) error {
 	accounts, err := h.bankAccountUsecase.GetGlobalAccounts(c.Context())
@@ -175,6 +185,8 @@ func (h *bankAccountHandler) GetGlobalAccounts(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[[]dto.BankAccountResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /bank-accounts/user/{user_id} [get]
 func (h *bankAccountHandler) GetUserAccounts(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
@@ -198,6 +210,8 @@ func (h *bankAccountHandler) GetUserAccounts(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /bank-accounts/{id} [delete]
 func (h *bankAccountHandler) DeleteAccount(c *fiber.Ctx) error {
 	id := c.Params("id")

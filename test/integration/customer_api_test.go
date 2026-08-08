@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -35,7 +35,7 @@ func TestCreateCustomer_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/customers", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/customers", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -59,7 +59,7 @@ func TestCreateCustomer_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/customers", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/customers", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -79,7 +79,7 @@ func TestGetCustomer_Integration(t *testing.T) {
 	customer := tests.SeedCustomerWithSales(db, "Budi Pelanggan", "0899999", "Jakarta", salesUser.ID)
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/customers/"+customer.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/customers/"+customer.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -100,7 +100,7 @@ func TestGetCustomer_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("GET", "/api/customers/"+randomID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/customers/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -125,7 +125,7 @@ func TestListCustomers_Integration(t *testing.T) {
 	tests.SeedCustomerWithSales(db, "Mundur Alon", "08333333", "Surabaya", sales2.ID)
 
 	t.Run("Success_Get_All", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/customers?page=1&limit=10", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/customers?page=1&limit=10", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -144,7 +144,7 @@ func TestListCustomers_Integration(t *testing.T) {
 
 	t.Run("Success_Search_By_Name", func(t *testing.T) {
 		// Kata kunci "Maju", harus mengembalikan "Maju Jaya" & "Maju Terus"
-		req := httptest.NewRequest("GET", "/api/customers?search=Maju", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/customers?search=Maju", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -161,7 +161,7 @@ func TestListCustomers_Integration(t *testing.T) {
 
 	t.Run("Success_Search_By_Phone", func(t *testing.T) {
 		// Kata kunci "0833", harus mengembalikan "Mundur Alon"
-		req := httptest.NewRequest("GET", "/api/customers?search=0833", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/customers?search=0833", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -179,7 +179,7 @@ func TestListCustomers_Integration(t *testing.T) {
 
 	t.Run("Success_Filter_By_SalesID", func(t *testing.T) {
 		// Filter menggunakan ID milik sales1 (Deni), harus kembali 2
-		req := httptest.NewRequest("GET", "/api/customers?sales_id="+sales1.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/customers?sales_id="+sales1.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -217,7 +217,7 @@ func TestUpdateCustomer_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/customers/"+customer.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/customers/"+customer.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -238,7 +238,7 @@ func TestUpdateCustomer_Integration(t *testing.T) {
 		reqBody := dto.CustomerUpdateRequest{Name: "Coba Update"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/customers/"+randomID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/customers/"+randomID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -257,21 +257,21 @@ func TestDeleteCustomer_Integration(t *testing.T) {
 	customer := tests.SeedCustomer(db, "Cust Hapus", "999", "Jakarta")
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/customers/"+customer.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/customers/"+customer.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
 		// Verifikasi Terhapus
-		reqCheck := httptest.NewRequest("GET", "/api/customers/"+customer.ID, nil)
+		reqCheck := tests.AuthenticatedRequest("GET", "/api/customers/"+customer.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		respCheck, _ := app.Test(reqCheck, -1)
 		assert.Equal(t, fiber.StatusNotFound, respCheck.StatusCode)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("DELETE", "/api/customers/"+randomID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/customers/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)

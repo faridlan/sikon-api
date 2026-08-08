@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -27,7 +28,7 @@ func TestCreateCategory_Integration(t *testing.T) {
 		reqBody := dto.CategoryRequest{Name: "Kain Katun Premium", ImageURL: "https://example.com/kain-katun.jpg"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/categories", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/categories", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -47,7 +48,7 @@ func TestCreateCategory_Integration(t *testing.T) {
 		reqBody := dto.CategoryRequest{Name: ""} // Name kosong (harus error)
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/categories", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/categories", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -138,7 +139,7 @@ func TestUpdateCategory_Integration(t *testing.T) {
 		reqBody := dto.CategoryRequest{Name: "Nama Baru Terupdate", ImageURL: "https://example.com/updated-nama.jpg"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/categories/"+category.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/categories/"+category.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -157,7 +158,7 @@ func TestUpdateCategory_Integration(t *testing.T) {
 		reqBody := dto.CategoryRequest{Name: "Coba Update Data Gaib"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/categories/"+randomID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/categories/"+randomID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -169,7 +170,7 @@ func TestUpdateCategory_Integration(t *testing.T) {
 		reqBody := dto.CategoryRequest{Name: ""} // Nama tidak boleh kosong
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/categories/"+category.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/categories/"+category.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -182,7 +183,7 @@ func TestUpdateCategory_Integration(t *testing.T) {
 		bodyJson, _ := json.Marshal(reqBody)
 
 		// Tembak dengan format ID yang salah
-		req := httptest.NewRequest("PUT", "/api/categories/id-bukan-uuid", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/categories/id-bukan-uuid", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -202,7 +203,7 @@ func TestDeleteCategory_Integration(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		// 1. Eksekusi Delete
-		req := httptest.NewRequest("DELETE", "/api/categories/"+category.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/categories/"+category.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -218,7 +219,7 @@ func TestDeleteCategory_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("DELETE", "/api/categories/"+randomID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/categories/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
@@ -226,7 +227,7 @@ func TestDeleteCategory_Integration(t *testing.T) {
 	})
 
 	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/categories/ini-id-ngasal", nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/categories/ini-id-ngasal", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)

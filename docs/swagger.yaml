@@ -59,6 +59,15 @@ definitions:
       total_receivable:
         type: number
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.AuthResponseDTO:
+    properties:
+      expires_at:
+        type: string
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse'
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.BankAccountCreateRequest:
     properties:
       account_name:
@@ -529,6 +538,17 @@ definitions:
         type: string
       name:
         type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
     properties:
@@ -1381,7 +1401,8 @@ definitions:
         type: string
       role:
         enum:
-        - admin
+        - owner
+        - accounting
         - sales
         example: sales
         type: string
@@ -1435,7 +1456,8 @@ definitions:
         type: string
       role:
         enum:
-        - admin
+        - owner
+        - accounting
         - sales
         example: admin
         type: string
@@ -1692,6 +1714,13 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AuthResponseDTO
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AuthResponseDTO'
+      message:
+        type: string
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse
   : properties:
       data:
@@ -1822,6 +1851,45 @@ info:
   title: SIKOn API (Sistem Integrasi Konveksi Online)
   version: "1.0"
 paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentikasi user dan mendapatkan JWT Token untuk hak akses sistem
+        SIKOn
+      parameters:
+      - description: Credentials Login
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AuthResponseDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      summary: Login User
+      tags:
+      - Auth
   /bank-accounts:
     get:
       description: Mengambil daftar seluruh rekening bank
@@ -1843,10 +1911,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List All Bank Accounts
       tags:
       - Bank Accounts
@@ -1872,10 +1946,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Bank Account
       tags:
       - Bank Accounts
@@ -1899,10 +1979,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Bank Account
       tags:
       - Bank Accounts
@@ -1925,6 +2011,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1933,6 +2023,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Bank Account by ID
       tags:
       - Bank Accounts
@@ -1963,10 +2055,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Bank Account
       tags:
       - Bank Accounts
@@ -1980,10 +2078,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Global Bank Accounts
       tags:
       - Bank Accounts
@@ -2007,10 +2111,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get User's Bank Accounts
       tags:
       - Bank Accounts
@@ -2034,10 +2144,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List All Batch POs (Pagination)
       tags:
       - BatchPOs
@@ -2062,10 +2178,16 @@ paths:
           description: Bad Request - Format input salah atau validasi gagal
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error - Terjadi kesalahan pada server
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Batch PO
       tags:
       - BatchPOs
@@ -2088,6 +2210,10 @@ paths:
           description: Bad Request - Format ID tidak valid
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found - Batch PO tidak ditemukan
           schema:
@@ -2096,6 +2222,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Batch PO (Soft Delete)
       tags:
       - BatchPOs
@@ -2117,6 +2245,10 @@ paths:
           description: Bad Request - Format ID UUID tidak valid
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found - Batch PO tidak ditemukan
           schema:
@@ -2125,6 +2257,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Batch PO Detail
       tags:
       - BatchPOs
@@ -2154,6 +2288,10 @@ paths:
           description: Bad Request - Format ID tidak valid atau body request salah
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found - Batch PO tidak ditemukan
           schema:
@@ -2162,6 +2300,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Batch PO
       tags:
       - BatchPOs
@@ -2192,6 +2332,10 @@ paths:
           description: Bad Request - Status tidak valid
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found - Batch PO tidak ditemukan
           schema:
@@ -2200,6 +2344,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Batch PO Status (Activate / Close)
       tags:
       - BatchPOs
@@ -2212,10 +2358,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_BatchPOResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Active Batch POs (For Dropdown)
       tags:
       - BatchPOs
@@ -2240,10 +2392,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_CategoryResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Categories
       tags:
       - Categories
@@ -2269,10 +2427,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Category
       tags:
       - Categories
@@ -2296,10 +2460,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Category
       tags:
       - Categories
@@ -2322,6 +2492,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2330,6 +2504,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Category
       tags:
       - Categories
@@ -2360,6 +2536,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2368,6 +2548,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Category
       tags:
       - Categories
@@ -2390,7 +2572,7 @@ paths:
         in: query
         name: search
         type: string
-      - description: Filter berdasarkan Sales ID (Admin Only)
+      - description: Filter berdasarkan Sales ID (Owner/Accounting Only)
         in: query
         name: sales_id
         type: string
@@ -2401,10 +2583,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_CustomerResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Customers
       tags:
       - Customers
@@ -2430,10 +2618,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Customer
       tags:
       - Customers
@@ -2457,10 +2651,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Customer
       tags:
       - Customers
@@ -2484,6 +2688,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2492,6 +2704,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Customer
       tags:
       - Customers
@@ -2522,6 +2736,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2530,6 +2748,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Customer
       tags:
       - Customers
@@ -2544,6 +2764,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableReportItemResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2572,6 +2796,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_SalesReportItemResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2602,6 +2830,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardSummaryResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2643,10 +2875,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List All Expenses
       tags:
       - Expenses
@@ -2671,10 +2913,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Expense
       tags:
       - Expenses
@@ -2697,6 +2949,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2705,6 +2965,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Expense
       tags:
       - Expenses
@@ -2726,6 +2988,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2734,6 +3004,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Expense Detail
       tags:
       - Expenses
@@ -2746,10 +3018,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ExpenseCategoryResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List All Expense Categories
       tags:
       - Expense Categories
@@ -2774,10 +3056,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Expense Category
       tags:
       - Expense Categories
@@ -2832,6 +3124,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2862,6 +3158,10 @@ paths:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
           description: 'Data input tidak valid (misal: format UUID salah)'
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
@@ -2898,6 +3198,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2929,6 +3233,10 @@ paths:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
           description: Format UUID tidak valid
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
@@ -2973,6 +3281,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3015,6 +3327,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3052,6 +3368,10 @@ paths:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
@@ -3100,6 +3420,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3142,6 +3466,10 @@ paths:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
@@ -3188,6 +3516,10 @@ paths:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-any'
         "400":
           description: Input tidak valid
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
@@ -3249,10 +3581,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PaymentResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Payments
       tags:
       - Payments
@@ -3280,6 +3618,10 @@ paths:
           description: Nominal bayar lebih besar dari sisa tagihan
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Order atau Bank tidak ditemukan
           schema:
@@ -3292,6 +3634,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Process Payment
       tags:
       - Payments
@@ -3315,6 +3659,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3323,6 +3671,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Payment
       tags:
       - Payments
@@ -3345,6 +3695,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3353,6 +3707,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Payment
       tags:
       - Payments
@@ -3384,6 +3740,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3392,6 +3752,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Payment
       tags:
       - Payments
@@ -3426,6 +3788,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3434,6 +3800,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Verify Payment (Finance Approval)
       tags:
       - Payments
@@ -3458,6 +3826,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3466,6 +3838,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Payments by Order ID
       tags:
       - Payments
@@ -3513,10 +3887,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Products
       tags:
       - Products
@@ -3543,10 +3923,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Product
       tags:
       - Products
@@ -3570,10 +3956,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Product
       tags:
       - Products
@@ -3596,6 +3988,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3604,6 +4000,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Product By ID
       tags:
       - Products
@@ -3634,6 +4032,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3642,6 +4044,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Product
       tags:
       - Products
@@ -3696,6 +4100,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AccountingReportResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get Accounting Report
@@ -3719,6 +4127,10 @@ paths:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DailyReportResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
@@ -3750,6 +4162,10 @@ paths:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_POSummaryResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
@@ -3785,6 +4201,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductionReportResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get Production Report
@@ -3814,6 +4234,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableDetailResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -3825,13 +4249,25 @@ paths:
       - Reports
   /seeder/clear:
     post:
-      responses: {}
+      responses:
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Hapus Semua Data Seeder
       tags:
       - Seeder
   /seeder/generate:
     post:
-      responses: {}
+      responses:
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Generate Data Testing Realistis
       tags:
       - Seeder
@@ -3856,10 +4292,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_SpecTemplateResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Spec Templates
       tags:
       - SpecTemplates
@@ -3885,10 +4327,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create Spec Template
       tags:
       - SpecTemplates
@@ -3912,10 +4360,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete Spec Template
       tags:
       - SpecTemplates
@@ -3938,6 +4392,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3946,6 +4404,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Spec Template
       tags:
       - SpecTemplates
@@ -3976,6 +4436,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3984,6 +4448,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update Spec Template
       tags:
       - SpecTemplates
@@ -4009,6 +4475,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-map_string_string'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Upload Image
       tags:
       - Uploads
@@ -4041,10 +4513,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List Users
       tags:
       - Users
@@ -4068,10 +4546,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete User
       tags:
       - Users
@@ -4094,6 +4578,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -4102,6 +4590,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get User Profile
       tags:
       - Users
@@ -4133,6 +4623,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -4141,6 +4635,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update User
       tags:
       - Users
@@ -4185,6 +4681,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -4193,6 +4693,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Register a new user
       tags:
       - Users

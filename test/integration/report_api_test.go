@@ -3,7 +3,6 @@ package integration_test
 import (
 	"bytes"
 	"encoding/json"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -76,6 +75,7 @@ func TestAccountingReportEndpoint(t *testing.T) {
 		Amount:          500000,
 		PaymentDate:     juliTime,
 		ReferenceNumber: "DP-ACC",
+		Status:          string(domain.PaymentVerificationVerified),
 	}
 	db.Create(&payment1)
 
@@ -93,7 +93,7 @@ func TestAccountingReportEndpoint(t *testing.T) {
 	db.Create(&expense)
 
 	t.Run("Success Get Accounting Report", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/reports/accounting?start_date=2026-07-01&end_date=2026-07-31", bytes.NewBuffer(nil))
+		req := tests.AuthenticatedRequest("GET", "/api/reports/accounting?start_date=2026-07-01&end_date=2026-07-31", bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -183,7 +183,7 @@ func TestProductionReportEndpoint(t *testing.T) {
 	db.Create(&expense)
 
 	t.Run("Success Get Production Report", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/reports/production?month=7&year=2026", bytes.NewBuffer(nil))
+		req := tests.AuthenticatedRequest("GET", "/api/reports/production?month=7&year=2026", bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -269,7 +269,7 @@ func TestPOSummaryReportEndpoint(t *testing.T) {
 	}
 	db.Create(&expense)
 
-	req := httptest.NewRequest("GET", "/api/reports/po/"+batchPO.ID+"/summary", bytes.NewBuffer(nil))
+	req := tests.AuthenticatedRequest("GET", "/api/reports/po/"+batchPO.ID+"/summary", bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
 	resp, err := app.Test(req, -1)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -338,7 +338,7 @@ func TestGetReceivablesReportEndpoint(t *testing.T) {
 	orderItem := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 3, Price: 150000}
 	db.Create(&orderItem)
 
-	req := httptest.NewRequest("GET", "/api/reports/receivables", bytes.NewBuffer(nil))
+	req := tests.AuthenticatedRequest("GET", "/api/reports/receivables", bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
 	resp, err := app.Test(req, -1)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -410,7 +410,7 @@ func TestDailyReportEndpoint(t *testing.T) {
 	orderItem := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 2, Price: 120000}
 	db.Create(&orderItem)
 
-	req := httptest.NewRequest("GET", "/api/reports/daily?date="+todayStr, bytes.NewBuffer(nil))
+	req := tests.AuthenticatedRequest("GET", "/api/reports/daily?date="+todayStr, bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
 	resp, err := app.Test(req, -1)
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)

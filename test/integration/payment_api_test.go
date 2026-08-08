@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -58,7 +57,7 @@ func TestCreatePayment_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-User-Id", userID)
 
@@ -90,7 +89,7 @@ func TestCreatePayment_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -108,7 +107,7 @@ func TestCreatePayment_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -133,7 +132,7 @@ func TestVerifyPayment_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/payments/"+payment.ID+"/verify", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/payments/"+payment.ID+"/verify", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-User-Id", userID)
 
@@ -162,7 +161,7 @@ func TestVerifyPayment_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/payments/"+payment2.ID+"/verify", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/payments/"+payment2.ID+"/verify", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-User-Id", userID2)
 
@@ -182,7 +181,7 @@ func TestVerifyPayment_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/payments/"+payment.ID+"/verify", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/payments/"+payment.ID+"/verify", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, _ := app.Test(req, -1)
@@ -201,7 +200,7 @@ func TestGetPaymentByID_Integration(t *testing.T) {
 	payment := tests.SeedPayment(db, orderID, bankID, 50000, "dp")
 
 	t.Run("Success_Get_ByID", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments/"+payment.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments/"+payment.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("X-User-Id", userID)
 		resp, err := app.Test(req, -1)
 
@@ -217,7 +216,7 @@ func TestGetPaymentByID_Integration(t *testing.T) {
 	})
 
 	t.Run("Failed_Get_NotFound", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments/"+uuid.New().String(), nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments/"+uuid.New().String(), nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	})
@@ -236,7 +235,7 @@ func TestListPayments_Integration(t *testing.T) {
 	tests.SeedPayment(db, orderID, bankID, 150000, "settlement")
 
 	t.Run("Success_List_SemuaData_TanpaFilter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -251,7 +250,7 @@ func TestListPayments_Integration(t *testing.T) {
 	})
 
 	t.Run("Success_List_DenganFilter_PaymentType", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments?payment_type=dp", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments?payment_type=dp", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -265,7 +264,7 @@ func TestListPayments_Integration(t *testing.T) {
 	})
 
 	t.Run("Success_List_DenganFilter_StatusPending", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments?status=pending", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments?status=pending", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -295,7 +294,7 @@ func TestUpdatePayment_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/payments/"+payment.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/payments/"+payment.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("X-User-Id", userID)
 		req.Header.Set("Content-Type", "application/json")
 
@@ -308,7 +307,7 @@ func TestUpdatePayment_Integration(t *testing.T) {
 		reqBody := dto.PaymentUpdateRequest{ReferenceNumber: "TRX-GAIB"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/payments/"+uuid.New().String(), bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/payments/"+uuid.New().String(), bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, _ := app.Test(req, -1)
@@ -332,7 +331,7 @@ func TestDeletePayment_Integration(t *testing.T) {
 		db.Table("payments").Where("id = ?", payment.ID).Update("status", "verified")
 		db.Table("orders").Where("id = ?", orderID).Update("payment_status", "partial")
 
-		req := httptest.NewRequest("DELETE", "/api/payments/"+payment.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/payments/"+payment.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("X-User-Id", userID)
 		resp, err := app.Test(req, -1)
 
@@ -350,7 +349,7 @@ func TestDeletePayment_Integration(t *testing.T) {
 
 	t.Run("Failed_Delete_NotFound", func(t *testing.T) {
 		tests.ClearTables(db)
-		req := httptest.NewRequest("DELETE", "/api/payments/"+uuid.New().String(), nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/payments/"+uuid.New().String(), nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
@@ -377,7 +376,7 @@ func TestGetPaymentsByOrderID_Integration(t *testing.T) {
 	tests.SeedPayment(db, orderID1, bankID, 50000, "settlement")
 
 	t.Run("Success_Get_Payments_For_Order", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments/order/"+orderID1, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments/order/"+orderID1, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -394,7 +393,7 @@ func TestGetPaymentsByOrderID_Integration(t *testing.T) {
 	})
 
 	t.Run("Success_But_Empty_List", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments/order/"+order2.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments/order/"+order2.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -409,14 +408,14 @@ func TestGetPaymentsByOrderID_Integration(t *testing.T) {
 
 	t.Run("Failed_OrderNotFound", func(t *testing.T) {
 		randomOrderID := uuid.New().String()
-		req := httptest.NewRequest("GET", "/api/payments/order/"+randomOrderID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments/order/"+randomOrderID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	})
 
 	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/payments/order/bukan-uuid", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/payments/order/bukan-uuid", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
@@ -462,14 +461,18 @@ func TestRaceCondition_ProcessPayment_Integration(t *testing.T) {
 			}
 			bodyJson, _ := json.Marshal(reqBody)
 
-			req := httptest.NewRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson))
+			req := tests.AuthenticatedRequest("POST", "/api/payments", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 			req.Header.Set("Content-Type", "application/json")
 
 			resp, err := app.Test(req, -1)
+			if resp != nil {
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}
 			assert.NoError(t, err)
 
 			mu.Lock()
-			if resp.StatusCode == fiber.StatusCreated {
+			if resp != nil && resp.StatusCode == fiber.StatusCreated {
 				successCount++
 			} else {
 				errorCount++
@@ -490,7 +493,7 @@ func TestRaceCondition_ProcessPayment_Integration(t *testing.T) {
 	// Ambil 2 pembayaran pertama untuk di-verify
 	for i := 0; i < 2; i++ {
 		verifyBody, _ := json.Marshal(dto.PaymentVerifyRequest{Status: "verified"})
-		req := httptest.NewRequest("PATCH", fmt.Sprintf("/api/payments/%s/verify", payments[i].ID), bytes.NewBuffer(verifyBody))
+		req := tests.AuthenticatedRequest("PATCH", fmt.Sprintf("/api/payments/%s/verify", payments[i].ID), bytes.NewBuffer(verifyBody), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-User-Id", sales.ID) // 👈 Header ID User Penanggung Jawab
 		resp, _ := app.Test(req, -1)

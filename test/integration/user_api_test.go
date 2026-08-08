@@ -31,11 +31,11 @@ func TestRegisterUser_Integration(t *testing.T) {
 			Name:     "Budi Admin",
 			Email:    "budi@admin.com",
 			Password: "rahasia123",
-			Role:     "admin",
+			Role:     "accounting",
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -64,7 +64,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := app.Test(req, -1)
@@ -93,7 +93,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -111,7 +111,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -149,8 +149,8 @@ func TestGetPublicSales_Integration(t *testing.T) {
 	salesInactive := tests.SeedUser(db, "Sales Nonaktif", "off@sikon.com", "sales")
 	db.Model(&postgres.UserModel{}).Where("id = ?", salesInactive.ID).Update("is_active", false)
 
-	// 3. Seed admin (tidak boleh muncul di response public sales)
-	tests.SeedUser(db, "Admin SIKOn", "admin@sikon.com", "admin")
+	// 3. Seed accounting (tidak boleh muncul di response public sales)
+	tests.SeedUser(db, "Admin SIKOn", "admin@sikon.com", "accounting")
 
 	t.Run("Success_Get_Public_Sales_Directory", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/users/public/sales", nil)
@@ -184,11 +184,11 @@ func TestListUsers_Integration(t *testing.T) {
 	tests.ClearTables(db)
 
 	tests.SeedUser(db, "User Satu", "user1@sikon.com", "sales", "https://example.com/image1.jpg")
-	tests.SeedUser(db, "User Dua", "user2@sikon.com", "admin", "https://example.com/image2.jpg")
+	tests.SeedUser(db, "User Dua", "user2@sikon.com", "accounting", "https://example.com/image2.jpg")
 	tests.SeedUser(db, "User Tiga", "user3@sikon.com", "sales", "https://example.com/image3.jpg")
 
 	t.Run("Success_GetList_TanpaFilter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/users?page=1&limit=10", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/users?page=1&limit=10", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -203,12 +203,12 @@ func TestListUsers_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		assert.Len(t, response.Data, 3)
+		assert.Len(t, response.Data, 4)
 		assert.NotNil(t, response.Meta)
 	})
 
 	t.Run("Success_GetList_FilterRoleSales", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/users?role=sales", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/users?role=sales", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -236,7 +236,7 @@ func TestGetUser_Integration(t *testing.T) {
 	user := tests.SeedUser(db, "Andi", "andi@sikon.com", "sales", "https://example.com/andi.jpg")
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/users/"+user.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/users/"+user.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -252,7 +252,7 @@ func TestGetUser_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("GET", "/api/users/"+randomID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/users/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -272,14 +272,14 @@ func TestUpdateUser_Integration(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		reqBody := dto.UserUpdateRequest{
 			Name:       "Siti Manajer",
-			Role:       "admin",
+			Role:       "accounting",
 			Phone:      "6281233334444",
 			StatusText: "Balas cepat",
 			ImageURL:   "https://example.com/new_image.jpg",
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/users/"+user.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/users/"+user.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -291,7 +291,7 @@ func TestUpdateUser_Integration(t *testing.T) {
 		json.Unmarshal(respBody, &response)
 
 		assert.Equal(t, "Siti Manajer", response.Data.Name)
-		assert.Equal(t, "admin", response.Data.Role)
+		assert.Equal(t, "accounting", response.Data.Role)
 		assert.Equal(t, "6281233334444", response.Data.Phone)
 		assert.Equal(t, "Balas cepat", response.Data.StatusText)
 	})
@@ -300,7 +300,7 @@ func TestUpdateUser_Integration(t *testing.T) {
 		reqBody := dto.UserUpdateRequest{Role: "bos_besar"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/users/"+user.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/users/"+user.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -319,20 +319,20 @@ func TestDeleteUser_Integration(t *testing.T) {
 	user := tests.SeedUser(db, "User Resign", "resign@sikon.com", "sales")
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/users/"+user.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/users/"+user.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		reqCheck := httptest.NewRequest("GET", "/api/users/"+user.ID, nil)
+		reqCheck := tests.AuthenticatedRequest("GET", "/api/users/"+user.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		respCheck, _ := app.Test(reqCheck, -1)
 		assert.Equal(t, fiber.StatusNotFound, respCheck.StatusCode)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("DELETE", "/api/users/"+randomID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/users/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)

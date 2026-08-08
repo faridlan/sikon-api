@@ -1,12 +1,16 @@
 package tests
 
 import (
+	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 
@@ -80,6 +84,17 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.ExpenseModel{},
 	)
 
+	// Pastikan ada test user yang valid di database untuk endpoint yang menggunakan CreatedBy dari JWT
+	defaultUserID := normalizeTestUserID("test-user")
+	db.FirstOrCreate(&postgres.UserModel{ID: defaultUserID}, postgres.UserModel{
+		ID:       defaultUserID,
+		Name:     "Test User",
+		Email:    "test-user@sikon.com",
+		Password: "test-password",
+		Role:     string(domain.RoleOwner),
+		IsActive: true,
+	})
+
 	// Durasi timeout untuk transaksi integrasi
 	timeout := 30 * time.Second
 
@@ -142,14 +157,28 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 }
 
 // GenerateTestJWTToken adalah helper untuk membuat token Authorization valid saat tes integrasi
+func normalizeTestUserID(userID string) string {
+	if userID == "" {
+		return uuid.NewString()
+	}
+
+	if _, err := uuid.Parse(userID); err == nil {
+		return userID
+	}
+
+	return uuid.NewMD5(uuid.NameSpaceOID, []byte(userID)).String()
+}
+
 func GenerateTestJWTToken(userID string, email string, role domain.Role) string {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		jwtSecret = TestJWTSecret
 	}
 
+	normalizedUserID := normalizeTestUserID(userID)
+
 	claims := jwt.MapClaims{
-		"user_id": userID,
+		"user_id": normalizedUserID,
 		"email":   email,
 		"role":    string(role),
 		"exp":     time.Now().Add(time.Hour).Unix(),
@@ -158,6 +187,14 @@ func GenerateTestJWTToken(userID string, email string, role domain.Role) string 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, _ := token.SignedString([]byte(jwtSecret))
 	return tokenString
+}
+
+// AuthenticatedRequest membuat request HTTP dengan header Authorization Bearer JWT
+func AuthenticatedRequest(method string, url string, body io.Reader, userID string, email string, role domain.Role) *http.Request {
+	token := GenerateTestJWTToken(userID, email, role)
+	req := httptest.NewRequest(method, url, body)
+	req.Header.Set("Authorization", "Bearer "+token)
+	return req
 }
 
 // ClearTables mengosongkan seluruh isi tabel sebelum/sesudah tiap test case berjalan
@@ -180,4 +217,16 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE expense_categories RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE expenses RESTART IDENTITY CASCADE;")
+
+	// Re-create default test user used by generic AuthenticatedRequest calls.
+	defaultUserID := normalizeTestUserID("test-user")
+	db.FirstOrCreate(&postgres.UserModel{ID: defaultUserID}, postgres.UserModel{
+		ID:         defaultUserID,
+		Name:       "Test User",
+		Email:      "test-user@sikon.com",
+		Password:   "test-password",
+		Role:       string(domain.RoleOwner),
+		IsActive:   true,
+		StatusText: "Online sekarang",
+	})
 }

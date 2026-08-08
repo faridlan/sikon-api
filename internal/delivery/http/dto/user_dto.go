@@ -12,7 +12,7 @@ type UserRegisterRequest struct {
 	Name       string `json:"name" validate:"required" example:"Budi Haryanto"`
 	Email      string `json:"email" validate:"required,email" example:"budi@sikon.com"`
 	Password   string `json:"password" validate:"required,min=6" example:"rahasia123"`
-	Role       string `json:"role" validate:"required,oneof=admin sales" example:"sales"`
+	Role       string `json:"role" validate:"required,oneof=owner accounting sales" example:"sales"`
 	ImageURL   string `json:"image_url" validate:"omitempty" example:"https://example.com/image.jpg"`
 	Phone      string `json:"phone" validate:"omitempty" example:"6281200000001"`
 	StatusText string `json:"status_text" validate:"omitempty" example:"Online sekarang"`
@@ -22,7 +22,7 @@ type UserRegisterRequest struct {
 
 type UserUpdateRequest struct {
 	Name       string `json:"name" validate:"omitempty" example:"Budi Haryanto Update"`
-	Role       string `json:"role" validate:"omitempty,oneof=admin sales" example:"admin"`
+	Role       string `json:"role" validate:"omitempty,oneof=owner accounting sales" example:"admin"`
 	ImageURL   string `json:"image_url" validate:"omitempty"`
 	Phone      string `json:"phone" validate:"omitempty" example:"6281200000001"`
 	StatusText string `json:"status_text" validate:"omitempty" example:"Online sekarang"`

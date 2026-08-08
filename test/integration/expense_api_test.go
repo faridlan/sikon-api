@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -29,7 +29,7 @@ func TestCreateExpenseCategory_Integration(t *testing.T) {
 		}
 		body, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/expenses/categories", bytes.NewBuffer(body))
+		req := tests.AuthenticatedRequest("POST", "/api/expenses/categories", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -49,7 +49,7 @@ func TestCreateExpenseCategory_Integration(t *testing.T) {
 		reqBody := dto.ExpenseCategoryCreateRequest{Name: "", Type: "HPP"}
 		body, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/expenses/categories", bytes.NewBuffer(body))
+		req := tests.AuthenticatedRequest("POST", "/api/expenses/categories", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -62,7 +62,7 @@ func TestCreateExpense_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	user := tests.SeedUser(db, "Admin Keuangan", "keuangan@example.com", "admin")
+	user := tests.SeedUser(db, "Admin Keuangan", "keuangan@example.com", "accounting")
 	category := tests.SeedExpenseCategory(db, "Bahan Baku", "HPP", "Pembelian kain")
 
 	t.Run("Success", func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestCreateExpense_Integration(t *testing.T) {
 		}
 		body, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/expenses", bytes.NewBuffer(body))
+		req := tests.AuthenticatedRequest("POST", "/api/expenses", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -97,7 +97,7 @@ func TestCreateExpense_Integration(t *testing.T) {
 		reqBody := dto.ExpenseCreateRequest{Title: "", Amount: 0, ExpenseCategoryID: category.ID, ExpenseDate: time.Now()}
 		body, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/expenses", bytes.NewBuffer(body))
+		req := tests.AuthenticatedRequest("POST", "/api/expenses", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -110,13 +110,13 @@ func TestListExpenses_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	user := tests.SeedUser(db, "Admin Keuangan", "keuangan2@example.com", "admin")
+	user := tests.SeedUser(db, "Admin Keuangan", "keuangan2@example.com", "accounting")
 	category := tests.SeedExpenseCategory(db, "Operasional", "OPEX", "Biaya kantor")
 	_ = tests.SeedExpense(db, category.ID, user.ID, nil, "Gaji Staff", 5000000, time.Now())
 	_ = tests.SeedExpense(db, category.ID, user.ID, nil, "Listrik", 750000, time.Now().AddDate(0, 0, -1))
 
 	t.Run("Success_List", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/expenses?page=1&limit=10", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/expenses?page=1&limit=10", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -137,12 +137,12 @@ func TestGetExpense_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	user := tests.SeedUser(db, "Admin Keuangan", "keuangan3@example.com", "admin")
+	user := tests.SeedUser(db, "Admin Keuangan", "keuangan3@example.com", "accounting")
 	category := tests.SeedExpenseCategory(db, "Bahan Baku", "HPP", "Pembelian kain")
 	expense := tests.SeedExpense(db, category.ID, user.ID, nil, "Beli Benang", 1200000, time.Now())
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/expenses/"+expense.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/expenses/"+expense.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -157,7 +157,7 @@ func TestGetExpense_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("GET", "/api/expenses/"+randomID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/expenses/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
@@ -168,17 +168,17 @@ func TestDeleteExpense_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	user := tests.SeedUser(db, "Admin Keuangan", "keuangan4@example.com", "admin")
+	user := tests.SeedUser(db, "Admin Keuangan", "keuangan4@example.com", "accounting")
 	category := tests.SeedExpenseCategory(db, "Bahan Baku", "HPP", "Pembelian kain")
 	expense := tests.SeedExpense(db, category.ID, user.ID, nil, "Hapus Data", 900000, time.Now())
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/expenses/"+expense.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/expenses/"+expense.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		checkReq := httptest.NewRequest("GET", "/api/expenses/"+expense.ID, nil)
+		checkReq := tests.AuthenticatedRequest("GET", "/api/expenses/"+expense.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		checkResp, err := app.Test(checkReq, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusNotFound, checkResp.StatusCode)
@@ -186,7 +186,7 @@ func TestDeleteExpense_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("DELETE", "/api/expenses/"+randomID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/expenses/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
