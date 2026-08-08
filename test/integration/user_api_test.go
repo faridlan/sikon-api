@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
@@ -23,6 +24,7 @@ import (
 func TestRegisterUser_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
+	token := tests.GenerateTestJWTToken("user-owner-123", "owner@sikon.com", domain.RoleOwner)
 
 	t.Run("Success_Register_Admin", func(t *testing.T) {
 		reqBody := dto.UserRegisterRequest{
@@ -35,6 +37,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
@@ -63,7 +66,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
 		req.Header.Set("Content-Type", "application/json")
-
+		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
@@ -92,6 +95,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
@@ -109,6 +113,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/api/users/register", bytes.NewBuffer(bodyJson))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)

@@ -50,7 +50,6 @@ func TestCustomerUsecase_CreateCustomer(t *testing.T) {
 
 		mockSalesUser := &domain.User{ID: "sales-123", Role: domain.RoleSales}
 
-		// Ekspektasi: Usecase harus mengecek user repo terlebih dahulu
 		userRepo.On("GetByID", mock.Anything, "sales-123").Return(mockSalesUser, nil).Once()
 		mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil).Once()
 
@@ -69,13 +68,12 @@ func TestCustomerUsecase_CreateCustomer(t *testing.T) {
 		uc := usecase.NewCustomerUsecase(mockRepo, userRepo, time.Second*2)
 
 		inputWithSales := input
-		inputWithSales.SalesID = "admin-123"
+		inputWithSales.SalesID = "owner-123"
 
-		// Simulasi yang ditugaskan ternyata adalah Admin, bukan Sales
-		mockAdminUser := &domain.User{ID: "admin-123", Role: domain.RoleAdmin}
+		// Simulasi yang ditugaskan ternyata adalah Owner/Accounting, bukan Sales
+		mockOwnerUser := &domain.User{ID: "owner-123", Role: domain.RoleOwner}
 
-		userRepo.On("GetByID", mock.Anything, "admin-123").Return(mockAdminUser, nil).Once()
-		// mockRepo.Create TIDAK BOLEH dipanggil jika validasi gagal
+		userRepo.On("GetByID", mock.Anything, "owner-123").Return(mockOwnerUser, nil).Once()
 
 		result, err := uc.CreateCustomer(context.Background(), inputWithSales)
 
@@ -94,15 +92,15 @@ func TestCustomerUsecase_GetCustomer(t *testing.T) {
 	mockID := "cust-123"
 	mockCustomer := &domain.Customer{ID: mockID, Name: "PT Maju Jaya", SalesID: "sales-A"}
 
-	t.Run("Success - Akses Admin (Bebas Lihat)", func(t *testing.T) {
+	t.Run("Success - Akses Owner (Bebas Lihat)", func(t *testing.T) {
 		mockRepo := new(mocks.CustomerRepository)
 		userRepo := new(mocks.UserRepository)
 		uc := usecase.NewCustomerUsecase(mockRepo, userRepo, time.Second*2)
 
 		mockRepo.On("GetByID", mock.Anything, mockID).Return(mockCustomer, nil).Once()
 
-		// Operator adalah Admin, tidak ada restriction SalesID
-		result, err := uc.GetCustomer(context.Background(), mockID, "admin-1", domain.RoleAdmin)
+		// Operator adalah Owner, tidak ada restriction SalesID
+		result, err := uc.GetCustomer(context.Background(), mockID, "owner-1", domain.RoleOwner)
 
 		assert.NoError(t, err)
 		assert.Equal(t, mockCustomer.Name, result.Name)
@@ -148,16 +146,15 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
 	mockCustomers := []domain.Customer{{Name: "Cust A"}, {Name: "Cust B"}}
 
-	t.Run("Success - Akses Admin (Tanpa Filter)", func(t *testing.T) {
+	t.Run("Success - Akses Owner (Tanpa Filter)", func(t *testing.T) {
 		mockRepo := new(mocks.CustomerRepository)
 		mockUserRepo := new(mocks.UserRepository)
-		// asumsi usecase tidak panggil userRepo di ListCustomers
 		uc := usecase.NewCustomerUsecase(mockRepo, mockUserRepo, time.Second*2)
 
 		emptyFilter := domain.CustomerFilter{}
 		mockRepo.On("Fetch", mock.Anything, emptyFilter, 10, 0).Return(mockCustomers, int64(2), nil).Once()
 
-		customers, meta, err := uc.ListCustomers(context.Background(), query, emptyFilter, "admin-123", domain.RoleAdmin)
+		customers, meta, err := uc.ListCustomers(context.Background(), query, emptyFilter, "owner-123", domain.RoleOwner)
 
 		assert.NoError(t, err)
 		assert.Len(t, customers, 2)
@@ -165,23 +162,22 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 
-	t.Run("Success - Akses Admin (Filter Search & SalesID dari Frontend)", func(t *testing.T) {
+	t.Run("Success - Akses Owner (Filter Search & SalesID dari Frontend)", func(t *testing.T) {
 		mockRepo := new(mocks.CustomerRepository)
 		mockUserRepo := new(mocks.UserRepository)
 		uc := usecase.NewCustomerUsecase(mockRepo, mockUserRepo, time.Second*2)
 
 		inputFilter := domain.CustomerFilter{Search: "Budi", SalesID: "sales-123"}
 
-		// Karena admin, filter diteruskan utuh ke Repo
+		// Karena Owner, filter diteruskan utuh ke Repo
 		mockRepo.On("Fetch", mock.Anything, inputFilter, 10, 0).Return(mockCustomers, int64(2), nil).Once()
 
-		customers, meta, err := uc.ListCustomers(context.Background(), query, inputFilter, "admin-123", domain.RoleAdmin)
+		customers, meta, err := uc.ListCustomers(context.Background(), query, inputFilter, "owner-123", domain.RoleOwner)
 
 		assert.NoError(t, err)
 		assert.Len(t, customers, 2)
 		mockRepo.AssertExpectations(t)
 		assert.Equal(t, 1, meta.TotalPages)
-
 	})
 
 	t.Run("Success - KEAMANAN Sales: Menggagalkan By-Pass SalesID", func(t *testing.T) {
@@ -196,7 +192,6 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 		// EKSPEKTASI REPO: Usecase HARUS menimpa input hacker dan menggantinya dengan ID Asli!
 		expectedFilter := domain.CustomerFilter{SalesID: "sales-asli-123"}
 
-		// Kita periksa apakah filter yang masuk ke Repo benar-benar sudah aman
 		mockRepo.On("Fetch", mock.Anything, expectedFilter, 10, 0).Return(mockCustomers, int64(2), nil).Once()
 
 		customers, meta, err := uc.ListCustomers(context.Background(), query, hackerFilter, "sales-asli-123", domain.RoleSales)
@@ -207,10 +202,6 @@ func TestCustomerUsecase_ListCustomers(t *testing.T) {
 		assert.Equal(t, 1, meta.TotalPages)
 	})
 }
-
-// ... (TestCustomerUsecase_UpdateCustomer dan TestCustomerUsecase_DeleteCustomer tetap sama,
-// namun pastikan untuk memindahkan inisialisasi mockRepo & userRepo ke dalam masing-masing t.Run()
-// sama seperti fungsi-fungsi di atas agar mencegah bentrok antar test)
 
 func TestCustomerUsecase_UpdateCustomer(t *testing.T) {
 	mockID := "cust-123"
@@ -260,7 +251,9 @@ func TestCustomerUsecase_DeleteCustomer(t *testing.T) {
 
 		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingCust, nil).Once()
 		mockRepo.On("Delete", mock.Anything, mockID).Return(nil).Once()
+
 		err := uc.DeleteCustomer(context.Background(), mockID)
+
 		assert.NoError(t, err)
 		mockRepo.AssertExpectations(t)
 	})

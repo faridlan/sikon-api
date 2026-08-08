@@ -4,12 +4,15 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	// Nanti Anda akan mengimpor module Swagger fiber di sini setelah setup selesai
+
+	"github.com/faridlan/sikon-api/internal/delivery/http/middleware"
+	"github.com/faridlan/sikon-api/internal/domain"
 	// swagger "github.com/gofiber/swagger"
 )
 
 // Handlers struct menampung semua instance handler untuk mempermudah Dependency Injection
 type Handlers struct {
+	AuthHandler         AuthHandler
 	UserHandler         UserHandler
 	CategoryHandler     CategoryHandler
 	CustomerHandler     CustomerHandler
@@ -26,8 +29,8 @@ type Handlers struct {
 	SeederHandler       SeederHandler
 }
 
-// SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers
-func SetupRoutes(app *fiber.App, handlers Handlers) {
+// SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers & jwtSecret
+func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	// Root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -49,118 +52,146 @@ func SetupRoutes(app *fiber.App, handlers Handlers) {
 	// API V1 Group
 	api := app.Group("/api")
 
-	// --- Users Routes ---
-	users := api.Group("/users")
-	users.Get("/public/sales", handlers.UserHandler.GetPublicSalesList)
-	users.Post("/register", handlers.UserHandler.Register)
-	users.Get("/", handlers.UserHandler.ListUsers)
-	users.Get("/:id", handlers.UserHandler.GetProfile)
-	users.Put("/:id", handlers.UserHandler.UpdateUser)
-	users.Delete("/:id", handlers.UserHandler.DeleteUser)
+	// Middleware Instances
+	authMiddleware := middleware.JWTMiddleware(jwtSecret)
 
-	// --- Categories Routes ---
-	categories := api.Group("/categories")
-	categories.Post("/", handlers.CategoryHandler.CreateCategory)
-	categories.Get("/", handlers.CategoryHandler.ListCategories)
-	categories.Get("/:id", handlers.CategoryHandler.GetCategory)
-	categories.Put("/:id", handlers.CategoryHandler.UpdateCategory)
-	categories.Delete("/:id", handlers.CategoryHandler.DeleteCategory)
+	// Role Helpers
+	guardOwner := middleware.RoleGuard(domain.RoleOwner)
+	guardFinance := middleware.RoleGuard(domain.RoleAccounting)
+	guardSales := middleware.RoleGuard(domain.RoleSales)
+	guardInternal := middleware.RoleGuard(domain.RoleAccounting, domain.RoleSales)
 
-	// --- Customers Routes ---
-	customers := api.Group("/customers")
-	customers.Post("/", handlers.CustomerHandler.CreateCustomer)
-	customers.Get("/", handlers.CustomerHandler.ListCustomers)
-	customers.Get("/:id", handlers.CustomerHandler.GetCustomer)
-	customers.Put("/:id", handlers.CustomerHandler.UpdateCustomer)
-	customers.Delete("/:id", handlers.CustomerHandler.DeleteCustomer)
+	// --- Auth Routes (Public) ---
+	auth := api.Group("/auth")
+	auth.Post("/login", handlers.AuthHandler.Login)
 
-	// --- Products Routes ---
-	products := api.Group("/products")
-	products.Get("/", handlers.ProductHandler.ListProducts)
-	products.Get("/slug/:slug", handlers.ProductHandler.GetProductBySlug)
-	products.Get("/:id", handlers.ProductHandler.GetProduct)
-	products.Post("/", handlers.ProductHandler.CreateProduct)
-	products.Put("/:id", handlers.ProductHandler.UpdateProduct)
-	products.Delete("/:id", handlers.ProductHandler.DeleteProduct)
+	// --- Public Catalog & Sales Directory Routes ---
+	usersPublic := api.Group("/users")
+	usersPublic.Get("/public/sales", handlers.UserHandler.GetPublicSalesList)
+
+	categoriesPublic := api.Group("/categories")
+	categoriesPublic.Get("/", handlers.CategoryHandler.ListCategories)
+	categoriesPublic.Get("/:id", handlers.CategoryHandler.GetCategory)
+
+	productsPublic := api.Group("/products")
+	productsPublic.Get("/", handlers.ProductHandler.ListProducts)
+	productsPublic.Get("/slug/:slug", handlers.ProductHandler.GetProductBySlug)
+	productsPublic.Get("/:id", handlers.ProductHandler.GetProduct)
+
+	// =========================================================================
+	// PROTECTED ROUTES (Membutuhkan JWT Token)
+	// =========================================================================
+	protected := api.Use(authMiddleware)
+
+	// --- Users Routes (Owner Full Access) ---
+	users := protected.Group("/users")
+	users.Post("/register", guardOwner, handlers.UserHandler.Register)
+	users.Get("/", guardOwner, handlers.UserHandler.ListUsers)
+	users.Get("/:id", guardInternal, handlers.UserHandler.GetProfile)
+	users.Put("/:id", guardOwner, handlers.UserHandler.UpdateUser)
+	users.Delete("/:id", guardOwner, handlers.UserHandler.DeleteUser)
+
+	// --- Categories Routes (Write oleh Owner) ---
+	categories := protected.Group("/categories")
+	categories.Post("/", guardOwner, handlers.CategoryHandler.CreateCategory)
+	categories.Put("/:id", guardOwner, handlers.CategoryHandler.UpdateCategory)
+	categories.Delete("/:id", guardOwner, handlers.CategoryHandler.DeleteCategory)
+
+	// --- Products Routes (Write oleh Owner) ---
+	products := protected.Group("/products")
+	products.Post("/", guardOwner, handlers.ProductHandler.CreateProduct)
+	products.Put("/:id", guardOwner, handlers.ProductHandler.UpdateProduct)
+	products.Delete("/:id", guardOwner, handlers.ProductHandler.DeleteProduct)
+
+	// --- Customers Routes (Internal: Accounting & Sales) ---
+	customers := protected.Group("/customers")
+	customers.Post("/", guardInternal, handlers.CustomerHandler.CreateCustomer)
+	customers.Get("/", guardInternal, handlers.CustomerHandler.ListCustomers)
+	customers.Get("/:id", guardInternal, handlers.CustomerHandler.GetCustomer)
+	customers.Put("/:id", guardInternal, handlers.CustomerHandler.UpdateCustomer)
+	customers.Delete("/:id", guardOwner, handlers.CustomerHandler.DeleteCustomer)
 
 	// --- Bank Accounts Routes ---
-	bankAccounts := api.Group("/bank-accounts")
-	bankAccounts.Post("/", handlers.BankAccountHandler.CreateAccount)
-	bankAccounts.Put("/:id", handlers.BankAccountHandler.UpdateAccount)
-	bankAccounts.Get("/", handlers.BankAccountHandler.ListAccounts)
-	bankAccounts.Get("/global", handlers.BankAccountHandler.GetGlobalAccounts)
-	bankAccounts.Get("/:id", handlers.BankAccountHandler.GetByID)
-	bankAccounts.Get("/user/:user_id", handlers.BankAccountHandler.GetUserAccounts)
-	bankAccounts.Delete("/:id", handlers.BankAccountHandler.DeleteAccount)
+	bankAccounts := protected.Group("/bank-accounts")
+	bankAccounts.Get("/global", handlers.BankAccountHandler.GetGlobalAccounts) // Untuk dropdown transaksi
+	bankAccounts.Get("/", guardFinance, handlers.BankAccountHandler.ListAccounts)
+	bankAccounts.Get("/:id", guardFinance, handlers.BankAccountHandler.GetByID)
+	bankAccounts.Get("/user/:user_id", guardFinance, handlers.BankAccountHandler.GetUserAccounts)
+	bankAccounts.Post("/", guardOwner, handlers.BankAccountHandler.CreateAccount)
+	bankAccounts.Put("/:id", guardOwner, handlers.BankAccountHandler.UpdateAccount)
+	bankAccounts.Delete("/:id", guardOwner, handlers.BankAccountHandler.DeleteAccount)
 
-	// --- Orders Routes ---
-	orders := api.Group("/orders")
-	orders.Post("/", handlers.OrderHandler.CreateOrder)
-	orders.Get("/", handlers.OrderHandler.ListOrders)
-	orders.Get("/:id", handlers.OrderHandler.GetOrder)
-	orders.Put("/:id", handlers.OrderHandler.UpdateOrder)
-	orders.Patch("/:id/status", handlers.OrderHandler.UpdateOrderStatus)
-	orders.Patch("/:id/payment-status", handlers.OrderHandler.UpdatePaymentStatus)
-	orders.Delete("/:id", handlers.OrderHandler.DeleteOrder)
+	// --- Orders Routes (Internal: Sales Create/Read, Accounting Read/Status) ---
+	orders := protected.Group("/orders")
+	orders.Post("/", guardInternal, handlers.OrderHandler.CreateOrder)
+	orders.Get("/", guardInternal, handlers.OrderHandler.ListOrders)
+	orders.Get("/:id", guardInternal, handlers.OrderHandler.GetOrder)
+	orders.Put("/:id", guardInternal, handlers.OrderHandler.UpdateOrder)
+	orders.Patch("/:id/status", guardInternal, handlers.OrderHandler.UpdateOrderStatus)
+	orders.Patch("/:id/payment-status", guardFinance, handlers.OrderHandler.UpdatePaymentStatus)
+	orders.Delete("/:id", guardOwner, handlers.OrderHandler.DeleteOrder)
 
-	// --- Payments Routes ---
-	payments := api.Group("/payments")
-	payments.Post("/", handlers.PaymentHandler.ProcessPayment)
-	payments.Get("/", handlers.PaymentHandler.ListPayments)
-	payments.Get("/order/:order_id", handlers.PaymentHandler.GetPaymentsByOrderID)
-	payments.Get("/:id", handlers.PaymentHandler.GetPayment)
-	payments.Put("/:id", handlers.PaymentHandler.UpdatePayment)
-	payments.Patch("/:id/verify", handlers.PaymentHandler.VerifyPayment) // BARU: Endpoint Finance Approval
-	payments.Delete("/:id", handlers.PaymentHandler.DeletePayment)
+	// Order Items Management
+	orders.Post("/:id/items", guardInternal, handlers.OrderHandler.AddOrderItem)
+	orders.Put("/:id/items/:itemId", guardInternal, handlers.OrderHandler.UpdateOrderItem)
+	orders.Delete("/:id/items/:itemId", guardInternal, handlers.OrderHandler.DeleteOrderItem)
 
-	orders.Post("/:id/items", handlers.OrderHandler.AddOrderItem)
-	orders.Put("/:id/items/:itemId", handlers.OrderHandler.UpdateOrderItem)
-	orders.Delete("/:id/items/:itemId", handlers.OrderHandler.DeleteOrderItem)
+	// --- Payments Routes (Sales Create DP, Accounting Verify) ---
+	payments := protected.Group("/payments")
+	payments.Post("/", guardInternal, handlers.PaymentHandler.ProcessPayment)
+	payments.Get("/", guardInternal, handlers.PaymentHandler.ListPayments)
+	payments.Get("/order/:order_id", guardInternal, handlers.PaymentHandler.GetPaymentsByOrderID)
+	payments.Get("/:id", guardInternal, handlers.PaymentHandler.GetPayment)
+	payments.Put("/:id", guardFinance, handlers.PaymentHandler.UpdatePayment)
+	payments.Patch("/:id/verify", guardFinance, handlers.PaymentHandler.VerifyPayment) // Approval Keuangan
+	payments.Delete("/:id", guardOwner, handlers.PaymentHandler.DeletePayment)
 
-	specTemplates := api.Group("/spec-templates")
-	specTemplates.Post("/", handlers.SpecTemplateHandler.CreateSpecTemplate)
-	specTemplates.Get("/", handlers.SpecTemplateHandler.ListSpecTemplates)
-	specTemplates.Get("/:id", handlers.SpecTemplateHandler.GetSpecTemplate)
-	specTemplates.Put("/:id", handlers.SpecTemplateHandler.UpdateSpecTemplate)
-	specTemplates.Delete("/:id", handlers.SpecTemplateHandler.DeleteSpecTemplate)
+	// --- Spec Templates Routes (Pengaturan Spesifikasi Produksi) ---
+	specTemplates := protected.Group("/spec-templates")
+	specTemplates.Get("/", guardInternal, handlers.SpecTemplateHandler.ListSpecTemplates)
+	specTemplates.Get("/:id", guardInternal, handlers.SpecTemplateHandler.GetSpecTemplate)
+	specTemplates.Post("/", guardOwner, handlers.SpecTemplateHandler.CreateSpecTemplate)
+	specTemplates.Put("/:id", guardOwner, handlers.SpecTemplateHandler.UpdateSpecTemplate)
+	specTemplates.Delete("/:id", guardOwner, handlers.SpecTemplateHandler.DeleteSpecTemplate)
 
-	dashboard := api.Group("/dashboard")
-	dashboard.Get("/summary", handlers.DashboardHandler.GetSummary)
-	dashboard.Get("/sales-report", handlers.DashboardHandler.GetSalesReport)
-	dashboard.Get("/receivables-report", handlers.DashboardHandler.GetReceivablesReport)
+	// --- Expenses Routes (Khusus Finance/Accounting & Owner) ---
+	expenses := protected.Group("/expenses")
+	expenses.Get("/categories", guardFinance, handlers.ExpenseHandler.ListCategories)
+	expenses.Post("/categories", guardFinance, handlers.ExpenseHandler.CreateCategory)
+	expenses.Get("/", guardFinance, handlers.ExpenseHandler.ListExpenses)
+	expenses.Post("/", guardFinance, handlers.ExpenseHandler.CreateExpense)
+	expenses.Get("/:id", guardFinance, handlers.ExpenseHandler.GetExpense)
+	expenses.Delete("/:id", guardOwner, handlers.ExpenseHandler.DeleteExpense)
 
-	reports := api.Group("/reports")
-	reports.Get("/accounting", handlers.ReportHandler.GetAccountingReport) // <-- Endpoint Baru
-	reports.Get("/production", handlers.ReportHandler.GetProductionReport) // <-- Endpoint Baru
-	reports.Get("/po/:po_id/summary", handlers.ReportHandler.GetPOSummaryReport)
-	reports.Get("/receivables", handlers.ReportHandler.GetReceivablesReport)
-	reports.Get("/daily", handlers.ReportHandler.GetDailyReport)
+	// --- Batch PO Routes ---
+	batchPos := protected.Group("/batch-pos")
+	batchPos.Get("/active", guardInternal, handlers.BatchPOHandler.ListActiveBatchPOs) // Dropdown transaksi Sales
+	batchPos.Get("/", guardInternal, handlers.BatchPOHandler.ListBatchPOs)
+	batchPos.Get("/:id", guardInternal, handlers.BatchPOHandler.GetBatchPO)
+	batchPos.Post("/", guardOwner, handlers.BatchPOHandler.CreateBatchPO)
+	batchPos.Put("/:id", guardOwner, handlers.BatchPOHandler.UpdateBatchPO)
+	batchPos.Patch("/:id/status", guardOwner, handlers.BatchPOHandler.UpdateStatus)
+	batchPos.Delete("/:id", guardOwner, handlers.BatchPOHandler.DeleteBatchPO)
 
-	batchPos := api.Group("/batch-pos")
-	batchPos.Post("/", handlers.BatchPOHandler.CreateBatchPO)
-	batchPos.Get("/", handlers.BatchPOHandler.ListBatchPOs)
-	batchPos.Get("/active", handlers.BatchPOHandler.ListActiveBatchPOs) // Dropdown untuk Sales
-	batchPos.Get("/:id", handlers.BatchPOHandler.GetBatchPO)
-	batchPos.Put("/:id", handlers.BatchPOHandler.UpdateBatchPO)
-	batchPos.Patch("/:id/status", handlers.BatchPOHandler.UpdateStatus) // Buka/Tutup PO
-	batchPos.Delete("/:id", handlers.BatchPOHandler.DeleteBatchPO)
+	// --- Dashboard Routes ---
+	dashboard := protected.Group("/dashboard")
+	dashboard.Get("/summary", guardInternal, handlers.DashboardHandler.GetSummary)
+	dashboard.Get("/sales-report", guardSales, handlers.DashboardHandler.GetSalesReport)
+	dashboard.Get("/receivables-report", guardFinance, handlers.DashboardHandler.GetReceivablesReport)
 
-	expenses := api.Group("/expenses")
-	// Kategori (Route Statis ditaruh di ATAS)
-	expenses.Post("/categories", handlers.ExpenseHandler.CreateCategory)
-	expenses.Get("/categories", handlers.ExpenseHandler.ListCategories)
-	// Transaksi
-	expenses.Post("/", handlers.ExpenseHandler.CreateExpense)
-	expenses.Get("/", handlers.ExpenseHandler.ListExpenses)
-	// Route Dinamis ditaruh di BAWAH
-	expenses.Get("/:id", handlers.ExpenseHandler.GetExpense)
-	expenses.Delete("/:id", handlers.ExpenseHandler.DeleteExpense)
+	// --- Reports Routes (Khusus Finance/Accounting & Owner) ---
+	reports := protected.Group("/reports")
+	reports.Get("/accounting", guardFinance, handlers.ReportHandler.GetAccountingReport)
+	reports.Get("/production", guardInternal, handlers.ReportHandler.GetProductionReport)
+	reports.Get("/po/:po_id/summary", guardInternal, handlers.ReportHandler.GetPOSummaryReport)
+	reports.Get("/receivables", guardFinance, handlers.ReportHandler.GetReceivablesReport)
+	reports.Get("/daily", guardFinance, handlers.ReportHandler.GetDailyReport)
 
-	seederGroup := api.Group("/seeder")
-	seederGroup.Post("/generate", handlers.SeederHandler.Generate)
-	seederGroup.Post("/clear", handlers.SeederHandler.Clear)
+	// --- Uploads & Seeder Routes ---
+	uploads := protected.Group("/uploads")
+	uploads.Post("/image", guardInternal, handlers.UploadHandler.UploadImage)
 
-	uploads := api.Group("/uploads")
-
-	uploads.Post("/image", handlers.UploadHandler.UploadImage)
+	seederGroup := protected.Group("/seeder")
+	seederGroup.Post("/generate", guardOwner, handlers.SeederHandler.Generate)
+	seederGroup.Post("/clear", guardOwner, handlers.SeederHandler.Clear)
 }

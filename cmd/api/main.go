@@ -59,6 +59,20 @@ func main() {
 	supabaseKey := os.Getenv("SUPABASE_KEY")
 	supabaseBucket := os.Getenv("SUPABASE_BUCKET")
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "sikon-secret-key-development"
+		slog.Warn("JWT_SECRET tidak diset, menggunakan default development secret key")
+	}
+
+	jwtTTLStr := os.Getenv("JWT_TTL_HOURS")
+	jwtTTL := 24 * time.Hour
+	if jwtTTLStr != "" {
+		if ttlHours, err := time.ParseDuration(jwtTTLStr + "h"); err == nil {
+			jwtTTL = ttlHours
+		}
+	}
+
 	// Menjalankan Migrasi Database
 	if dbURL != "" {
 		config.RunDBMigration(dbURL)
@@ -77,7 +91,6 @@ func main() {
 	// ==========================================
 	// 1. INISIASI REPOSITORY (Layer Data)
 	// ==========================================
-	// Asumsi: Anda membuat implementasi GORM di folder repository/postgres
 	userRepo := postgres.NewUserRepository(db)
 	categoryRepo := postgres.NewCategoryRepository(db)
 	productRepo := postgres.NewProductRepository(db)
@@ -87,14 +100,15 @@ func main() {
 	paymentRepo := postgres.NewPaymentRepository(db)
 	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
 	txManager := postgres.NewTransactionManager(db)
-	dashboardRepo := postgres.NewDashboardRepository(db) // Inisialisasi repository dashboard
+	dashboardRepo := postgres.NewDashboardRepository(db)
 	reportRepo := postgres.NewReportRepository(db)
-	batchPORepo := postgres.NewBatchPORepository(db) // Inisialisasi repository Batch PO
-	expenseRepo := postgres.NewExpenseRepository(db) // Inisialisasi repository Expense
+	batchPORepo := postgres.NewBatchPORepository(db)
+	expenseRepo := postgres.NewExpenseRepository(db)
 
 	// ==========================================
 	// 2. INISIASI USECASE (Layer Logika Bisnis)
 	// ==========================================
+	authUsecase := usecase.NewAuthUsecase(userRepo, jwtSecret, jwtTTL, contextTimeout)
 	userUsecase := usecase.NewUserUsecase(userRepo, storageService, txManager, contextTimeout)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, contextTimeout)
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, contextTimeout)
@@ -104,18 +118,16 @@ func main() {
 	reportUsecase := usecase.NewReportUsecase(reportRepo, contextTimeout)
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, contextTimeout)
 	uploadUsecase := usecase.NewUploadUsecase(storageService, contextTimeout)
-	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, contextTimeout) // Inisialisasi usecase Expense
+	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, contextTimeout)
 
-	// Order butuh banyak dependensi untuk validasi bisnis
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
-
-	// Payment butuh Order & BankAccount untuk kalkulasi status lunas
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, contextTimeout)
-
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
+
 	// ==========================================
 	// 3. INISIASI HANDLER (Layer Delivery)
 	// ==========================================
+	authHandler := myHttp.NewAuthHandler(authUsecase)
 	userHandler := myHttp.NewUserHandler(userUsecase)
 	categoryHandler := myHttp.NewCategoryHandler(categoryUsecase)
 	productHandler := myHttp.NewProductHandler(productUsecase)
@@ -124,17 +136,18 @@ func main() {
 	orderHandler := myHttp.NewOrderHandler(orderUsecase)
 	paymentHandler := myHttp.NewPaymentHandler(paymentUsecase)
 	specTemplateHandler := myHttp.NewSpecTemplateHandler(specTemplateUsecase)
-	dashboardHandler := myHttp.NewDashboardHandler(dashboardUsecase) // Inisialisasi handler dashboard
+	dashboardHandler := myHttp.NewDashboardHandler(dashboardUsecase)
 	reportHandler := myHttp.NewReportHandler(reportUsecase)
-	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase) // Inisialisasi handler Batch PO
+	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase)
 	uploadHandler := myHttp.NewUploadHandler(uploadUsecase)
-	expenseHandler := myHttp.NewExpenseHandler(expenseUsecase)   // Inisialisasi handler Expense
-	seederHandler := myHttp.NewSeederHandler(db, storageService) // Inisialisasi handler Seeder
+	expenseHandler := myHttp.NewExpenseHandler(expenseUsecase)
+	seederHandler := myHttp.NewSeederHandler(db, storageService)
 
 	// ==========================================
 	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
 	// ==========================================
 	handlers := myHttp.Handlers{
+		AuthHandler:         authHandler,
 		UserHandler:         userHandler,
 		CategoryHandler:     categoryHandler,
 		CustomerHandler:     customerHandler,
@@ -143,19 +156,18 @@ func main() {
 		OrderHandler:        orderHandler,
 		PaymentHandler:      paymentHandler,
 		SpecTemplateHandler: specTemplateHandler,
-		DashboardHandler:    dashboardHandler, // Tambahkan handler dashboard ke registry
+		DashboardHandler:    dashboardHandler,
 		ReportHandler:       reportHandler,
-		BatchPOHandler:      batchPOHandler, // Tambahkan handler Batch PO ke registry
+		BatchPOHandler:      batchPOHandler,
 		UploadHandler:       uploadHandler,
-		ExpenseHandler:      expenseHandler, // Tambahkan handler Expense ke registry
-		SeederHandler:       seederHandler,  // Tambahkan handler Seeder ke registry
+		ExpenseHandler:      expenseHandler,
+		SeederHandler:       seederHandler,
 	}
 
 	// ==========================================
 	// 5. SETUP FIBER APP
 	// ==========================================
 	app := fiber.New(fiber.Config{
-		// Konfigurasi fiber tambahan jika diperlukan
 		DisableStartupMessage: true,
 	})
 
@@ -171,14 +183,7 @@ func main() {
 		AllowCredentials: false,
 	}))
 
-	// app.Use(logger.New(logger.Config{
-	// 	Format:     "[${time}] ${status} - ${latency} ${method} ${path}\n",
-	// 	TimeFormat: "2006-01-02 15:04:05",
-	// 	TimeZone:   "Asia/Jakarta",
-	// }))
-
 	app.Use(requestid.New())
-
 	app.Use(middleware.SlogMiddleware())
 
 	// Setup Swagger
@@ -188,8 +193,8 @@ func main() {
 	}
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	// Daftarkan semua route dari router.go
-	myHttp.SetupRoutes(app, handlers)
+	// Daftarkan semua route dari router.go dengan JWT Secret
+	myHttp.SetupRoutes(app, handlers, jwtSecret)
 
 	// ==========================================
 	// 6. JALANKAN SERVER DENGAN GRACEFUL SHUTDOWN
@@ -206,15 +211,13 @@ func main() {
 		}
 	}()
 
-	// Menangkap sinyal OS untuk mematikan server dengan aman (Graceful Shutdown)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	<-quit // Menunggu sinyal masuk
+	<-quit
 
 	slog.Info("Menerima sinyal mati, mematikan server dengan sopan...")
 
-	// Memberi waktu maksimal 10 detik untuk menyelesaikan request yang sedang berjalan
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
