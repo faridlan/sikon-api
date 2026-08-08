@@ -14,6 +14,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/faridlan/sikon-api/internal/domain"
@@ -38,7 +39,6 @@ func NewSeederHandler(db *gorm.DB, storage domain.StorageService) SeederHandler 
 	}
 }
 
-// Helper lokal untuk membaca file dari folder lokal dan mengunggahnya ke Supabase
 // Helper lokal untuk membaca file dari folder lokal dan mengunggahnya ke Supabase
 func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath string, targetFolder string) (string, error) {
 	// 1. Cek & Buka file fisik dari disk
@@ -138,23 +138,29 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	ctx := c.Context()
 
+	// Hash password dummy agar bisa digunakan untuk login
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	if err != nil {
+		return utils.SendError(c, fiber.StatusInternalServerError, "Gagal memproses password dummy seeder")
+	}
+
 	// --- 1. SETUP MASTER DATA USER & BANK ---
 
-	// Admin Dummy
-	adminDummy := postgresRepo.UserModel{
+	// Owner Dummy (Menggantikan role admin lama)
+	ownerDummy := postgresRepo.UserModel{
 		ID:         uuid.NewString(),
-		Name:       "Super Admin (Dummy)",
-		Email:      "admin_dummy@sikon.com",
-		Password:   "password123",
-		Role:       "admin",
+		Name:       "Owner (Dummy)",
+		Email:      "owner_dummy@sikon.com",
+		Password:   string(hashedPassword),
+		Role:       string(domain.RoleOwner),
 		Phone:      "6281100000000",
 		StatusText: "Online sekarang",
 		IsActive:   true,
 		SortOrder:  0,
 	}
-	var existingAdmin postgresRepo.UserModel
-	if err := h.db.Where("email = ?", adminDummy.Email).First(&existingAdmin).Error; err != nil {
-		h.db.Create(&adminDummy)
+	var existingOwner postgresRepo.UserModel
+	if err := h.db.Where("email = ?", ownerDummy.Email).First(&existingOwner).Error; err != nil {
+		h.db.Create(&ownerDummy)
 	}
 
 	// Sales Dummies
@@ -163,8 +169,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			ID:         uuid.NewString(),
 			Name:       "Rina Pratiwi (Sales Dummy)",
 			Email:      "rina_dummy@sikon.com",
-			Password:   "password123",
-			Role:       "sales",
+			Password:   string(hashedPassword),
+			Role:       string(domain.RoleSales),
 			Phone:      "6281200000001",
 			StatusText: "Online sekarang",
 			IsActive:   true,
@@ -174,8 +180,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			ID:         uuid.NewString(),
 			Name:       "Dimas Aditya (Sales Dummy)",
 			Email:      "dimas_dummy@sikon.com",
-			Password:   "password123",
-			Role:       "sales",
+			Password:   string(hashedPassword),
+			Role:       string(domain.RoleSales),
 			Phone:      "6281200000002",
 			StatusText: "Online sekarang",
 			IsActive:   true,
@@ -185,8 +191,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			ID:         uuid.NewString(),
 			Name:       "Sari Lestari (Sales Dummy)",
 			Email:      "sari_dummy@sikon.com",
-			Password:   "password123",
-			Role:       "sales",
+			Password:   string(hashedPassword),
+			Role:       string(domain.RoleSales),
 			Phone:      "6281200000003",
 			StatusText: "Balas dalam 1 jam",
 			IsActive:   true,
@@ -196,8 +202,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			ID:         uuid.NewString(),
 			Name:       "Bagus Setiawan (Sales Dummy)",
 			Email:      "bagus_dummy@sikon.com",
-			Password:   "password123",
-			Role:       "sales",
+			Password:   string(hashedPassword),
+			Role:       string(domain.RoleSales),
 			Phone:      "6281200000004",
 			StatusText: "Online sekarang",
 			IsActive:   true,

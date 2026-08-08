@@ -86,6 +86,8 @@ func TestUserUsecase_Register(t *testing.T) {
 		var appErr *domain.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
+
+		mockRepo.AssertExpectations(t)
 	})
 
 	t.Run("Error - Repo Failed", func(t *testing.T) {
@@ -162,7 +164,7 @@ func TestUserUsecase_ListUsers(t *testing.T) {
 
 	mockUsers := []domain.User{
 		{ID: "1", Name: "User 1", Role: domain.RoleSales, ImageURL: "https://example.com/image1.jpg"},
-		{ID: "2", Name: "User 2", Role: domain.RoleSales, ImageURL: "https://example.com/image2.jpg"},
+		{ID: "2", Name: "User 2", Role: domain.RoleAccounting, ImageURL: "https://example.com/image2.jpg"},
 	}
 	var totalItems int64 = 15
 
@@ -252,7 +254,7 @@ func TestUserUsecase_UpdateUser(t *testing.T) {
 
 	input := domain.UserUpdateInput{
 		Name:       "Budi Updated",
-		Role:       domain.RoleAdmin,
+		Role:       domain.RoleOwner,
 		ImageURL:   "https://example.com/new_image.jpg",
 		Phone:      "6281299998888",
 		StatusText: "Balas dalam 1 jam",
@@ -282,7 +284,7 @@ func TestUserUsecase_UpdateUser(t *testing.T) {
 
 		setupTxMock(mockTxManager)
 		mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
-			return u.Name == input.Name && u.Phone == input.Phone && u.StatusText == input.StatusText
+			return u.Name == input.Name && u.Phone == input.Phone && u.StatusText == input.StatusText && u.Role == input.Role
 		})).Return(nil).Once()
 
 		mockStorageService.On("DeleteFile", mock.Anything, existingUser.ImageURL).Return(nil).Once()
@@ -292,8 +294,27 @@ func TestUserUsecase_UpdateUser(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "Budi Updated", result.Name)
+		assert.Equal(t, domain.RoleOwner, result.Role)
 		assert.Equal(t, "6281299998888", result.Phone)
 		assert.Equal(t, "Balas dalam 1 jam", result.StatusText)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - Invalid Role", func(t *testing.T) {
+		invalidRoleInput := input
+		invalidRoleInput.Role = "invalid_role"
+
+		mockRepo.On("GetByID", mock.Anything, mockID).Return(existingUser, nil).Once()
+
+		result, err := uc.UpdateUser(context.Background(), mockID, invalidRoleInput)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+
+		var appErr *domain.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domain.ErrBadParamInput, appErr.ErrType)
 
 		mockRepo.AssertExpectations(t)
 	})

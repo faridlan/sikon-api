@@ -8,8 +8,10 @@ import (
 type Role string
 
 const (
-	RoleAdmin Role = "admin"
-	RoleSales Role = "sales"
+	RoleOwner Role = "owner"
+	// RoleAdmin      Role = "admin"
+	RoleAccounting Role = "accounting"
+	RoleSales      Role = "sales"
 )
 
 type User struct {
@@ -30,7 +32,7 @@ type User struct {
 type UserFilter struct {
 	Search   string
 	Role     string
-	IsActive *bool // Pointer agar bisa dilacak jika nil
+	IsActive *bool
 }
 
 type UserRepository interface {
@@ -38,7 +40,7 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	Fetch(ctx context.Context, limit, offset int, filter UserFilter) ([]User, int64, error)
-	GetPublicSalesList(ctx context.Context) ([]User, error) // 👈 Repository Khusus Landing Page
+	GetPublicSalesList(ctx context.Context) ([]User, error)
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id string) error
 }
@@ -69,7 +71,7 @@ type UserUsecase interface {
 	Register(ctx context.Context, input UserRegisterInput) (*User, error)
 	GetProfile(ctx context.Context, userID string) (*User, error)
 	ListUsers(c context.Context, query PaginationQuery, filter UserFilter) ([]User, PaginationMeta, error)
-	GetPublicSalesList(ctx context.Context) ([]User, error) // 👈 Usecase Khusus Public
+	GetPublicSalesList(ctx context.Context) ([]User, error)
 	UpdateUser(ctx context.Context, id string, input UserUpdateInput) (*User, error)
 	DeleteUser(ctx context.Context, id string) error
 }

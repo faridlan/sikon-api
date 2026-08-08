@@ -34,6 +34,7 @@ func NewCustomerHandler(cu domain.CustomerUsecase) CustomerHandler {
 // @Param request body dto.CustomerCreateRequest true "Data Customer Baru"
 // @Success 201 {object} utils.SuccessResponse[dto.CustomerResponse]
 // @Failure 400 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers [post]
 func (h *customerHandler) CreateCustomer(c *fiber.Ctx) error {
@@ -45,13 +46,15 @@ func (h *customerHandler) CreateCustomer(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	// TODO: Nanti CreatedBy diisi dari ID User (JWT) saat fitur Auth siap
+	// Ekstrak User ID dari JWT Claims yang disimpan oleh JWTMiddleware
+	userID, _ := c.Locals("userID").(string)
+
 	domainReq := domain.CustomerCreateInput{
-		Name:    req.Name,
-		Phone:   req.Phone,
-		Address: req.Address,
-		// CreatedBy: "dummy-uuid-sementara", // Ganti saat Auth selesai
-		SalesID: req.SalesID, // TAMBAHAN MAPPING
+		Name:      req.Name,
+		Phone:     req.Phone,
+		Address:   req.Address,
+		CreatedBy: userID,
+		SalesID:   req.SalesID,
 	}
 
 	customer, err := h.customerUsecase.CreateCustomer(c.Context(), domainReq)
@@ -69,6 +72,8 @@ func (h *customerHandler) CreateCustomer(c *fiber.Ctx) error {
 // @Param id path string true "Customer ID (UUID)"
 // @Success 200 {object} utils.SuccessResponse[dto.CustomerResponse]
 // @Failure 400 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse
+// @Failure 403 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers/{id} [get]
@@ -78,11 +83,10 @@ func (h *customerHandler) GetCustomer(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	// MOCKING DATA LOGIN (Nanti ambil dari middleware JWT)
-	operatorID := "dummy-operator-id"
-	operatorRole := domain.RoleAdmin // Bisa diganti domain.RoleSales untuk test filter
+	// Ambil data identitas login dari context JWT
+	operatorID, _ := c.Locals("userID").(string)
+	operatorRole, _ := c.Locals("userRole").(domain.Role)
 
-	// Mengirim operatorID dan operatorRole ke Usecase
 	customer, err := h.customerUsecase.GetCustomer(c.Context(), id, operatorID, operatorRole)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
@@ -98,8 +102,9 @@ func (h *customerHandler) GetCustomer(c *fiber.Ctx) error {
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
 // @Param search query string false "Cari berdasarkan Nama atau Telepon"
-// @Param sales_id query string false "Filter berdasarkan Sales ID (Admin Only)"
+// @Param sales_id query string false "Filter berdasarkan Sales ID (Owner/Accounting Only)"
 // @Success 200 {object} utils.PaginatedResponse[dto.CustomerResponse]
+// @Failure 401 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers [get]
 func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
@@ -108,17 +113,15 @@ func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
 
 	query := domain.PaginationQuery{Page: page, Limit: limit}
 
-	// Tangkap parameter dari URL Frontend
 	filter := domain.CustomerFilter{
 		Search:  c.Query("search"),
 		SalesID: c.Query("sales_id"),
 	}
 
-	// MOCKING DATA LOGIN (Nanti ambil dari middleware JWT)
-	operatorID := "dummy-operator-id"
-	operatorRole := domain.RoleAdmin // Coba ganti ke domain.RoleSales untuk test keamanannya nanti
+	// Ambil data identitas login dari context JWT
+	operatorID, _ := c.Locals("userID").(string)
+	operatorRole, _ := c.Locals("userRole").(domain.Role)
 
-	// Teruskan filter ke Usecase
 	customers, meta, err := h.customerUsecase.ListCustomers(c.Context(), query, filter, operatorID, operatorRole)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
@@ -136,6 +139,7 @@ func (h *customerHandler) ListCustomers(c *fiber.Ctx) error {
 // @Param request body dto.CustomerUpdateRequest true "Data Update Customer"
 // @Success 200 {object} utils.SuccessResponse[dto.CustomerResponse]
 // @Failure 400 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers/{id} [put]
@@ -157,10 +161,9 @@ func (h *customerHandler) UpdateCustomer(c *fiber.Ctx) error {
 		Name:    req.Name,
 		Phone:   req.Phone,
 		Address: req.Address,
-		SalesID: req.SalesID, // TAMBAHAN MAPPING
+		SalesID: req.SalesID,
 	}
 
-	// (Jika Anda menambahkan operatorID dan operatorRole di UpdateCustomer Usecase, passing juga di sini)
 	customer, err := h.customerUsecase.UpdateCustomer(c.Context(), id, domainReq)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
@@ -176,6 +179,8 @@ func (h *customerHandler) UpdateCustomer(c *fiber.Ctx) error {
 // @Param id path string true "Customer ID (UUID)"
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse
+// @Failure 403 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
 // @Router /customers/{id} [delete]
 func (h *customerHandler) DeleteCustomer(c *fiber.Ctx) error {

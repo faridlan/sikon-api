@@ -39,6 +39,8 @@ func NewExpenseHandler(eu domain.ExpenseUsecase) ExpenseHandler {
 // @Param request body dto.ExpenseCategoryCreateRequest true "Data Kategori Baru"
 // @Success 201 {object} utils.SuccessResponse[dto.ExpenseCategoryResponse]
 // @Failure 400 {object} utils.ErrorResponse "Bad Request"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
 // @Router /expenses/categories [post]
 func (h *expenseHandler) CreateCategory(c *fiber.Ctx) error {
@@ -67,6 +69,8 @@ func (h *expenseHandler) CreateCategory(c *fiber.Ctx) error {
 // @Tags Expense Categories
 // @Produce json
 // @Success 200 {object} utils.SuccessResponse[[]dto.ExpenseCategoryResponse]
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
 // @Router /expenses/categories [get]
 func (h *expenseHandler) ListCategories(c *fiber.Ctx) error {
@@ -88,6 +92,8 @@ func (h *expenseHandler) ListCategories(c *fiber.Ctx) error {
 // @Param request body dto.ExpenseCreateRequest true "Data Pengeluaran Baru"
 // @Success 201 {object} utils.SuccessResponse[dto.ExpenseResponse]
 // @Failure 400 {object} utils.ErrorResponse "Bad Request"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
 // @Router /expenses [post]
 func (h *expenseHandler) CreateExpense(c *fiber.Ctx) error {
@@ -99,7 +105,11 @@ func (h *expenseHandler) CreateExpense(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
+	// Ekstrak User ID dari JWT Claims yang disimpan oleh JWTMiddleware
 	userID := req.CreatedByID
+	if userID == "" {
+		userID, _ = c.Locals("userID").(string)
+	}
 
 	input := domain.ExpenseCreateInput{
 		ExpenseCategoryID: req.ExpenseCategoryID,
@@ -124,6 +134,8 @@ func (h *expenseHandler) CreateExpense(c *fiber.Ctx) error {
 // @Param id path string true "Expense ID (UUID)"
 // @Success 200 {object} utils.SuccessResponse[dto.ExpenseResponse]
 // @Failure 400 {object} utils.ErrorResponse "Bad Request"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 404 {object} utils.ErrorResponse "Not Found"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
 // @Router /expenses/{id} [get]
@@ -149,6 +161,8 @@ func (h *expenseHandler) GetExpense(c *fiber.Ctx) error {
 // @Param start_date query string false "Filter Tanggal Awal (YYYY-MM-DD)"
 // @Param end_date query string false "Filter Tanggal Akhir (YYYY-MM-DD)"
 // @Success 200 {object} utils.PaginatedResponse[dto.ExpenseResponse]
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
 // @Router /expenses [get]
 func (h *expenseHandler) ListExpenses(c *fiber.Ctx) error {
@@ -184,6 +198,8 @@ func (h *expenseHandler) ListExpenses(c *fiber.Ctx) error {
 // @Param id path string true "Expense ID"
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse "Bad Request"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 404 {object} utils.ErrorResponse "Not Found"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
 // @Router /expenses/{id} [delete]

@@ -35,7 +35,8 @@ func (u *userUsecase) Register(c context.Context, input domain.UserRegisterInput
 		return nil, domain.NewError(domain.ErrConflict, "Email sudah terdaftar")
 	}
 
-	if input.Role != domain.RoleAdmin && input.Role != domain.RoleSales {
+	// 1. Perbarui validasi role sesuai hirarki baru (Owner, Accounting, Sales)
+	if input.Role != domain.RoleOwner && input.Role != domain.RoleAccounting && input.Role != domain.RoleSales {
 		return nil, domain.NewError(domain.ErrBadParamInput, "Role tidak valid")
 	}
 
@@ -135,9 +136,15 @@ func (u *userUsecase) UpdateUser(c context.Context, id string, input domain.User
 	if input.Name != "" {
 		existingUser.Name = input.Name
 	}
+
+	// 2. Tambahkan validasi role saat update
 	if input.Role != "" {
+		if input.Role != domain.RoleOwner && input.Role != domain.RoleAccounting && input.Role != domain.RoleSales {
+			return nil, domain.NewError(domain.ErrBadParamInput, "Role tidak valid")
+		}
 		existingUser.Role = input.Role
 	}
+
 	if input.Phone != "" {
 		existingUser.Phone = input.Phone
 	}
