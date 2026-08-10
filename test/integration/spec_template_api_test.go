@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -30,7 +30,7 @@ func TestCreateSpecTemplate_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/spec-templates", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/spec-templates", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -53,7 +53,7 @@ func TestCreateSpecTemplate_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/spec-templates", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/spec-templates", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -68,7 +68,7 @@ func TestCreateSpecTemplate_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/spec-templates", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/spec-templates", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -88,7 +88,7 @@ func TestGetSpecTemplate_Integration(t *testing.T) {
 	specTpl := tests.SeedSpecTemplate(db, "Kemeja PDL", "Ripstop, Bordir Komputer")
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/spec-templates/"+specTpl.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/spec-templates/"+specTpl.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -105,7 +105,7 @@ func TestGetSpecTemplate_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String() // Generate UUID acak yang tidak ada di DB
-		req := httptest.NewRequest("GET", "/api/spec-templates/"+randomID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/spec-templates/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -126,7 +126,7 @@ func TestListSpecTemplates_Integration(t *testing.T) {
 	tests.SeedSpecTemplate(db, "Template 3", "Spec C")
 
 	t.Run("Success_GetList", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/spec-templates?page=1&limit=10", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/spec-templates?page=1&limit=10", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -161,7 +161,7 @@ func TestUpdateSpecTemplate_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/spec-templates/"+specTpl.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/spec-templates/"+specTpl.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -181,7 +181,7 @@ func TestUpdateSpecTemplate_Integration(t *testing.T) {
 		reqBody := dto.SpecTemplateRequest{Name: "Coba Update Data Gaib", Spec: "Ngasal"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/spec-templates/"+randomID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/spec-templates/"+randomID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -193,7 +193,7 @@ func TestUpdateSpecTemplate_Integration(t *testing.T) {
 		reqBody := dto.SpecTemplateRequest{Name: "", Spec: ""} // Tidak boleh kosong
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/spec-templates/"+specTpl.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/spec-templates/"+specTpl.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -205,7 +205,7 @@ func TestUpdateSpecTemplate_Integration(t *testing.T) {
 		reqBody := dto.SpecTemplateRequest{Name: "Test Invalid ID", Spec: "Test"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/spec-templates/id-bukan-uuid", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/spec-templates/id-bukan-uuid", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -225,14 +225,14 @@ func TestDeleteSpecTemplate_Integration(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		// 1. Eksekusi Delete
-		req := httptest.NewRequest("DELETE", "/api/spec-templates/"+specTpl.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/spec-templates/"+specTpl.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
 		// 2. Verifikasi data benar-benar hilang (Tembak GET by ID)
-		reqCheck := httptest.NewRequest("GET", "/api/spec-templates/"+specTpl.ID, nil)
+		reqCheck := tests.AuthenticatedRequest("GET", "/api/spec-templates/"+specTpl.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		respCheck, _ := app.Test(reqCheck, -1)
 
 		// Harusnya API mengembalikan 404 NotFound
@@ -241,7 +241,7 @@ func TestDeleteSpecTemplate_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("DELETE", "/api/spec-templates/"+randomID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/spec-templates/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
@@ -249,7 +249,7 @@ func TestDeleteSpecTemplate_Integration(t *testing.T) {
 	})
 
 	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/spec-templates/ini-id-ngasal", nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/spec-templates/ini-id-ngasal", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)

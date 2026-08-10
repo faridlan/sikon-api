@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -33,7 +33,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/batch-pos", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/batch-pos", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -62,7 +62,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/batch-pos", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/batch-pos", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -82,7 +82,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/batch-pos", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/batch-pos", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -94,7 +94,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		tests.ClearTables(db)
 		seededPO := tests.SeedBatchPO(db, "PO Reguler Juni", "active")
 
-		req := httptest.NewRequest("GET", "/api/batch-pos/"+seededPO.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/batch-pos/"+seededPO.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -116,7 +116,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		tests.SeedBatchPO(db, "PO 2", "closed")
 		tests.SeedBatchPO(db, "PO 3", "active")
 
-		req := httptest.NewRequest("GET", "/api/batch-pos/active", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/batch-pos/active", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -142,7 +142,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/batch-pos/"+seededPO.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/batch-pos/"+seededPO.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -159,7 +159,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		tests.ClearTables(db)
 		seededPO := tests.SeedBatchPO(db, "PO Batal", "draft")
 
-		req := httptest.NewRequest("DELETE", "/api/batch-pos/"+seededPO.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/batch-pos/"+seededPO.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -172,7 +172,7 @@ func TestBatchPO_Integration(t *testing.T) {
 	})
 
 	t.Run("Error - UUID Tidak Valid", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/batch-pos/bukan-uuid-123", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/batch-pos/bukan-uuid-123", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -183,7 +183,7 @@ func TestBatchPO_Integration(t *testing.T) {
 		tests.ClearTables(db)
 		fakeID := uuid.New().String()
 
-		req := httptest.NewRequest("GET", "/api/batch-pos/"+fakeID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/batch-pos/"+fakeID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)

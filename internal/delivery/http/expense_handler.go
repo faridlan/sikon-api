@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -42,6 +42,7 @@ func NewExpenseHandler(eu domain.ExpenseUsecase) ExpenseHandler {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BearerAuth
 // @Router /expenses/categories [post]
 func (h *expenseHandler) CreateCategory(c *fiber.Ctx) error {
 	var req dto.ExpenseCategoryCreateRequest
@@ -72,6 +73,7 @@ func (h *expenseHandler) CreateCategory(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BearerAuth
 // @Router /expenses/categories [get]
 func (h *expenseHandler) ListCategories(c *fiber.Ctx) error {
 	cats, err := h.expenseUsecase.ListCategories(c.Context())
@@ -95,6 +97,7 @@ func (h *expenseHandler) ListCategories(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BearerAuth
 // @Router /expenses [post]
 func (h *expenseHandler) CreateExpense(c *fiber.Ctx) error {
 	var req dto.ExpenseCreateRequest
@@ -138,6 +141,7 @@ func (h *expenseHandler) CreateExpense(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 404 {object} utils.ErrorResponse "Not Found"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BearerAuth
 // @Router /expenses/{id} [get]
 func (h *expenseHandler) GetExpense(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -164,6 +168,7 @@ func (h *expenseHandler) GetExpense(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BearerAuth
 // @Router /expenses [get]
 func (h *expenseHandler) ListExpenses(c *fiber.Ctx) error {
 	query := domain.PaginationQuery{
@@ -202,6 +207,7 @@ func (h *expenseHandler) ListExpenses(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.ErrorResponse "Forbidden"
 // @Failure 404 {object} utils.ErrorResponse "Not Found"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BearerAuth
 // @Router /expenses/{id} [delete]
 func (h *expenseHandler) DeleteExpense(c *fiber.Ctx) error {
 	id := c.Params("id")

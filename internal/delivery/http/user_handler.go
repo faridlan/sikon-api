@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -37,6 +37,8 @@ func NewUserHandler(uu domain.UserUsecase) UserHandler {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 409 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /users/register [post]
 func (h *userHandler) Register(c *fiber.Ctx) error {
 	var req dto.UserRegisterRequest
@@ -83,6 +85,8 @@ func (h *userHandler) Register(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /users/{id} [get]
 func (h *userHandler) GetProfile(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -108,6 +112,8 @@ func (h *userHandler) GetProfile(c *fiber.Ctx) error {
 // @Param role query string false "Filter berdasarkan role (admin/sales)"
 // @Success 200 {object} utils.PaginatedResponse[dto.UserResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /users [get]
 func (h *userHandler) ListUsers(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
@@ -158,6 +164,8 @@ func (h *userHandler) GetPublicSalesList(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /users/{id} [put]
 func (h *userHandler) UpdateUser(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -200,6 +208,8 @@ func (h *userHandler) UpdateUser(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /users/{id} [delete]
 func (h *userHandler) DeleteUser(c *fiber.Ctx) error {
 	id := c.Params("id")

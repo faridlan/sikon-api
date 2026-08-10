@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
 )
@@ -34,7 +34,7 @@ func TestCreateBankAccount_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -58,7 +58,7 @@ func TestCreateBankAccount_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -83,7 +83,7 @@ func TestCreateBankAccount_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -100,7 +100,7 @@ func TestCreateBankAccount_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/bank-accounts", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -126,7 +126,7 @@ func TestUpdateBankAccount_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/bank-accounts/"+account.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/bank-accounts/"+account.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -149,7 +149,7 @@ func TestUpdateBankAccount_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/bank-accounts/"+randomID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/bank-accounts/"+randomID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -164,7 +164,7 @@ func TestUpdateBankAccount_Integration(t *testing.T) {
 		bodyJson, _ := json.Marshal(reqBody)
 
 		// Tembak dengan format ID di URL yang salah
-		req := httptest.NewRequest("PUT", "/api/bank-accounts/id-ngasal", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/bank-accounts/id-ngasal", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -191,7 +191,7 @@ func TestGetGlobalAccounts_Integration(t *testing.T) {
 	tests.SeedBankAccount(db, tests.StringPtr(user.ID), "Mandiri", "333", "Sales 1")
 
 	t.Run("Success_Only_Return_Global", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/bank-accounts/global", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts/global", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -223,7 +223,7 @@ func TestListBankAccounts_Integration(t *testing.T) {
 	tests.SeedBankAccount(db, tests.StringPtr(user.ID), "BRI", "222", "Sales B")
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/bank-accounts", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -249,7 +249,7 @@ func TestDeleteBankAccount_Integration(t *testing.T) {
 	account := tests.SeedBankAccount(db, nil, "Hapus Bank", "000", "Akan Dihapus")
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/bank-accounts/"+account.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/bank-accounts/"+account.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -258,7 +258,7 @@ func TestDeleteBankAccount_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("DELETE", "/api/bank-accounts/"+randomID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/bank-accounts/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -276,7 +276,7 @@ func TestGetBankAccountByID_Integration(t *testing.T) {
 	account := tests.SeedBankAccount(db, nil, "Bank Jago", "12345", "Global Jago")
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/bank-accounts/"+account.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts/"+account.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -294,14 +294,14 @@ func TestGetBankAccountByID_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("GET", "/api/bank-accounts/"+randomID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode) // Harusnya 404
 	})
 
 	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/bank-accounts/bukan-uuid", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts/bukan-uuid", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya 400
@@ -331,7 +331,7 @@ func TestGetUserBankAccounts_Integration(t *testing.T) {
 
 	t.Run("Success_Get_Specific_User_Accounts", func(t *testing.T) {
 		// Tembak API untuk mengambil rekening milik user 1 saja
-		req := httptest.NewRequest("GET", "/api/bank-accounts/user/"+user1.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts/user/"+user1.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -356,7 +356,7 @@ func TestGetUserBankAccounts_Integration(t *testing.T) {
 	t.Run("Success_But_Empty", func(t *testing.T) {
 		// Jika kita mencari User ID yang tidak punya rekening (tapi format UUID valid)
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("GET", "/api/bank-accounts/user/"+randomID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts/user/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		// Catatan: Biasanya dalam case "mencari daftar data (list) by foreign key",
@@ -372,7 +372,7 @@ func TestGetUserBankAccounts_Integration(t *testing.T) {
 	})
 
 	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/bank-accounts/user/id-sales-ngasal", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/bank-accounts/user/id-sales-ngasal", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, _ := app.Test(req, -1)
 
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode) // Harusnya 400

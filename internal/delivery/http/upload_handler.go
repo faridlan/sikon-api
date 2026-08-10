@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -26,6 +26,8 @@ func NewUploadHandler(uu domain.UploadUsecase) UploadHandler {
 // @Param folder query string false "Nama folder tujuan" default(general)
 // @Param file formData file true "File gambar (Max 2MB)"
 // @Success 200 {object} utils.SuccessResponse[map[string]string]
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /uploads/image [post]
 func (h *uploadHandler) UploadImage(c *fiber.Ctx) error {
 	file, err := c.FormFile("file")

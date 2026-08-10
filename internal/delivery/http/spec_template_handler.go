@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -35,6 +35,8 @@ func NewSpecTemplateHandler(su domain.SpecTemplateUsecase) SpecTemplateHandler {
 // @Success 201 {object} utils.SuccessResponse[dto.SpecTemplateResponse]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /spec-templates [post]
 func (h *specTemplateHandler) CreateSpecTemplate(c *fiber.Ctx) error {
 	var req dto.SpecTemplateRequest
@@ -69,6 +71,8 @@ func (h *specTemplateHandler) CreateSpecTemplate(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /spec-templates/{id} [get]
 func (h *specTemplateHandler) GetSpecTemplate(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -92,6 +96,8 @@ func (h *specTemplateHandler) GetSpecTemplate(c *fiber.Ctx) error {
 // @Param limit query int false "Batas Data per Halaman" default(10)
 // @Success 200 {object} utils.PaginatedResponse[dto.SpecTemplateResponse]
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /spec-templates [get]
 func (h *specTemplateHandler) ListSpecTemplates(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
@@ -121,6 +127,8 @@ func (h *specTemplateHandler) ListSpecTemplates(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /spec-templates/{id} [put]
 func (h *specTemplateHandler) UpdateSpecTemplate(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -158,6 +166,8 @@ func (h *specTemplateHandler) UpdateSpecTemplate(c *fiber.Ctx) error {
 // @Success 200 {object} utils.SuccessResponse[utils.EmptyObj]
 // @Failure 400 {object} utils.ErrorResponse
 // @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /spec-templates/{id} [delete]
 func (h *specTemplateHandler) DeleteSpecTemplate(c *fiber.Ctx) error {
 	id := c.Params("id")

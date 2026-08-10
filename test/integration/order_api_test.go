@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
+	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
@@ -61,7 +61,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -98,7 +98,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -131,7 +131,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -155,7 +155,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -199,7 +199,7 @@ func TestCreateOrder_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/orders", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -246,7 +246,7 @@ func TestGetOrder_Integration(t *testing.T) {
 	order := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID)
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/orders/"+order.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/orders/"+order.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -292,7 +292,7 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/orders/"+order.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/orders/"+order.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -319,7 +319,7 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		reqBody := dto.OrderUpdateRequest{CourierName: "J&T"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/orders/"+randomID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/orders/"+randomID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -335,7 +335,7 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		reqBody := dto.OrderUpdateRequest{CourierName: "J&T"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/orders/bukan-uuid", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/orders/bukan-uuid", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -353,7 +353,7 @@ func TestUpdateOrder_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/orders/"+order.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/orders/"+order.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -400,7 +400,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "pending"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -416,7 +416,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "pending"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -453,7 +453,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "production"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -468,7 +468,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "ready"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -486,7 +486,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "completed"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -502,7 +502,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "completed"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -517,7 +517,7 @@ func TestUpdateOrderStatus_Integration(t *testing.T) {
 		reqBody := dto.OrderStatusUpdateRequest{OrderStatus: "status_ngasal"}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -541,14 +541,14 @@ func TestDeleteOrder_Integration(t *testing.T) {
 	order := tests.SeedOrder(db, batchPo.ID, cust.ID, sales.ID, prod.ID)
 
 	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/orders/"+order.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/orders/"+order.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
 		// Opsional: Verifikasi data benar-benar hilang
-		reqCheck := httptest.NewRequest("GET", "/api/orders/"+order.ID, nil)
+		reqCheck := tests.AuthenticatedRequest("GET", "/api/orders/"+order.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		respCheck, _ := app.Test(reqCheck, -1)
 		assert.Equal(t, fiber.StatusNotFound, respCheck.StatusCode)
 	})
@@ -557,7 +557,7 @@ func TestDeleteOrder_Integration(t *testing.T) {
 
 	t.Run("Failed_NotFound", func(t *testing.T) {
 		randomID := uuid.New().String()
-		req := httptest.NewRequest("DELETE", "/api/orders/"+randomID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/orders/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
@@ -565,7 +565,7 @@ func TestDeleteOrder_Integration(t *testing.T) {
 	})
 
 	t.Run("Failed_Invalid_UUID", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/api/orders/ini-bukan-uuid", nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/orders/ini-bukan-uuid", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
@@ -613,7 +613,7 @@ func TestListOrders_Integration(t *testing.T) {
 	// --- 2. SKENARIO PENGUJIAN ---
 
 	t.Run("Success_Get_All_Tanpa_Filter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/orders", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/orders", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -630,7 +630,7 @@ func TestListOrders_Integration(t *testing.T) {
 
 	t.Run("Success_Filter_By_OrderStatus", func(t *testing.T) {
 		// Test mencari order yang statusnya 'pending' saja
-		req := httptest.NewRequest("GET", "/api/orders?order_status=pending", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/orders?order_status=pending", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -649,7 +649,7 @@ func TestListOrders_Integration(t *testing.T) {
 
 	t.Run("Success_Filter_By_SalesID", func(t *testing.T) {
 		// Test mencari order milik Sales B saja
-		req := httptest.NewRequest("GET", "/api/orders?sales_id="+salesB.ID, nil)
+		req := tests.AuthenticatedRequest("GET", "/api/orders?sales_id="+salesB.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -667,7 +667,7 @@ func TestListOrders_Integration(t *testing.T) {
 
 	t.Run("Success_Pagination_Limit", func(t *testing.T) {
 		// Test Pagination: Ambil halaman 1, tapi batasi hanya 2 data per halaman
-		req := httptest.NewRequest("GET", "/api/orders?page=1&limit=2", nil)
+		req := tests.AuthenticatedRequest("GET", "/api/orders?page=1&limit=2", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
 		assert.NoError(t, err)
@@ -705,7 +705,7 @@ func TestUpdatePaymentStatus_Integration(t *testing.T) {
 		bodyJson, _ := json.Marshal(reqBody)
 
 		// Perhatikan: Endpoint-nya adalah /payment-status
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -727,7 +727,7 @@ func TestUpdatePaymentStatus_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -741,7 +741,7 @@ func TestUpdatePaymentStatus_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PATCH", "/api/orders/"+order.ID+"/payment-status", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -778,7 +778,7 @@ func TestOrderItems_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/orders/"+order.ID+"/items", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/orders/"+order.ID+"/items", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -837,7 +837,7 @@ func TestOrderItems_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/orders/"+order.ID+"/items/"+existingItem.ID, bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("PUT", "/api/orders/"+order.ID+"/items/"+existingItem.ID, bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
@@ -878,7 +878,7 @@ func TestOrderItems_Integration(t *testing.T) {
 		db.Where("order_id = ?", order.ID).First(&existingItem)
 
 		// Hit endpoint DELETE
-		req := httptest.NewRequest("DELETE", "/api/orders/"+order.ID+"/items/"+existingItem.ID, nil)
+		req := tests.AuthenticatedRequest("DELETE", "/api/orders/"+order.ID+"/items/"+existingItem.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -916,7 +916,7 @@ func TestOrderItems_Integration(t *testing.T) {
 		}
 		bodyJson, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/api/orders/"+order.ID+"/items", bytes.NewBuffer(bodyJson))
+		req := tests.AuthenticatedRequest("POST", "/api/orders/"+order.ID+"/items", bytes.NewBuffer(bodyJson), "test-user", "test-user@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)

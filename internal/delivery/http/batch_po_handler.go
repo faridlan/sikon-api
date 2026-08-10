@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -34,6 +34,8 @@ func NewBatchPOHandler(bu domain.BatchPOUsecase) BatchPOHandler {
 // @Success 201 {object} utils.SuccessResponse[dto.BatchPOResponse]
 // @Failure 400 {object} utils.ErrorResponse "Bad Request - Format input salah atau validasi gagal"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error - Terjadi kesalahan pada server"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /batch-pos [post]
 func (h *batchPoHandler) CreateBatchPO(c *fiber.Ctx) error {
 	var req dto.BatchPOCreateRequest
@@ -68,6 +70,8 @@ func (h *batchPoHandler) CreateBatchPO(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse "Bad Request - Format ID UUID tidak valid"
 // @Failure 404 {object} utils.ErrorResponse "Not Found - Batch PO tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /batch-pos/{id} [get]
 func (h *batchPoHandler) GetBatchPO(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -89,6 +93,8 @@ func (h *batchPoHandler) GetBatchPO(c *fiber.Ctx) error {
 // @Param limit query int false "Limit" default(10)
 // @Success 200 {object} utils.PaginatedResponse[dto.BatchPOResponse]
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /batch-pos [get]
 func (h *batchPoHandler) ListBatchPOs(c *fiber.Ctx) error {
 	query := domain.PaginationQuery{
@@ -108,6 +114,8 @@ func (h *batchPoHandler) ListBatchPOs(c *fiber.Ctx) error {
 // @Produce json
 // @Success 200 {object} utils.SuccessResponse[[]dto.BatchPOResponse]
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /batch-pos/active [get]
 func (h *batchPoHandler) ListActiveBatchPOs(c *fiber.Ctx) error {
 	batchPOs, err := h.batchPoUsecase.ListActiveBatchPOs(c.Context())
@@ -127,6 +135,8 @@ func (h *batchPoHandler) ListActiveBatchPOs(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse "Bad Request - Format ID tidak valid atau body request salah"
 // @Failure 404 {object} utils.ErrorResponse "Not Found - Batch PO tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /batch-pos/{id} [put]
 func (h *batchPoHandler) UpdateBatchPO(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -168,6 +178,8 @@ func (h *batchPoHandler) UpdateBatchPO(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse "Bad Request - Status tidak valid"
 // @Failure 404 {object} utils.ErrorResponse "Not Found - Batch PO tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /batch-pos/{id}/status [patch]
 func (h *batchPoHandler) UpdateStatus(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -197,6 +209,8 @@ func (h *batchPoHandler) UpdateStatus(c *fiber.Ctx) error {
 // @Failure 400 {object} utils.ErrorResponse "Bad Request - Format ID tidak valid"
 // @Failure 404 {object} utils.ErrorResponse "Not Found - Batch PO tidak ditemukan"
 // @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Security BearerAuth
 // @Router /batch-pos/{id} [delete]
 func (h *batchPoHandler) DeleteBatchPO(c *fiber.Ctx) error {
 	id := c.Params("id")

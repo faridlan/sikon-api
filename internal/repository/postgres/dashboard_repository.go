@@ -24,17 +24,14 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 	paymentQuery := r.db.WithContext(ctx).Model(&PaymentModel{})
 
 	if filter.StartDate != "" && filter.EndDate != "" {
-		// Konversi string YYYY-MM-DD ke tipe data time.Time
-		start, errStart := time.Parse("2006-01-02", filter.StartDate)
-		end, errEnd := time.Parse("2006-01-02", filter.EndDate)
-
-		if errStart == nil && errEnd == nil {
-			// Set waktu akhir ke pukul 23:59:59 agar meng-cover transaksi di hari tersebut sepenuhnya
-			end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-
-			orderQuery = orderQuery.Where("created_at BETWEEN ? AND ?", start, end)
-			// Untuk payment, kita asumsikan difilter berdasarkan PaymentDate
-			paymentQuery = paymentQuery.Where("payment_date BETWEEN ? AND ?", start, end)
+		// Pastikan filter tanggal valid sebelum memakainya.
+		if _, errStart := time.Parse("2006-01-02", filter.StartDate); errStart == nil {
+			if _, errEnd := time.Parse("2006-01-02", filter.EndDate); errEnd == nil {
+				// Gunakan DATE(...) untuk menghindari perbedaan timezone
+				// dan memastikan filter hanya berdasarkan tanggal.
+				orderQuery = orderQuery.Where("DATE(created_at) BETWEEN ? AND ?", filter.StartDate, filter.EndDate)
+				paymentQuery = paymentQuery.Where("DATE(payment_date) BETWEEN ? AND ?", filter.StartDate, filter.EndDate)
+			}
 		}
 	}
 
