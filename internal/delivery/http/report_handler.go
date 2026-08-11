@@ -15,7 +15,7 @@ type ReportHandler interface {
 	GetProductionReport(c *fiber.Ctx) error
 	GetPOSummaryReport(c *fiber.Ctx) error
 	GetReceivablesReport(c *fiber.Ctx) error
-	GetDailyReport(c *fiber.Ctx) error // BARU: Endpoint Laporan Harian
+	GetDailyReport(c *fiber.Ctx) error
 }
 
 type reportHandler struct {
@@ -27,13 +27,14 @@ func NewReportHandler(ru domain.ReportUsecase) ReportHandler {
 }
 
 // @Summary Get Accounting Report
-// @Description Mengambil laporan keuangan (Omset, Kas Masuk, Piutang, Pengeluaran, Laba Bersih, dan Arus Kas) berdasarkan rentang tanggal.
+// @Description Mengambil laporan keuangan (Omset, Kas Masuk, Piutang, HPP, Laba Kotor, OPEX, Laba Bersih, dan Arus Kas) berdasarkan rentang tanggal.
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth
 // @Param start_date query string false "Tanggal Awal (Format: YYYY-MM-DD)"
 // @Param end_date query string false "Tanggal Akhir (Format: YYYY-MM-DD)"
 // @Success 200 {object} utils.SuccessResponse[dto.AccountingReportResponse]
+// @Failure 400 {object} utils.ErrorResponse "Format tanggal tidak valid"
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /reports/accounting [get]
 func (h *reportHandler) GetAccountingReport(c *fiber.Ctx) error {
@@ -69,13 +70,14 @@ func (h *reportHandler) GetAccountingReport(c *fiber.Ctx) error {
 }
 
 // @Summary Get Production Report
-// @Description Mengambil laporan produksi, tagihan, HPP (Pengeluaran), Laba Produksi, dan performa sales berdasarkan Edisi PO (Bulan & Tahun).
+// @Description Mengambil laporan produksi, tagihan, HPP (Direct Costs), Laba Kotor Produksi, dan performa sales berdasarkan Edisi PO (Bulan & Tahun).
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth
 // @Param month query int false "Bulan Target PO (1-12) - Default: Bulan saat ini"
 // @Param year query int false "Tahun Target PO - Default: Tahun saat ini"
 // @Success 200 {object} utils.SuccessResponse[dto.ProductionReportResponse]
+// @Failure 400 {object} utils.ErrorResponse "Parameter bulan/tahun tidak valid"
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /reports/production [get]
 func (h *reportHandler) GetProductionReport(c *fiber.Ctx) error {
@@ -93,7 +95,7 @@ func (h *reportHandler) GetProductionReport(c *fiber.Ctx) error {
 }
 
 // @Summary Get PO Close / Summary Report
-// @Description Mengambil rekapitulasi data PO tertentu, termasuk total produk yang harus diproduksi, tagihan finansial, HPP, Net Profit, dan spesifik piutang customer.
+// @Description Mengambil rekapitulasi data PO tertentu, termasuk total produk, tagihan finansial, HPP, Laba Kotor, dan spesifik piutang customer.
 // @Tags Reports
 // @Produce json
 // @Security BearerAuth

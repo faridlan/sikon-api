@@ -44,13 +44,13 @@ func (r *reportRepository) GetAccountingReportData(ctx context.Context, startDat
 		Where("orders.approved_at >= ? AND orders.approved_at <= ? AND orders.deleted_at IS NULL AND order_items.deleted_at IS NULL", startDate, endDate).
 		Select("COALESCE(SUM(order_items.qty), 0)").Scan(&totalQty)
 
-	// 3. Summary Cash In (Berdasarkan payment_date & HANYA YANG VERIFIED) 👈 UPDATED
+	// 3. Summary Cash In (Berdasarkan payment_date & HANYA YANG VERIFIED)
 	var totalCashIn float64
 	r.db.WithContext(ctx).Table("payments").
 		Where("payment_date >= ? AND payment_date <= ? AND status = ? AND deleted_at IS NULL", startDate, endDate, domain.PaymentVerificationVerified).
 		Select("COALESCE(SUM(amount), 0)").Scan(&totalCashIn)
 
-	// 4. Hitung Piutang Baru yang Tercipta di Rentang Ini (HANYA MENGURANGI PAYMENT VERIFIED) 👈 UPDATED
+	// 4. Hitung Piutang Baru yang Tercipta di Rentang Ini
 	var piutangBaru float64
 	r.db.WithContext(ctx).Table("orders").
 		Select("COALESCE(SUM(orders.total_amount - (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.order_id = orders.id AND payments.status = 'verified' AND payments.deleted_at IS NULL)), 0)").
@@ -65,7 +65,7 @@ func (r *reportRepository) GetAccountingReportData(ctx context.Context, startDat
 		TotalItemQty:    int(totalQty),
 	}
 
-	// 5. Leaderboard Sales (Siapa penyumbang omset di periode ini)
+	// 5. Leaderboard Sales
 	r.db.WithContext(ctx).Table("orders").
 		Select("users.id as sales_id, users.name as sales_name, COUNT(orders.id) as total_orders, SUM(orders.total_amount) as total_omset").
 		Joins("JOIN users ON users.id = orders.sales_id").
@@ -74,7 +74,7 @@ func (r *reportRepository) GetAccountingReportData(ctx context.Context, startDat
 		Order("total_omset DESC").
 		Scan(&report.SalesPerformances)
 
-	// 6. Menyusun Grafik Trend (Per Hari) 👈 UPDATED CASH IN
+	// 6. Menyusun Grafik Trend (Per Hari)
 	type dailyResult struct {
 		Date   string
 		Amount float64
@@ -144,7 +144,7 @@ func (r *reportRepository) GetProductionReportData(ctx context.Context, targetMo
 		return report, nil
 	}
 
-	// 2. Hitung Finansial (HANYA PAYMENT VERIFIED) 👈 UPDATED
+	// 2. Hitung Finansial (HANYA PAYMENT VERIFIED)
 	var financial struct {
 		TotalRevenue     float64
 		TotalPaid        float64
@@ -302,7 +302,7 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 	summary.Status = po.Status
 	summary.TotalQuota = po.Quota
 
-	// 2. Kalkulasi Finansial (HANYA PAYMENT VERIFIED) 👈 UPDATED
+	// 2. Kalkulasi Finansial (HANYA PAYMENT VERIFIED)
 	var financial struct {
 		TotalRevenue     float64
 		TotalPaid        float64
@@ -423,7 +423,7 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 		})
 	}
 
-	// 6. Daftar Piutang per Customer (HANYA PAYMENT VERIFIED) 👈 UPDATED
+	// 6. Daftar Piutang per Customer
 	r.db.WithContext(ctx).Table("orders o").
 		Select(`
 			c.name as customer_name,
@@ -440,14 +440,16 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 		Order("outstanding_amount DESC").
 		Scan(&summary.CustomerReceivables)
 
-	// 7. Kalkulasi Expense (HPP) & Net Profit
+	// 7. Kalkulasi Expense (HPP) & Gross Profit
 	var totalHPP float64
-	r.db.WithContext(ctx).Table("expenses").
-		Where("batch_po_id = ? AND deleted_at IS NULL", poID).
-		Select("COALESCE(SUM(amount), 0)").Scan(&totalHPP)
+	r.db.WithContext(ctx).Table("expenses e").
+		Joins("JOIN expense_categories ec ON ec.id = e.expense_category_id AND ec.deleted_at IS NULL").
+		Where("e.batch_po_id = ? AND e.deleted_at IS NULL", poID).
+		Where("UPPER(ec.type) = ?", "HPP").
+		Select("COALESCE(SUM(e.amount), 0)").Scan(&totalHPP)
 
 	summary.TotalHPP = totalHPP
-	summary.NetProfit = summary.TotalRevenue - totalHPP
+	summary.GrossProfit = summary.TotalRevenue - totalHPP
 
 	return summary, nil
 }
@@ -455,7 +457,6 @@ func (r *reportRepository) GetPOSummaryData(ctx context.Context, poID string) (*
 func (r *reportRepository) GetReceivablesDetailData(ctx context.Context, filter domain.ReceivablesFilter) ([]domain.ReceivableDetail, error) {
 	var details []domain.ReceivableDetail
 
-	// Detail Piutang (HANYA PAYMENT VERIFIED) 👈 UPDATED
 	query := r.db.WithContext(ctx).Table("orders o").
 		Select(`
 			o.id as order_id,
@@ -507,20 +508,39 @@ func (r *reportRepository) GetReceivablesDetailData(ctx context.Context, filter 
 }
 
 // ============================================================================
-// 4. HELPER FINANSIAL (EXPENSES)
+// 4. HELPER FINANSIAL (EXPENSES BREAKDOWN)
 // ============================================================================
 
-func (r *reportRepository) GetTotalExpenseByDateRange(ctx context.Context, startDate, endDate time.Time) (float64, error) {
-	var total float64
-	err := r.db.WithContext(ctx).Table("expenses").
-		Where("expense_date >= ? AND expense_date <= ? AND deleted_at IS NULL", startDate, endDate).
-		Select("COALESCE(SUM(amount), 0)").
-		Scan(&total).Error
+// GetExpenseBreakdownByDateRange memisahkan total pengeluaran berdasarkan tipe (HPP vs OPEX)
+func (r *reportRepository) GetExpenseBreakdownByDateRange(ctx context.Context, startDate, endDate time.Time) (float64, float64, error) {
+	type breakdownResult struct {
+		Type  string
+		Total float64
+	}
+
+	var results []breakdownResult
+	err := r.db.WithContext(ctx).Table("expenses e").
+		Select("UPPER(ec.type) as type, COALESCE(SUM(e.amount), 0) as total").
+		Joins("JOIN expense_categories ec ON ec.id = e.expense_category_id AND ec.deleted_at IS NULL").
+		Where("e.expense_date >= ? AND e.expense_date <= ? AND e.deleted_at IS NULL", startDate, endDate).
+		Group("UPPER(ec.type)").
+		Scan(&results).Error
 
 	if err != nil {
-		return 0, TranslateError(err)
+		return 0, 0, TranslateError(err)
 	}
-	return total, nil
+
+	var totalHPP, totalOPEX float64
+	for _, res := range results {
+		switch res.Type {
+		case "HPP":
+			totalHPP = res.Total
+		case "OPEX", "OPERATIONAL":
+			totalOPEX = res.Total
+		}
+	}
+
+	return totalHPP, totalOPEX, nil
 }
 
 func (r *reportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error) {
@@ -528,9 +548,11 @@ func (r *reportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs 
 		return 0, nil
 	}
 	var total float64
-	err := r.db.WithContext(ctx).Table("expenses").
-		Where("batch_po_id IN ? AND deleted_at IS NULL", poIDs).
-		Select("COALESCE(SUM(amount), 0)").
+	err := r.db.WithContext(ctx).Table("expenses e").
+		Joins("JOIN expense_categories ec ON ec.id = e.expense_category_id AND ec.deleted_at IS NULL").
+		Where("e.batch_po_id IN ? AND e.deleted_at IS NULL", poIDs).
+		Where("UPPER(ec.type) = ?", "HPP").
+		Select("COALESCE(SUM(e.amount), 0)").
 		Scan(&total).Error
 
 	if err != nil {
@@ -603,7 +625,7 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 
 	report.OrderSummary.QtyToday = qtyToday
 
-	// 4. Financial Summary (HANYA PAYMENT VERIFIED) 👈 UPDATED
+	// 4. Financial Summary
 	var totalRevenueToday, totalPaidToday float64
 	r.db.WithContext(ctx).Table("orders").
 		Where("DATE(approved_at) = DATE(?) AND deleted_at IS NULL", targetDate).

@@ -485,10 +485,10 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 	// --- 6. SETUP EXPENSE CATEGORIES ---
 	expenseCats := []postgresRepo.ExpenseCategoryModel{
-		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Belanja Kain & Benang", Type: "hpp"},
-		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Ongkos Jahit (CMT)", Type: "hpp"},
-		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Operasional Listrik", Type: "operational"},
-		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Biaya Iklan Meta Ads", Type: "operational"},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Belanja Kain & Benang", Type: string(domain.ExpenseTypeHPP)},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Ongkos Jahit (CMT)", Type: string(domain.ExpenseTypeHPP)},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Operasional Listrik", Type: string(domain.ExpenseTypeOPEX)},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Biaya Iklan Meta Ads", Type: string(domain.ExpenseTypeOPEX)},
 	}
 	for _, ec := range expenseCats {
 		h.db.Create(&ec)
@@ -628,7 +628,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			var poIDPtr *string
 			var expAmount float64
 
-			if expCat.Type == "hpp" {
+			// Gunakan string uppercase / enum domain
+			if expCat.Type == string(domain.ExpenseTypeHPP) {
 				poIDPtr = activePoID
 				expAmount = float64(rand.Intn(3000)*1000 + 500000)
 			} else {

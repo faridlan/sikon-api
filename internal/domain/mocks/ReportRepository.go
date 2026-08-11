@@ -76,6 +76,41 @@ func (_m *ReportRepository) GetDailyReportData(ctx context.Context, date time.Ti
 	return r0, r1
 }
 
+// GetExpenseBreakdownByDateRange provides a mock function with given fields: ctx, startDate, endDate
+func (_m *ReportRepository) GetExpenseBreakdownByDateRange(ctx context.Context, startDate time.Time, endDate time.Time) (float64, float64, error) {
+	ret := _m.Called(ctx, startDate, endDate)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpenseBreakdownByDateRange")
+	}
+
+	var r0 float64
+	var r1 float64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) (float64, float64, error)); ok {
+		return rf(ctx, startDate, endDate)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) float64); ok {
+		r0 = rf(ctx, startDate, endDate)
+	} else {
+		r0 = ret.Get(0).(float64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) float64); ok {
+		r1 = rf(ctx, startDate, endDate)
+	} else {
+		r1 = ret.Get(1).(float64)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, time.Time, time.Time) error); ok {
+		r2 = rf(ctx, startDate, endDate)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // GetPOSummaryData provides a mock function with given fields: ctx, poID
 func (_m *ReportRepository) GetPOSummaryData(ctx context.Context, poID string) (*domain.POSummaryReport, error) {
 	ret := _m.Called(ctx, poID)
@@ -187,34 +222,6 @@ func (_m *ReportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs
 
 	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
 		r1 = rf(ctx, poIDs)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetTotalExpenseByDateRange provides a mock function with given fields: ctx, startDate, endDate
-func (_m *ReportRepository) GetTotalExpenseByDateRange(ctx context.Context, startDate time.Time, endDate time.Time) (float64, error) {
-	ret := _m.Called(ctx, startDate, endDate)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetTotalExpenseByDateRange")
-	}
-
-	var r0 float64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) (float64, error)); ok {
-		return rf(ctx, startDate, endDate)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) float64); ok {
-		r0 = rf(ctx, startDate, endDate)
-	} else {
-		r0 = ret.Get(0).(float64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
-		r1 = rf(ctx, startDate, endDate)
 	} else {
 		r1 = ret.Error(1)
 	}

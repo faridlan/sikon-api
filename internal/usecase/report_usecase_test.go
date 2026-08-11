@@ -18,11 +18,11 @@ type stubReportRepository struct {
 	productionReport  *domain.ProductionReport
 	poSummary         *domain.POSummaryReport
 	receivablesDetail []domain.ReceivableDetail
-	dailyReport       *domain.DailyReport // TAMBAHAN: Untuk laporan harian
+	dailyReport       *domain.DailyReport
 
-	// Nilai kembalian khusus untuk Expense
-	totalExpense float64
-	totalHPP     float64
+	// Nilai kembalian khusus untuk Expense Breakdown
+	totalHPP  float64
+	totalOPEX float64
 
 	// Menyimpan error untuk simulasi gagal
 	err            error
@@ -50,9 +50,9 @@ func (s stubReportRepository) GetDailyReportData(_ context.Context, _ time.Time)
 	return s.dailyReport, s.err
 }
 
-// IMPLEMENTASI KONTRAK BARU (FINANCIAL EXPENSES)
-func (s stubReportRepository) GetTotalExpenseByDateRange(_ context.Context, _, _ time.Time) (float64, error) {
-	return s.totalExpense, s.expenseErr
+// IMPLEMENTASI KONTRAK BARU (FINANCIAL EXPENSES BREAKDOWN)
+func (s stubReportRepository) GetExpenseBreakdownByDateRange(_ context.Context, _, _ time.Time) (float64, float64, error) {
+	return s.totalHPP, s.totalOPEX, s.expenseErr
 }
 
 func (s stubReportRepository) GetTotalExpenseByBatchPOs(_ context.Context, _ []string) (float64, error) {
@@ -63,11 +63,11 @@ func (s stubReportRepository) GetTotalExpenseByBatchPOs(_ context.Context, _ []s
 // TEST: GetAccountingReport
 // ============================================================================
 func TestReportUsecase_GetAccountingReport(t *testing.T) {
-	t.Run("Success - Menghitung Net Profit dengan Benar", func(t *testing.T) {
+	t.Run("Success - Menghitung Gross Profit dan Net Profit dengan Benar", func(t *testing.T) {
 		startDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 		endDate := time.Date(2026, 7, 31, 23, 59, 59, 0, time.UTC)
 
-		// Omset 10jt, Uang Masuk 8jt
+		// Omset 10jt, Cash In 8jt, Piutang 2jt
 		mockData := &domain.AccountingReport{
 			StartDate:  startDate,
 			EndDate:    endDate,
@@ -79,10 +79,11 @@ func TestReportUsecase_GetAccountingReport(t *testing.T) {
 			},
 		}
 
-		// Pengeluaran 3jt
+		// Direct Cost HPP = 4jt, OPEX = 1.5jt
 		repo := stubReportRepository{
 			accountingReport: mockData,
-			totalExpense:     3000000, // Simulasi HPP + OPEX
+			totalHPP:         4000000,
+			totalOPEX:        1500000,
 		}
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
@@ -91,13 +92,16 @@ func TestReportUsecase_GetAccountingReport(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		// Verifikasi Kalkulasi Matematika
+		// Verifikasi Kalkulasi Matematika Akuntansi SIKOn
 		assert.Equal(t, float64(10000000), result.Summary.TotalOmset)
-		assert.Equal(t, float64(3000000), result.Summary.TotalExpense)
-		// Net Profit = Omset (10jt) - Expense (3jt) = 7jt
-		assert.Equal(t, float64(7000000), result.Summary.NetProfit)
-		// Net Cashflow = Cash In (8jt) - Expense (3jt) = 5jt
-		assert.Equal(t, float64(5000000), result.Summary.NetCashflow)
+		assert.Equal(t, float64(4000000), result.Summary.TotalHPP)
+		// Gross Profit = Omset (10jt) - HPP (4jt) = 6jt
+		assert.Equal(t, float64(6000000), result.Summary.GrossProfit)
+		assert.Equal(t, float64(1500000), result.Summary.TotalOPEX)
+		// Net Profit = Gross Profit (6jt) - OPEX (1.5jt) = 4.5jt
+		assert.Equal(t, float64(4500000), result.Summary.NetProfit)
+		// Net Cashflow = Cash In (8jt) - (HPP 4jt + OPEX 1.5jt) = 2.5jt
+		assert.Equal(t, float64(2500000), result.Summary.NetCashflow)
 	})
 
 	t.Run("Error - EndDate before StartDate", func(t *testing.T) {
@@ -130,13 +134,13 @@ func TestReportUsecase_GetAccountingReport(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("Error - Repository GetTotalExpense Fails", func(t *testing.T) {
+	t.Run("Error - Repository GetExpenseBreakdown Fails", func(t *testing.T) {
 		startDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 		endDate := time.Date(2026, 7, 31, 23, 59, 59, 0, time.UTC)
 
 		repo := stubReportRepository{
 			accountingReport: &domain.AccountingReport{},
-			expenseErr:       errors.New("failed get expense"),
+			expenseErr:       errors.New("failed get expense breakdown"),
 		}
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
@@ -175,8 +179,8 @@ func TestReportUsecase_GetProductionReport(t *testing.T) {
 
 		assert.Equal(t, float64(50000000), result.TotalRevenue)
 		assert.Equal(t, float64(35000000), result.TotalHPP)
-		// Profit = 50jt - 35jt = 15jt
-		assert.Equal(t, float64(15000000), result.NetProfit)
+		// Gross Profit = 50jt - 35jt = 15jt
+		assert.Equal(t, float64(15000000), result.GrossProfit)
 	})
 
 	t.Run("Error - Invalid Month", func(t *testing.T) {
@@ -218,7 +222,7 @@ func TestReportUsecase_GetProductionReport(t *testing.T) {
 }
 
 // ============================================================================
-// TEST: GetPOSummaryReport (Diperbarui dengan HPP & Profit)
+// TEST: GetPOSummaryReport (Diperbarui dengan Gross Profit)
 // ============================================================================
 func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
 	t.Run("Success - Menghitung Profit per PO", func(t *testing.T) {
@@ -240,7 +244,7 @@ func TestReportUsecase_GetPOSummaryReport(t *testing.T) {
 		assert.Equal(t, "po-123", result.POID)
 		assert.Equal(t, float64(15000000), result.TotalRevenue)
 		assert.Equal(t, float64(5000000), result.TotalHPP)
-		assert.Equal(t, float64(10000000), result.NetProfit) // 15jt - 5jt
+		assert.Equal(t, float64(10000000), result.GrossProfit) // 15jt - 5jt
 	})
 
 	t.Run("Error - Empty ID", func(t *testing.T) {
@@ -308,7 +312,7 @@ func TestReportUsecase_GetReceivablesDetailReport(t *testing.T) {
 }
 
 // ============================================================================
-// TEST: GetDailyReport (BARU)
+// TEST: GetDailyReport
 // ============================================================================
 func TestReportUsecase_GetDailyReport(t *testing.T) {
 	t.Run("Success - Dengan Tanggal Spesifik", func(t *testing.T) {
@@ -341,7 +345,6 @@ func TestReportUsecase_GetDailyReport(t *testing.T) {
 		repo := stubReportRepository{dailyReport: mockData}
 		uc := usecase.NewReportUsecase(repo, 2*time.Second)
 
-		// Kirim time.Time{} (zero value)
 		result, err := uc.GetDailyReport(context.Background(), time.Time{})
 
 		assert.NoError(t, err)

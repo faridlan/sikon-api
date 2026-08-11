@@ -3447,7 +3447,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil laporan keuangan (Omset, Kas Masuk, Piutang, Pengeluaran, Laba Bersih, dan Arus Kas) berdasarkan rentang tanggal.",
+                "description": "Mengambil laporan keuangan (Omset, Kas Masuk, Piutang, HPP, Laba Kotor, OPEX, Laba Bersih, dan Arus Kas) berdasarkan rentang tanggal.",
                 "produces": [
                     "application/json"
                 ],
@@ -3474,6 +3474,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AccountingReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Format tanggal tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
                     "401": {
@@ -3543,7 +3549,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil rekapitulasi data PO tertentu, termasuk total produk yang harus diproduksi, tagihan finansial, HPP, Net Profit, dan spesifik piutang customer.",
+                "description": "Mengambil rekapitulasi data PO tertentu, termasuk total produk, tagihan finansial, HPP, Laba Kotor, dan spesifik piutang customer.",
                 "produces": [
                     "application/json"
                 ],
@@ -3601,7 +3607,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil laporan produksi, tagihan, HPP (Pengeluaran), Laba Produksi, dan performa sales berdasarkan Edisi PO (Bulan \u0026 Tahun).",
+                "description": "Mengambil laporan produksi, tagihan, HPP (Direct Costs), Laba Kotor Produksi, dan performa sales berdasarkan Edisi PO (Bulan \u0026 Tahun).",
                 "produces": [
                     "application/json"
                 ],
@@ -3628,6 +3634,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductionReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Parameter bulan/tahun tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
                         }
                     },
                     "401": {
@@ -4466,6 +4478,9 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingSummaryResponse": {
             "type": "object",
             "properties": {
+                "gross_profit": {
+                    "type": "number"
+                },
                 "net_cashflow": {
                     "type": "number"
                 },
@@ -4475,14 +4490,17 @@ const docTemplate = `{
                 "total_cash_in": {
                     "type": "number"
                 },
-                "total_expense": {
-                    "description": "TAMBAHAN METRIK FINANSIAL PENGELUARAN",
+                "total_hpp": {
+                    "description": "METRIK FINANSIAL LENGKAP (HPP vs OPEX)",
                     "type": "number"
                 },
                 "total_item_qty": {
                     "type": "integer"
                 },
                 "total_omset": {
+                    "type": "number"
+                },
+                "total_opex": {
                     "type": "number"
                 },
                 "total_order_count": {
@@ -5514,7 +5532,7 @@ const docTemplate = `{
                 "end_date": {
                     "type": "string"
                 },
-                "net_profit": {
+                "gross_profit": {
                     "type": "number"
                 },
                 "po_id": {
@@ -6168,7 +6186,7 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductionBatchPOResponse"
                     }
                 },
-                "net_profit": {
+                "gross_profit": {
                     "type": "number"
                 },
                 "period_name": {

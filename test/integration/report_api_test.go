@@ -79,18 +79,33 @@ func TestAccountingReportEndpoint(t *testing.T) {
 	}
 	db.Create(&payment1)
 
-	expenseCategory := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "Operasional", Type: "OPEX"}
-	db.Create(&expenseCategory)
+	// 1. Seed Expense HPP (Bahan Baku) = 400.000
+	hppCategory := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "Bahan Baku", Type: "HPP"}
+	db.Create(&hppCategory)
 
-	expense := postgresRepo.ExpenseModel{
+	hppExpense := postgresRepo.ExpenseModel{
 		ID:                uuid.NewString(),
-		ExpenseCategoryID: expenseCategory.ID,
+		ExpenseCategoryID: hppCategory.ID,
+		Title:             "Beli Kain Jaket",
+		Amount:            400000,
+		ExpenseDate:       juliTime,
+		CreatedByID:       sales.ID,
+	}
+	db.Create(&hppExpense)
+
+	// 2. Seed Expense OPEX (Operasional) = 200.000
+	opexCategory := postgresRepo.ExpenseCategoryModel{ID: uuid.NewString(), Name: "Operasional", Type: "OPEX"}
+	db.Create(&opexCategory)
+
+	opexExpense := postgresRepo.ExpenseModel{
+		ID:                uuid.NewString(),
+		ExpenseCategoryID: opexCategory.ID,
 		Title:             "Bayar Listrik",
 		Amount:            200000,
 		ExpenseDate:       juliTime,
 		CreatedByID:       sales.ID,
 	}
-	db.Create(&expense)
+	db.Create(&opexExpense)
 
 	t.Run("Success Get Accounting Report", func(t *testing.T) {
 		req := tests.AuthenticatedRequest("GET", "/api/reports/accounting?start_date=2026-07-01&end_date=2026-07-31", bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
@@ -109,13 +124,17 @@ func TestAccountingReportEndpoint(t *testing.T) {
 		assert.Equal(t, "2026-07-01", report.StartDate)
 		assert.Equal(t, "2026-07-31", report.EndDate)
 
+		// Verification Metrics
 		assert.Equal(t, float64(1000000), report.Summary.TotalOmset)
 		assert.Equal(t, float64(500000), report.Summary.TotalCashIn)
 		assert.Equal(t, float64(500000), report.Summary.TotalReceivable)
 
-		assert.Equal(t, float64(200000), report.Summary.TotalExpense)
-		assert.Equal(t, float64(800000), report.Summary.NetProfit)
-		assert.Equal(t, float64(300000), report.Summary.NetCashflow)
+		// Financial Breakdown
+		assert.Equal(t, float64(400000), report.Summary.TotalHPP)
+		assert.Equal(t, float64(600000), report.Summary.GrossProfit) // Omset (1jt) - HPP (400k) = 600k
+		assert.Equal(t, float64(200000), report.Summary.TotalOPEX)
+		assert.Equal(t, float64(400000), report.Summary.NetProfit)    // GrossProfit (600k) - OPEX (200k) = 400k
+		assert.Equal(t, float64(-100000), report.Summary.NetCashflow) // CashIn (500k) - (HPP 400k + OPEX 200k) = -100k
 
 		assert.Equal(t, 1, report.Summary.TotalOrderCount)
 		assert.Equal(t, 10, report.Summary.TotalItemQty)
@@ -204,7 +223,7 @@ func TestProductionReportEndpoint(t *testing.T) {
 		assert.Equal(t, float64(450000), report.TotalRevenue)
 
 		assert.Equal(t, float64(150000), report.TotalHPP)
-		assert.Equal(t, float64(300000), report.NetProfit)
+		assert.Equal(t, float64(300000), report.GrossProfit) // Revenue (450k) - HPP (150k) = 300k
 
 		assert.Len(t, report.ActiveBatchPOs, 1)
 		assert.Equal(t, "PO Edisi Juli", report.ActiveBatchPOs[0].Name)
@@ -212,7 +231,7 @@ func TestProductionReportEndpoint(t *testing.T) {
 }
 
 // ============================================================================
-// 3. TEST PO SUMMARY ENDPOINT (Termasuk HPP, Net Profit, & Piutang Customer)
+// 3. TEST PO SUMMARY ENDPOINT (Termasuk HPP, Gross Profit, & Piutang Customer)
 // ============================================================================
 func TestPOSummaryReportEndpoint(t *testing.T) {
 	app, db := tests.SetupTestApp()
@@ -284,7 +303,7 @@ func TestPOSummaryReportEndpoint(t *testing.T) {
 	assert.Equal(t, int64(3), response.Data.TotalQtyOrdered)
 	assert.Equal(t, float64(450000), response.Data.TotalRevenue)
 	assert.Equal(t, float64(100000), response.Data.TotalHPP)
-	assert.Equal(t, float64(350000), response.Data.NetProfit) // 450k - 100k
+	assert.Equal(t, float64(350000), response.Data.GrossProfit) // 450k - 100k
 
 	// Validasi Piutang Customer spesifik di PO ini
 	assert.Len(t, response.Data.CustomerReceivables, 1)
@@ -360,7 +379,7 @@ func TestGetReceivablesReportEndpoint(t *testing.T) {
 }
 
 // ============================================================================
-// 5. TEST DAILY REPORT ENDPOINT (BARU)
+// 5. TEST DAILY REPORT ENDPOINT
 // ============================================================================
 func TestDailyReportEndpoint(t *testing.T) {
 	app, db := tests.SetupTestApp()
@@ -378,7 +397,6 @@ func TestDailyReportEndpoint(t *testing.T) {
 	customer := postgresRepo.CustomerModel{ID: uuid.NewString(), Name: "PT Harian", CreatedBy: sales.ID, SalesID: &sales.ID}
 	db.Create(&customer)
 
-	// Buat PO dengan status ACTIVE
 	batchPO := postgresRepo.BatchPOModel{
 		ID:        uuid.NewString(),
 		Name:      "PO 2 JULI 2026",
