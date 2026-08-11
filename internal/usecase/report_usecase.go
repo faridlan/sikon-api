@@ -24,27 +24,28 @@ func (u *reportUsecase) GetAccountingReport(c context.Context, startDate, endDat
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi dasar: End Date tidak boleh mendahului Start Date
 	if endDate.Before(startDate) {
 		return nil, domain.NewError(domain.ErrBadParamInput, "Tanggal akhir tidak boleh lebih kecil dari tanggal awal")
 	}
 
-	// 1. Ambil data dasar laporan akuntansi
+	// 1. Ambil data dasar laporan akuntansi (Omset, Cash In, Piutang)
 	report, err := u.reportRepo.GetAccountingReportData(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Ambil total pengeluaran di rentang tanggal yang sama
-	totalExpense, err := u.reportRepo.GetTotalExpenseByDateRange(ctx, startDate, endDate)
+	// 2. Ambil breakdown pengeluaran (HPP vs OPEX)
+	totalHPP, totalOPEX, err := u.reportRepo.GetExpenseBreakdownByDateRange(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Kalkulasi Net Profit & Net Cashflow
-	report.Summary.TotalExpense = totalExpense
-	report.Summary.NetProfit = report.Summary.TotalOmset - totalExpense
-	report.Summary.NetCashflow = report.Summary.TotalCashIn - totalExpense
+	// 3. Kalkulasi Akuntansi Presisi SIKOn
+	report.Summary.TotalHPP = totalHPP
+	report.Summary.GrossProfit = report.Summary.TotalOmset - totalHPP
+	report.Summary.TotalOPEX = totalOPEX
+	report.Summary.NetProfit = report.Summary.GrossProfit - totalOPEX
+	report.Summary.NetCashflow = report.Summary.TotalCashIn - (totalHPP + totalOPEX)
 
 	return report, nil
 }
@@ -56,7 +57,6 @@ func (u *reportUsecase) GetProductionReport(c context.Context, targetMonth, targ
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Validasi input
 	if targetMonth < 1 || targetMonth > 12 {
 		return nil, domain.NewError(domain.ErrBadParamInput, "Bulan tidak valid (1-12)")
 	}
@@ -64,33 +64,29 @@ func (u *reportUsecase) GetProductionReport(c context.Context, targetMonth, targ
 		return nil, domain.NewError(domain.ErrBadParamInput, "Tahun tidak valid")
 	}
 
-	// 1. Ambil data dasar laporan produksi
 	report, err := u.reportRepo.GetProductionReportData(ctx, targetMonth, targetYear)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Kumpulkan ID PO aktif untuk mencari pengeluaran spesifik
 	var poIDs []string
 	for _, po := range report.ActiveBatchPOs {
 		poIDs = append(poIDs, po.ID)
 	}
 
-	// 3. Ambil total pengeluaran (HPP) khusus untuk PO-PO tersebut
 	totalHPP, err := u.reportRepo.GetTotalExpenseByBatchPOs(ctx, poIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	// 4. Kalkulasi Profit Produksi (Hanya dari pesanan yang masuk edisi ini)
 	report.TotalHPP = totalHPP
-	report.NetProfit = report.TotalRevenue - totalHPP
+	report.GrossProfit = report.TotalRevenue - totalHPP
 
 	return report, nil
 }
 
 // ============================================================================
-// 3. JALUR SPESIFIK (Detail PO & Piutang) -- DI-UPDATE
+// 3. JALUR SPESIFIK (Detail PO & Piutang)
 // ============================================================================
 func (u *reportUsecase) GetPOSummaryReport(c context.Context, poID string) (*domain.POSummaryReport, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
@@ -100,21 +96,18 @@ func (u *reportUsecase) GetPOSummaryReport(c context.Context, poID string) (*dom
 		return nil, errors.New("PO ID tidak boleh kosong")
 	}
 
-	// 1. Ambil data summary (termasuk list customer receivables)
 	summary, err := u.reportRepo.GetPOSummaryData(ctx, poID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Ambil pengeluaran (HPP) HANYA untuk PO ini
 	totalHPP, err := u.reportRepo.GetTotalExpenseByBatchPOs(ctx, []string{poID})
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Set kalkulasi finansial spesifik PO ini
 	summary.TotalHPP = totalHPP
-	summary.NetProfit = summary.TotalRevenue - totalHPP
+	summary.GrossProfit = summary.TotalRevenue - totalHPP
 
 	return summary, nil
 }
@@ -132,13 +125,12 @@ func (u *reportUsecase) GetReceivablesDetailReport(c context.Context, filter dom
 }
 
 // ============================================================================
-// 4. JALUR HARIAN (DAILY REPORT) - BARU
+// 4. JALUR HARIAN (DAILY REPORT)
 // ============================================================================
 func (u *reportUsecase) GetDailyReport(c context.Context, date time.Time) (*domain.DailyReport, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Jika tanggal tidak diset secara eksplisit, gunakan waktu saat ini (hari ini)
 	if date.IsZero() {
 		date = time.Now()
 	}

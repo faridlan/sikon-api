@@ -24,10 +24,12 @@ type AccountingSummaryResponse struct {
 	TotalOrderCount int     `json:"total_order_count"`
 	TotalItemQty    int     `json:"total_item_qty"`
 
-	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
-	TotalExpense float64 `json:"total_expense"`
-	NetProfit    float64 `json:"net_profit"`
-	NetCashflow  float64 `json:"net_cashflow"`
+	// METRIK FINANSIAL LENGKAP (HPP vs OPEX)
+	TotalHPP    float64 `json:"total_hpp"`
+	GrossProfit float64 `json:"gross_profit"`
+	TotalOPEX   float64 `json:"total_opex"`
+	NetProfit   float64 `json:"net_profit"`
+	NetCashflow float64 `json:"net_cashflow"`
 }
 
 type AccountingDailyTrendResponse struct {
@@ -58,7 +60,9 @@ func ToAccountingReportResponse(src *domain.AccountingReport) *AccountingReportR
 			TotalReceivable: src.Summary.TotalReceivable,
 			TotalOrderCount: src.Summary.TotalOrderCount,
 			TotalItemQty:    src.Summary.TotalItemQty,
-			TotalExpense:    src.Summary.TotalExpense,
+			TotalHPP:        src.Summary.TotalHPP,
+			GrossProfit:     src.Summary.GrossProfit,
+			TotalOPEX:       src.Summary.TotalOPEX,
 			NetProfit:       src.Summary.NetProfit,
 			NetCashflow:     src.Summary.NetCashflow,
 		},
@@ -92,8 +96,8 @@ type ProductionReportResponse struct {
 	TotalPaid        float64 `json:"total_paid"`
 	TotalOutstanding float64 `json:"total_outstanding"`
 
-	TotalHPP  float64 `json:"total_hpp"`
-	NetProfit float64 `json:"net_profit"`
+	TotalHPP    float64 `json:"total_hpp"`
+	GrossProfit float64 `json:"gross_profit"`
 
 	ActiveBatchPOs []ProductionBatchPOResponse `json:"active_batch_pos"`
 	ProductSummary []POProductSummaryResponse  `json:"product_summary"`
@@ -124,7 +128,7 @@ func ToProductionReportResponse(src *domain.ProductionReport) *ProductionReportR
 		TotalPaid:        src.TotalPaid,
 		TotalOutstanding: src.TotalOutstanding,
 		TotalHPP:         src.TotalHPP,
-		NetProfit:        src.NetProfit,
+		GrossProfit:      src.GrossProfit,
 
 		ActiveBatchPOs: make([]ProductionBatchPOResponse, 0),
 		ProductSummary: make([]POProductSummaryResponse, 0),
@@ -185,8 +189,8 @@ type POSummaryResponse struct {
 	TotalOutstanding float64 `json:"total_outstanding"`
 
 	// FINANSIAL
-	TotalHPP  float64 `json:"total_hpp"`
-	NetProfit float64 `json:"net_profit"`
+	TotalHPP    float64 `json:"total_hpp"`
+	GrossProfit float64 `json:"gross_profit"`
 
 	CustomerReceivables []POCustomerReceivableResponse `json:"customer_receivables"`
 	ProductSummary      []POProductSummaryResponse     `json:"product_summary"`
@@ -278,7 +282,7 @@ func ToPOSummaryResponse(src *domain.POSummaryReport) POSummaryResponse {
 		TotalPaid:           src.TotalPaid,
 		TotalOutstanding:    src.TotalOutstanding,
 		TotalHPP:            src.TotalHPP,
-		NetProfit:           src.NetProfit,
+		GrossProfit:         src.GrossProfit,
 		CustomerReceivables: customerReceivables,
 		ProductSummary:      prodSummary,
 		SalesSummary:        salesSummary,
@@ -310,7 +314,7 @@ func ToReceivableDetailListResponse(data []domain.ReceivableDetail) []Receivable
 }
 
 // ============================================================================
-// 4. DTO JALUR HARIAN (DAILY REPORT) - BARU
+// 4. DTO JALUR HARIAN (DAILY REPORT)
 // ============================================================================
 
 type DailyReportResponse struct {

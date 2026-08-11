@@ -10,38 +10,40 @@ import (
 // ============================================================================
 
 type AccountingReport struct {
-	StartDate         time.Time
-	EndDate           time.Time
-	PeriodName        string // Contoh: "01 Juli 2026 - 31 Juli 2026"
-	Summary           AccountingSummary
-	DailyTrends       []AccountingDailyTrend
-	SalesPerformances []AccountingSalesPerformance
+	StartDate         time.Time                    `json:"start_date"`
+	EndDate           time.Time                    `json:"end_date"`
+	PeriodName        string                       `json:"period_name"` // Contoh: "01 Juli 2026 - 31 Juli 2026"
+	Summary           AccountingSummary            `json:"summary"`
+	DailyTrends       []AccountingDailyTrend       `json:"daily_trends"`
+	SalesPerformances []AccountingSalesPerformance `json:"sales_performances"`
 }
 
 type AccountingSummary struct {
-	TotalOmset      float64
-	TotalCashIn     float64
-	TotalReceivable float64
-	TotalOrderCount int
-	TotalItemQty    int
+	TotalOmset      float64 `json:"total_omset"`      // Gross Sales / Revenue
+	TotalCashIn     float64 `json:"total_cash_in"`    // Real Uang Masuk dari Payment Verified
+	TotalReceivable float64 `json:"total_receivable"` // Total Piutang Aktif
+	TotalOrderCount int     `json:"total_order_count"`
+	TotalItemQty    int     `json:"total_item_qty"`
 
-	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
-	TotalExpense float64
-	NetProfit    float64
-	NetCashflow  float64
+	// METRIK FINANSIAL LENGKAP (HPP vs OPEX)
+	TotalHPP    float64 `json:"total_hpp"`    // Direct Costs (Belanja Kain, Maklon Jahit, Potong, Bordir)
+	GrossProfit float64 `json:"gross_profit"` // TotalOmset - TotalHPP
+	TotalOPEX   float64 `json:"total_opex"`   // Overhead/Operasional (Gaji Admin, Listrik, Plastik, Benang)
+	NetProfit   float64 `json:"net_profit"`   // GrossProfit - TotalOPEX
+	NetCashflow float64 `json:"net_cashflow"` // TotalCashIn - (TotalHPP + TotalOPEX)
 }
 
 type AccountingDailyTrend struct {
-	Date        string
-	OmsetAmount float64
-	CashIn      float64
+	Date        string  `json:"date"`
+	OmsetAmount float64 `json:"omset_amount"`
+	CashIn      float64 `json:"cash_in"`
 }
 
 type AccountingSalesPerformance struct {
-	SalesID     string
-	SalesName   string
-	TotalOmset  float64
-	TotalOrders int
+	SalesID     string  `json:"sales_id"`
+	SalesName   string  `json:"sales_name"`
+	TotalOmset  float64 `json:"total_omset"`
+	TotalOrders int     `json:"total_orders"`
 }
 
 // ============================================================================
@@ -49,31 +51,30 @@ type AccountingSalesPerformance struct {
 // ============================================================================
 
 type ProductionReport struct {
-	TargetMonth      int
-	TargetYear       int
-	PeriodName       string // Contoh: "Edisi Juli 2026"
-	TotalQuota       int
-	TotalQtyOrdered  int64
-	RemainingQuota   int64
-	TotalRevenue     float64
-	TotalPaid        float64
-	TotalOutstanding float64
+	TargetMonth      int     `json:"target_month"`
+	TargetYear       int     `json:"target_year"`
+	PeriodName       string  `json:"period_name"` // Contoh: "Edisi Juli 2026"
+	TotalQuota       int     `json:"total_quota"`
+	TotalQtyOrdered  int64   `json:"total_qty_ordered"`
+	RemainingQuota   int64   `json:"remaining_quota"`
+	TotalRevenue     float64 `json:"total_revenue"`
+	TotalPaid        float64 `json:"total_paid"`
+	TotalOutstanding float64 `json:"total_outstanding"`
 
-	// TAMBAHAN METRIK FINANSIAL PENGELUARAN
-	TotalHPP  float64
-	NetProfit float64
+	TotalHPP    float64 `json:"total_hpp"`
+	GrossProfit float64 `json:"gross_profit"` // TotalRevenue - TotalHPP
 
-	ActiveBatchPOs []ProductionBatchPO // Daftar PO apa saja yang masuk di edisi ini
-	SalesSummary   []POSalesSummary
-	ProductSummary []POProductSummary
-	TrendData      []DailyTrend
+	ActiveBatchPOs []ProductionBatchPO `json:"active_batch_pos"`
+	SalesSummary   []POSalesSummary    `json:"sales_summary"`
+	ProductSummary []POProductSummary  `json:"product_summary"`
+	TrendData      []DailyTrend        `json:"trend_data"`
 }
 
 type ProductionBatchPO struct {
-	ID     string
-	Name   string
-	Status BatchPOStatus
-	Quota  int
+	ID     string        `json:"id"`
+	Name   string        `json:"name"`
+	Status BatchPOStatus `json:"status"`
+	Quota  int           `json:"quota"`
 }
 
 // ============================================================================
@@ -81,112 +82,111 @@ type ProductionBatchPO struct {
 // ============================================================================
 
 type POSummaryReport struct {
-	POID             string
-	POName           string
-	StartDate        time.Time
-	EndDate          time.Time
-	Status           BatchPOStatus
-	TotalQuota       int
-	RemainingQuota   int64
-	TotalQtyOrdered  int64
-	TotalRevenue     float64
-	TotalPaid        float64
-	TotalOutstanding float64
+	POID             string        `json:"po_id"`
+	POName           string        `json:"po_name"`
+	StartDate        time.Time     `json:"start_date"`
+	EndDate          time.Time     `json:"end_date"`
+	Status           BatchPOStatus `json:"status"`
+	TotalQuota       int           `json:"total_quota"`
+	RemainingQuota   int64         `json:"remaining_quota"`
+	TotalQtyOrdered  int64         `json:"total_qty_ordered"`
+	TotalRevenue     float64       `json:"total_revenue"`
+	TotalPaid        float64       `json:"total_paid"`
+	TotalOutstanding float64       `json:"total_outstanding"`
 
-	// TAMBAHAN METRIK FINANSIAL (HPP & PROFIT)
-	TotalHPP  float64
-	NetProfit float64
+	TotalHPP    float64 `json:"total_hpp"`
+	GrossProfit float64 `json:"gross_profit"` // TotalRevenue - TotalHPP
 
-	CustomerReceivables []POCustomerReceivable
-	ProductSummary      []POProductSummary
-	SalesSummary        []POSalesSummary
-	TrendData           []DailyTrend
+	CustomerReceivables []POCustomerReceivable `json:"customer_receivables"`
+	ProductSummary      []POProductSummary     `json:"product_summary"`
+	SalesSummary        []POSalesSummary       `json:"sales_summary"`
+	TrendData           []DailyTrend           `json:"trend_data"`
 }
 
 type POCustomerReceivable struct {
-	CustomerName      string
-	TotalAmount       float64
-	TotalPaid         float64
-	OutstandingAmount float64
+	CustomerName      string  `json:"customer_name"`
+	TotalAmount       float64 `json:"total_amount"`
+	TotalPaid         float64 `json:"total_paid"`
+	OutstandingAmount float64 `json:"outstanding_amount"`
 }
 
 type POProductSummary struct {
-	CategoryName string
-	TotalQty     int64
+	CategoryName string `json:"category_name"`
+	TotalQty     int64  `json:"total_qty"`
 }
 
 type POSalesSummary struct {
-	SalesName    string
-	TotalQty     int64
-	TotalRevenue float64
-	Categories   map[string]int64
+	SalesName    string           `json:"sales_name"`
+	TotalQty     int64            `json:"total_qty"`
+	TotalRevenue float64          `json:"total_revenue"`
+	Categories   map[string]int64 `json:"categories"`
 }
 
 type ReceivableDetail struct {
-	OrderID           string
-	OrderNumber       string
-	POName            string
-	POStatus          string
-	CustomerName      string
-	SalesName         string
-	TotalAmount       float64
-	TotalPaid         float64
-	OutstandingAmount float64
+	OrderID           string  `json:"order_id"`
+	OrderNumber       string  `json:"order_number"`
+	POName            string  `json:"po_name"`
+	POStatus          string  `json:"po_status"`
+	CustomerName      string  `json:"customer_name"`
+	SalesName         string  `json:"sales_name"`
+	TotalAmount       float64 `json:"total_amount"`
+	TotalPaid         float64 `json:"total_paid"`
+	OutstandingAmount float64 `json:"outstanding_amount"`
 }
 
 // ============================================================================
-// 5. JALUR HARIAN (DAILY TACTICAL REPORT) - BARU
+// 4. JALUR HARIAN (DAILY TACTICAL REPORT)
 // ============================================================================
 
 type DailyReport struct {
-	ReportDate       string // YYYY-MM-DD
-	POInfo           DailyPOInfo
-	OrderSummary     DailyOrderSummary
-	FinancialSummary DailyFinancialSummary
-	SalesDetails     []DailySalesDetail
-	POSalesDetails   []DailySalesDetail
+	ReportDate       string                `json:"report_date"` // YYYY-MM-DD
+	POInfo           DailyPOInfo           `json:"po_info"`
+	OrderSummary     DailyOrderSummary     `json:"order_summary"`
+	FinancialSummary DailyFinancialSummary `json:"financial_summary"`
+	SalesDetails     []DailySalesDetail    `json:"sales_details"`
+	POSalesDetails   []DailySalesDetail    `json:"po_sales_details"`
 }
 
 type DailyPOInfo struct {
-	POID           string
-	POName         string
-	Quota          int
-	RemainingQuota int64
+	POID           string `json:"po_id"`
+	POName         string `json:"po_name"`
+	Quota          int    `json:"quota"`
+	RemainingQuota int64  `json:"remaining_quota"`
 }
 
 type DailyOrderSummary struct {
-	QtyToday   int64
-	QtyTotalPO int64
-	TrendData  []DailyTrend
+	QtyToday   int64        `json:"qty_today"`
+	QtyTotalPO int64        `json:"qty_total_po"`
+	TrendData  []DailyTrend `json:"trend_data"`
 }
 
 type DailyTrend struct {
-	Date string
-	Qty  int64
+	Date string `json:"date"`
+	Qty  int64  `json:"qty"`
 }
 
 type DailyFinancialSummary struct {
-	TotalRevenue          float64
-	TotalPaid             float64
-	ActivePOOutstanding   float64 // Piutang khusus PO yang sedang jalan
-	PreviousPOOutstanding float64 // Piutang dari PO-PO sebelumnya yang belum lunas
-	TotalOutstanding      float64 // Total semua piutang (Active + Previous)
+	TotalRevenue          float64 `json:"total_revenue"`
+	TotalPaid             float64 `json:"total_paid"`
+	ActivePOOutstanding   float64 `json:"active_po_outstanding"`   // Piutang khusus PO yang sedang jalan
+	PreviousPOOutstanding float64 `json:"previous_po_outstanding"` // Piutang dari PO-PO sebelumnya yang belum lunas
+	TotalOutstanding      float64 `json:"total_outstanding"`       // Total semua piutang (Active + Previous)
 }
 
 type DailySalesDetail struct {
-	SalesName  string
-	Categories map[string]int64
-	TotalQty   int64
+	SalesName  string           `json:"sales_name"`
+	Categories map[string]int64 `json:"categories"`
+	TotalQty   int64            `json:"total_qty"`
 }
 
 type ReceivablesFilter struct {
-	BatchPoID   string // Filter spesifik berdasarkan PO tertentu
-	OrderStatus string // Filter berdasarkan status order (misal: production, completed)
-	SortBy      string // Opsi sorting: "amount_desc", "amount_asc", "date_asc", "date_desc"
+	BatchPoID   string `json:"batch_po_id"`  // Filter spesifik berdasarkan PO tertentu
+	OrderStatus string `json:"order_status"` // Filter berdasarkan status order
+	SortBy      string `json:"sort_by"`      // Opsi sorting: "amount_desc", "amount_asc", "date_asc", "date_desc"
 }
 
 // ============================================================================
-// 4. INTERFACE KONTRAK (REPOSITORIES & USECASES)
+// 5. INTERFACE KONTRAK (REPOSITORIES & USECASES)
 // ============================================================================
 
 type ReportRepository interface {
@@ -197,10 +197,10 @@ type ReportRepository interface {
 	// Laporan Spesifik
 	GetPOSummaryData(ctx context.Context, poID string) (*POSummaryReport, error)
 	GetReceivablesDetailData(ctx context.Context, filter ReceivablesFilter) ([]ReceivableDetail, error)
-	GetDailyReportData(ctx context.Context, date time.Time) (*DailyReport, error) // BARU: Laporan Harian
+	GetDailyReportData(ctx context.Context, date time.Time) (*DailyReport, error)
 
-	// Helper untuk mengambil total Pengeluaran (Expenses)
-	GetTotalExpenseByDateRange(ctx context.Context, startDate, endDate time.Time) (float64, error)
+	// Helper terpisah untuk mengambil total Pengeluaran berdasarkan Tipe (HPP vs OPEX)
+	GetExpenseBreakdownByDateRange(ctx context.Context, startDate, endDate time.Time) (totalHPP float64, totalOPEX float64, err error)
 	GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error)
 }
 
@@ -209,5 +209,5 @@ type ReportUsecase interface {
 	GetProductionReport(ctx context.Context, targetMonth, targetYear int) (*ProductionReport, error)
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
 	GetReceivablesDetailReport(ctx context.Context, filter ReceivablesFilter) ([]ReceivableDetail, error)
-	GetDailyReport(ctx context.Context, date time.Time) (*DailyReport, error) // BARU: Laporan Harian
+	GetDailyReport(ctx context.Context, date time.Time) (*DailyReport, error)
 }
