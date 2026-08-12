@@ -397,7 +397,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		DesignModel: &postgresRepo.DesignerModel{
 			ID:          dm1ID,
 			ProductID:   prodKemeja1ID,
-			Name:        "Kemeja Series 1 â€” Template Canvas",
+			Name:        "Kemeja Series 1 — Template Canvas",
 			Type:        "long_sleeve",
 			Description: "Template mockup custom kemeja series 1",
 			Views: []postgresRepo.ProductModelViewModel{
@@ -445,7 +445,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		DesignModel: &postgresRepo.DesignerModel{
 			ID:          dm2ID,
 			ProductID:   prodKemeja2ID,
-			Name:        "Kemeja Series 2 â€” Template Canvas",
+			Name:        "Kemeja Series 2 — Template Canvas",
 			Type:        "long_sleeve",
 			Description: "Template mockup custom kemeja series 2",
 			Views: []postgresRepo.ProductModelViewModel{
@@ -487,14 +487,16 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	expenseCats := []postgresRepo.ExpenseCategoryModel{
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Belanja Kain & Benang", Type: string(domain.ExpenseTypeHPP)},
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Ongkos Jahit (CMT)", Type: string(domain.ExpenseTypeHPP)},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Gaji Karyawan", Type: string(domain.ExpenseTypeOPEX)},
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Operasional Listrik", Type: string(domain.ExpenseTypeOPEX)},
+		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Internet & Hosting", Type: string(domain.ExpenseTypeOPEX)},
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Biaya Iklan Meta Ads", Type: string(domain.ExpenseTypeOPEX)},
 	}
 	for _, ec := range expenseCats {
 		h.db.Create(&ec)
 	}
 
-	// --- 7. SETUP BATCH PO ---
+	// --- 7. SETUP BATCH PO (Hanya 2 PO di Agustus) ---
 	poSchedules := []struct {
 		Name   string
 		Month  int
@@ -503,12 +505,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		End    string
 		Status string
 	}{
-		{"PO 1 JULI 2026", 7, 2026, "2026-06-27", "2026-07-04", string(domain.BatchPOStatusClosed)},
-		{"PO 2 JULI 2026", 7, 2026, "2026-07-04", "2026-07-11", string(domain.BatchPOStatusClosed)},
-		{"PO 3 JULI 2026", 7, 2026, "2026-07-11", "2026-07-18", string(domain.BatchPOStatusClosed)},
-		{"PO 4 JULI 2026", 7, 2026, "2026-07-18", "2026-07-25", string(domain.BatchPOStatusClosed)},
-		{"PO 1 AGUSTUS 2026", 8, 2026, "2026-07-25", "2026-08-01", string(domain.BatchPOStatusClosed)},
-		{"PO 2 AGUSTUS 2026", 8, 2026, "2026-08-01", "2026-08-08", string(domain.BatchPOStatusActive)},
+		{"PO 1 AGUSTUS 2026", 8, 2026, "2026-08-01", "2026-08-07", string(domain.BatchPOStatusClosed)},
+		{"PO 2 AGUSTUS 2026", 8, 2026, "2026-08-08", "2026-08-15", string(domain.BatchPOStatusActive)},
 	}
 
 	var batchPOs []postgresRepo.BatchPOModel
@@ -531,8 +529,9 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 
 	// --- 8. LOOPING TRANSAKSI HARIAN ---
-	startDate, _ := time.Parse("2006-01-02", "2026-06-27")
-	endDate, _ := time.Parse("2006-01-02", "2026-08-03")
+	// Rentang: 1 Agustus s.d 12 Agustus 2026
+	startDate, _ := time.Parse("2006-01-02", "2026-08-01")
+	endDate, _ := time.Parse("2006-01-02", "2026-08-12")
 
 	orderCounter := 1
 	expenseCounter := 0
@@ -575,7 +574,28 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				paidAmount = 0
 			}
 
-			approvedTime := d.Add(10 * time.Hour)
+			// Randomisasi Status Order (Quotation, Production, Ready, Completed)
+			statusOptions := []string{
+				string(domain.OrderStatusQuotation),
+				string(domain.OrderStatusProduction),
+				string(domain.OrderStatusReady),
+				string(domain.OrderStatusCompleted),
+			}
+			orderStatus := statusOptions[rand.Intn(len(statusOptions))]
+
+			var approvedTimePtr *time.Time
+			createdAt := d.Add(8 * time.Hour)
+
+			// Jika masih Quotation, otomatis belum approve & belum bayar
+			if orderStatus == string(domain.OrderStatusQuotation) {
+				paymentStatus = string(domain.PaymentStatusUnpaid)
+				paidAmount = 0
+				approvedTimePtr = nil
+			} else {
+				appTime := d.Add(10 * time.Hour)
+				approvedTimePtr = &appTime
+			}
+
 			orderID := uuid.NewString()
 
 			order := postgresRepo.OrderModel{
@@ -586,10 +606,10 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				SalesID:       *cust.SalesID,
 				Subtotal:      totalAmount,
 				TotalAmount:   totalAmount,
-				OrderStatus:   string(domain.OrderStatusProduction),
+				OrderStatus:   orderStatus,
 				PaymentStatus: paymentStatus,
-				CreatedAt:     approvedTime,
-				ApprovedAt:    &approvedTime,
+				CreatedAt:     createdAt,
+				ApprovedAt:    approvedTimePtr,
 			}
 			h.db.Create(&order)
 
@@ -602,8 +622,8 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			}
 			h.db.Create(&orderItem)
 
-			if paidAmount > 0 {
-				payTime := approvedTime.Add(2 * time.Hour)
+			if paidAmount > 0 && approvedTimePtr != nil {
+				payTime := approvedTimePtr.Add(2 * time.Hour)
 				verifierID := *cust.SalesID
 
 				payment := postgresRepo.PaymentModel{

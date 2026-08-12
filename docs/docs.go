@@ -1961,6 +1961,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Filter berdasarkan ID Batch PO (UUID)",
+                        "name": "batch_po_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Filter berdasarkan ID Customer (UUID)",
                         "name": "customer_id",
                         "in": "query"
@@ -1973,7 +1979,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter Status Order (Enum: quotation, pending, production, completed, canceled)",
+                        "description": "Filter Status Order (Enum: quotation, pending, production, ready, completed, canceled)",
                         "name": "order_status",
                         "in": "query"
                     },
@@ -5325,6 +5331,10 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse": {
             "type": "object",
             "properties": {
+                "approved_at": {
+                    "type": "string",
+                    "example": "2023-10-01T16:00:00Z"
+                },
                 "batch_po": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse"
                 },

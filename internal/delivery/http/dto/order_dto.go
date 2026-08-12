@@ -81,6 +81,7 @@ type OrderResponse struct {
 	Notes           string     `json:"notes" example:"Tolong packing kayu"`
 	CreatedAt       time.Time  `json:"created_at" example:"2023-10-01T15:00:00Z"`
 	UpdatedAt       time.Time  `json:"updated_at" example:"2023-10-01T15:00:00Z"`
+	ApprovedAt      *time.Time `json:"approved_at,omitempty" example:"2023-10-01T16:00:00Z"`
 
 	Items    []OrderItemResponse `json:"items,omitempty"`
 	Customer *CustomerResponse   `json:"customer,omitempty"`
@@ -89,7 +90,6 @@ type OrderResponse struct {
 }
 
 func ToOrderResponse(o *domain.Order) OrderResponse {
-	// ... (Logika ToOrderResponse tetap sama persis seperti sebelumnya) ...
 	resp := OrderResponse{
 		ID:              o.ID,
 		OrderNumber:     o.OrderNumber,
@@ -111,6 +111,7 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 		Notes:           o.Notes,
 		CreatedAt:       o.CreatedAt,
 		UpdatedAt:       o.UpdatedAt,
+		ApprovedAt:      o.ApprovedAt,
 	}
 
 	if len(o.Items) > 0 {
