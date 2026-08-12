@@ -643,6 +643,9 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse:
     properties:
+      approved_at:
+        example: "2023-10-01T16:00:00Z"
+        type: string
       batch_po:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse'
       batch_po_id:
@@ -3096,6 +3099,10 @@ paths:
         in: query
         name: search
         type: string
+      - description: Filter berdasarkan ID Batch PO (UUID)
+        in: query
+        name: batch_po_id
+        type: string
       - description: Filter berdasarkan ID Customer (UUID)
         in: query
         name: customer_id
@@ -3104,8 +3111,8 @@ paths:
         in: query
         name: sales_id
         type: string
-      - description: 'Filter Status Order (Enum: quotation, pending, production, completed,
-          canceled)'
+      - description: 'Filter Status Order (Enum: quotation, pending, production, ready,
+          completed, canceled)'
         in: query
         name: order_status
         type: string

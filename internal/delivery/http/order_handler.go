@@ -121,9 +121,10 @@ func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
 // @Param search query string false "Cari berdasarkan Nomor Order (ORD-XXX) atau Nama Customer"
+// @Param batch_po_id query string false "Filter berdasarkan ID Batch PO (UUID)"
 // @Param customer_id query string false "Filter berdasarkan ID Customer (UUID)"
 // @Param sales_id query string false "Filter berdasarkan ID Sales (UUID)"
-// @Param order_status query string false "Filter Status Order (Enum: quotation, pending, production, completed, canceled)"
+// @Param order_status query string false "Filter Status Order (Enum: quotation, pending, production, ready, completed, canceled)"
 // @Param payment_status query string false "Filter Status Pembayaran (Enum: unpaid, partial, paid)"
 // @Param start_date query string false "Tanggal Mulai Pembuatan (Format: YYYY-MM-DD)"
 // @Param end_date query string false "Tanggal Selesai Pembuatan (Format: YYYY-MM-DD)"
@@ -132,12 +133,12 @@ func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders [get]
 func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
 	filter := domain.OrderFilter{
 		Search:        c.Query("search"),
+		BatchPoID:     c.Query("batch_po_id"),
 		CustomerID:    c.Query("customer_id"),
 		SalesID:       c.Query("sales_id"),
 		OrderStatus:   c.Query("order_status"),

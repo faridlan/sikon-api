@@ -70,11 +70,13 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 	query := r.db.WithContext(ctx).Model(&OrderModel{}).
 		Joins("LEFT JOIN customers ON customers.id = orders.customer_id")
 
-	// 2. Terapkan Filter Dinamis (Gunakan prefix "orders." untuk menghindari ambiguitas kolom)
+	// 2. Terapkan Filter Dinamis
 	if filter.Search != "" {
-		// Pencarian menggunakan ILIKE untuk Nomor Order ATAU Nama Customer
 		searchKeyword := "%" + filter.Search + "%"
 		query = query.Where("orders.order_number ILIKE ? OR customers.name ILIKE ?", searchKeyword, searchKeyword)
+	}
+	if filter.BatchPoID != "" {
+		query = query.Where("orders.batch_po_id = ?", filter.BatchPoID)
 	}
 	if filter.CustomerID != "" {
 		query = query.Where("orders.customer_id = ?", filter.CustomerID)
@@ -100,14 +102,14 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 		return nil, 0, TranslateError(err)
 	}
 
-	// 4. Ambil Data dengan Pagination dan Preload
+	// 4. Ambil Data dengan Pagination, Preload, dan Order by COALESCE(approved_at, created_at)
 	err := query.
 		Preload("Customer").
 		Preload("Sales").
 		Preload("BatchPO").
 		Limit(limit).
 		Offset(offset).
-		Order("orders.created_at DESC"). // Pastikan menggunakan prefix "orders."
+		Order("COALESCE(orders.approved_at, orders.created_at) DESC").
 		Find(&models).Error
 
 	if err != nil {
@@ -121,6 +123,7 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 
 	return orders, total, nil
 }
+
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
 	model := FromOrderDomain(order)
 
