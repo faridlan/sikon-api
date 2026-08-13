@@ -130,6 +130,7 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Cat%").Delete(&postgresRepo.CategoryModel{})
 	h.db.Unscoped().Where("email LIKE ?", "%_dummy@sikon.com").Delete(&postgresRepo.UserModel{})
 	h.db.Unscoped().Where("account_number = ?", "999888777").Delete(&postgresRepo.BankAccountModel{})
+	h.db.Unscoped().Where("name LIKE ?", "Dummy Spec%").Delete(&postgresRepo.SpecTemplateModel{})
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil membersihkan data seeder", nil)
 }
@@ -245,7 +246,46 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 	h.db.Create(&bankAccount)
 
-	// --- 2. SETUP 4 KATEGORI ---
+	// --- 2. SETUP MASTER SPEC TEMPLATE (KAIN GLOBAL) ---
+	specRipstop := postgresRepo.SpecTemplateModel{
+		ID:              uuid.NewString(),
+		Name:            "Dummy Spec Ripstop Cotton",
+		Spec:            "Bahan ripstop serat kotak anti robek, kuat, cocok untuk kemeja & rompi outdoor.",
+		Description:     "Kain dengan konstruksi jalinan benang serat kotak presisi.",
+		Composition:     "65% Cotton / 35% Polyester",
+		CareInstruction: "Cuci mesin air dingin, jangan gunakan pemutih.",
+	}
+	specAmerican := postgresRepo.SpecTemplateModel{
+		ID:              uuid.NewString(),
+		Name:            "Dummy Spec American Drill",
+		Spec:            "Tekstur miring sedang, menyerap keringat dengan baik, warna tahan lama.",
+		Description:     "Bahan drill populer untuk seragam lapangan dan kantor.",
+		Composition:     "65% Polyester / 35% Viscose",
+		CareInstruction: "Setrika suhu sedang, jemur di tempat teduh.",
+	}
+	specNagata := postgresRepo.SpecTemplateModel{
+		ID:              uuid.NewString(),
+		Name:            "Dummy Spec Nagata Drill",
+		Spec:            "Tekstur serat lebih tebal, lembut, adem dan sangat nyaman dipakai.",
+		Description:     "Kain drill kelas premium untuk pakaian kerja eksklusif.",
+		Composition:     "100% Cotton Premium",
+		CareInstruction: "Cuci dengan warna serupa, hindari pengering panas.",
+	}
+	specLacoste := postgresRepo.SpecTemplateModel{
+		ID:              uuid.NewString(),
+		Name:            "Dummy Spec Lacoste CVC",
+		Spec:            "Rajutan pique berpori khas polo shirt, adem, dan tidak mudah berserabut.",
+		Description:     "Bahan kain kaos berkerah dengan tekstur honeycomb.",
+		Composition:     "60% Cotton / 40% Polyester",
+		CareInstruction: "Jangan diperas terlalu kuat, gantung saat menjemur.",
+	}
+
+	h.db.Create(&specRipstop)
+	h.db.Create(&specAmerican)
+	h.db.Create(&specNagata)
+	h.db.Create(&specLacoste)
+
+	// --- 3. SETUP 4 KATEGORI ---
 	catKemeja := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Kemeja"}
 	catRompi := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Rompi"}
 	catCelana := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Celana"}
@@ -256,7 +296,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	h.db.Create(&catCelana)
 	h.db.Create(&catPolo)
 
-	// --- 3. UPLOAD GAMBAR DARI ASSETS KE SUPABASE STORAGE (DRY & TERSTRUKTUR) ---
+	// --- 4. UPLOAD GAMBAR DARI ASSETS KE SUPABASE STORAGE ---
 	var (
 		imgKemejaURL, imgRompiURL, imgCelanaURL, imgPoloURL        string
 		maskFrontLong, maskBackLong, maskFrontShort, maskBackShort string
@@ -302,7 +342,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		*job.target = url
 	}
 
-	// --- 4. SETUP PRODUK DUMMY ---
+	// --- 5. SETUP PRODUK DUMMY ---
 
 	// A. Produk Rompi
 	prodRompiID := uuid.NewString()
@@ -361,7 +401,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// D. Produk Kemeja Series 1 (Lengkap Canvas Designer)
+	// D. Produk Kemeja Series 1
 	prodKemeja1ID := uuid.NewString()
 	dm1ID := uuid.NewString()
 	fab1Kemeja1 := uuid.NewString()
@@ -383,11 +423,12 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 		Fabrics: []postgresRepo.ProductFabricModel{
 			{
-				ID:        fab1Kemeja1,
-				ProductID: prodKemeja1ID,
-				Name:      "Ripstop Cotton Premium",
-				BasePrice: 185000,
-				IsDefault: true,
+				ID:             fab1Kemeja1,
+				ProductID:      prodKemeja1ID,
+				SpecTemplateID: &specRipstop.ID, // Dihubungkan ke SpecTemplate
+				Name:           "Ripstop Cotton Premium",
+				BasePrice:      185000,
+				IsDefault:      true,
 				Colors: []postgresRepo.FabricColorModel{
 					{ID: uuid.NewString(), FabricID: fab1Kemeja1, Name: "Olive", HexCode: "#4b5320"},
 					{ID: uuid.NewString(), FabricID: fab1Kemeja1, Name: "Black", HexCode: "#000000"},
@@ -409,7 +450,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// E. Produk Kemeja Series 2 (Lengkap Canvas Designer)
+	// E. Produk Kemeja Series 2
 	prodKemeja2ID := uuid.NewString()
 	dm2ID := uuid.NewString()
 	fab1Kemeja2 := uuid.NewString()
@@ -431,11 +472,12 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 		Fabrics: []postgresRepo.ProductFabricModel{
 			{
-				ID:        fab1Kemeja2,
-				ProductID: prodKemeja2ID,
-				Name:      "American Drill High",
-				BasePrice: 190000,
-				IsDefault: true,
+				ID:             fab1Kemeja2,
+				ProductID:      prodKemeja2ID,
+				SpecTemplateID: &specAmerican.ID, // Dihubungkan ke SpecTemplate
+				Name:           "American Drill High",
+				BasePrice:      190000,
+				IsDefault:      true,
 				Colors: []postgresRepo.FabricColorModel{
 					{ID: uuid.NewString(), FabricID: fab1Kemeja2, Name: "Navy", HexCode: "#1b263b"},
 					{ID: uuid.NewString(), FabricID: fab1Kemeja2, Name: "Khaki", HexCode: "#c2b280"},
@@ -466,7 +508,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 	products := []postgresRepo.ProductModel{prodRompi, prodCelana, prodPolo, prodKemeja1, prodKemeja2}
 
-	// --- 5. SETUP CUSTOMERS (Round-Robin Sales) ---
+	// --- 6. SETUP CUSTOMERS (Round-Robin Sales) ---
 	var customers []postgresRepo.CustomerModel
 	customerNames := []string{"Dummy Cust PT A", "Dummy Cust PT B", "Dummy Cust Personal C", "Dummy Cust CV D", "Dummy Cust Personal E", "Dummy Cust CV F"}
 
@@ -483,7 +525,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		customers = append(customers, cust)
 	}
 
-	// --- 6. SETUP EXPENSE CATEGORIES ---
+	// --- 7. SETUP EXPENSE CATEGORIES ---
 	expenseCats := []postgresRepo.ExpenseCategoryModel{
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Belanja Kain & Benang", Type: string(domain.ExpenseTypeHPP)},
 		{ID: uuid.NewString(), Name: "Dummy Cat Exp - Ongkos Jahit (CMT)", Type: string(domain.ExpenseTypeHPP)},
@@ -496,7 +538,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		h.db.Create(&ec)
 	}
 
-	// --- 7. SETUP BATCH PO (Hanya 2 PO di Agustus) ---
+	// --- 8. SETUP BATCH PO ---
 	poSchedules := []struct {
 		Name   string
 		Month  int
@@ -528,8 +570,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		batchPOs = append(batchPOs, po)
 	}
 
-	// --- 8. LOOPING TRANSAKSI HARIAN ---
-	// Rentang: 1 Agustus s.d 12 Agustus 2026
+	// --- 9. LOOPING TRANSAKSI HARIAN ---
 	startDate, _ := time.Parse("2006-01-02", "2026-08-01")
 	endDate, _ := time.Parse("2006-01-02", "2026-08-12")
 
@@ -574,7 +615,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				paidAmount = 0
 			}
 
-			// Randomisasi Status Order (Quotation, Production, Ready, Completed)
 			statusOptions := []string{
 				string(domain.OrderStatusQuotation),
 				string(domain.OrderStatusProduction),
@@ -586,7 +626,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			var approvedTimePtr *time.Time
 			createdAt := d.Add(8 * time.Hour)
 
-			// Jika masih Quotation, otomatis belum approve & belum bayar
 			if orderStatus == string(domain.OrderStatusQuotation) {
 				paymentStatus = string(domain.PaymentStatusUnpaid)
 				paidAmount = 0
@@ -648,7 +687,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			var poIDPtr *string
 			var expAmount float64
 
-			// Gunakan string uppercase / enum domain
 			if expCat.Type == string(domain.ExpenseTypeHPP) {
 				poIDPtr = activePoID
 				expAmount = float64(rand.Intn(3000)*1000 + 500000)
@@ -672,7 +710,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		}
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder lengkap dengan Upload Gambar Produk & Canvas Mockup!", fiber.Map{
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder lengkap dengan Upload Gambar Produk, Spec Templates Kain, & Canvas Mockup!", fiber.Map{
 		"total_orders_generated":   orderCounter - 1,
 		"total_expenses_generated": expenseCounter,
 	})

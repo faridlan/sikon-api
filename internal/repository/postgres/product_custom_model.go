@@ -31,7 +31,8 @@ func (m *FabricColorModel) ToDomain() domain.FabricColor {
 type ProductFabricModel struct {
 	ID              string             `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	ProductID       string             `gorm:"type:uuid;not null"`
-	Name            string             `gorm:"type:varchar(255);not null"`
+	SpecTemplateID  *string            `gorm:"type:uuid;index"`
+	Name            string             `gorm:"type:varchar(255)"`
 	Description     string             `gorm:"type:text"`
 	Composition     string             `gorm:"type:varchar(255)"`
 	CareInstruction string             `gorm:"type:text"`
@@ -41,6 +42,9 @@ type ProductFabricModel struct {
 	CreatedAt       time.Time          `gorm:"autoCreateTime"`
 	UpdatedAt       time.Time          `gorm:"autoUpdateTime"`
 	Colors          []FabricColorModel `gorm:"foreignKey:FabricID;constraint:OnDelete:CASCADE;"`
+
+	// Relasi GORM
+	SpecTemplate *SpecTemplateModel `gorm:"foreignKey:SpecTemplateID"`
 }
 
 func (ProductFabricModel) TableName() string {
@@ -51,6 +55,7 @@ func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
 	fabric := domain.ProductFabric{
 		ID:              m.ID,
 		ProductID:       m.ProductID,
+		SpecTemplateID:  m.SpecTemplateID,
 		Name:            m.Name,
 		Description:     m.Description,
 		Composition:     m.Composition,
@@ -60,6 +65,23 @@ func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
 		IsDefault:       m.IsDefault,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
+	}
+
+	// Jika nama/deskripsi kosong di level ProductFabric, gunakan fallback dari SpecTemplate
+	if m.SpecTemplate != nil {
+		fabric.SpecTemplate = m.SpecTemplate.ToDomain()
+		if fabric.Name == "" {
+			fabric.Name = m.SpecTemplate.Name
+		}
+		if fabric.Description == "" {
+			fabric.Description = m.SpecTemplate.Spec
+		}
+		if fabric.Composition == "" {
+			fabric.Composition = m.SpecTemplate.Composition
+		}
+		if fabric.CareInstruction == "" {
+			fabric.CareInstruction = m.SpecTemplate.CareInstruction
+		}
 	}
 
 	if len(m.Colors) > 0 {

@@ -77,6 +77,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 	if err := r.db.WithContext(ctx).
 		Preload("Category").
 		Preload("Images").
+		Preload("Fabrics.SpecTemplate"). // Preload Master SpecTemplate
 		Preload("Fabrics.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
@@ -92,6 +93,7 @@ func (r *productRepository) GetBySlug(ctx context.Context, slug string) (*domain
 	if err := r.db.WithContext(ctx).
 		Preload("Category").
 		Preload("Images").
+		Preload("Fabrics.SpecTemplate"). // Preload Master SpecTemplate
 		Preload("Fabrics.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
@@ -148,6 +150,7 @@ func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilt
 	err := query.
 		Preload("Category").
 		Preload("Images").
+		Preload("Fabrics.SpecTemplate"). // Preload Master SpecTemplate
 		Preload("Fabrics.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").

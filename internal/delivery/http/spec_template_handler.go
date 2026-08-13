@@ -27,7 +27,7 @@ func NewSpecTemplateHandler(su domain.SpecTemplateUsecase) SpecTemplateHandler {
 }
 
 // @Summary Create Spec Template
-// @Description Membuat template spesifikasi (misal: bahan baku) baru
+// @Description Membuat master kain global / template spesifikasi baru
 // @Tags SpecTemplates
 // @Accept json
 // @Produce json
@@ -50,8 +50,11 @@ func (h *specTemplateHandler) CreateSpecTemplate(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.SpecTemplateCreateInput{
-		Name: req.Name,
-		Spec: req.Spec,
+		Name:            req.Name,
+		Spec:            req.Spec,
+		Description:     req.Description,
+		Composition:     req.Composition,
+		CareInstruction: req.CareInstruction,
 	}
 
 	specTemplate, err := h.specTemplateUsecase.CreateSpecTemplate(c.Context(), domainReq)
@@ -117,7 +120,7 @@ func (h *specTemplateHandler) ListSpecTemplates(c *fiber.Ctx) error {
 }
 
 // @Summary Update Spec Template
-// @Description Memperbarui nama dan detail spesifikasi
+// @Description Memperbarui nama dan detail spesifikasi master kain global
 // @Tags SpecTemplates
 // @Accept json
 // @Produce json
@@ -146,8 +149,11 @@ func (h *specTemplateHandler) UpdateSpecTemplate(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.SpecTemplateUpdateInput{
-		Name: req.Name,
-		Spec: req.Spec,
+		Name:            req.Name,
+		Spec:            req.Spec,
+		Description:     req.Description,
+		Composition:     req.Composition,
+		CareInstruction: req.CareInstruction,
 	}
 
 	specTemplate, err := h.specTemplateUsecase.UpdateSpecTemplate(c.Context(), id, domainReq)

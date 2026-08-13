@@ -14,10 +14,11 @@ type FabricColorRequest struct {
 }
 
 type ProductFabricRequest struct {
-	Name            string               `json:"name" validate:"required" example:"Ripstop Cotton 65/35"`
+	SpecTemplateID  *string              `json:"spec_template_id" validate:"omitempty,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Name            string               `json:"name" example:"Ripstop Cotton 65/35"`
 	Description     string               `json:"description" example:"Kuat & anti robek, 210gsm"`
 	Composition     string               `json:"composition" example:"65% Cotton / 35% Polyester"`
-	CareInstruction string               `json:"care_instruction" example:"Cuci mesin air dingin, jangan diputihkan"`
+	CareInstruction string               `json:"care_instruction" example:"Cuci mesin air dingin"`
 	BasePrice       float64              `json:"base_price" validate:"gte=0" example:"185000"`
 	PriceAdjustment float64              `json:"price_adjustment" example:"0"`
 	IsDefault       bool                 `json:"is_default" example:"true"`
@@ -56,21 +57,21 @@ type ProductCreateRequest struct {
 	Slug          string                  `json:"slug" example:"kemeja-taktikal-premium-7200"`
 	GSMInfo       string                  `json:"gsm_info" example:"210gsm"`
 	FabricSummary string                  `json:"fabric_summary" example:"Ripstop"`
-	KeyFeatures   []string                `json:"key_features" example:"[\"Bahan ripstop anti robek\", \"Dual chest pocket velcro\"]"`
-	ImageURLs     []string                `json:"image_urls" validate:"omitempty,dive,url" example:"[\"https://supa.../1.jpg\"]"`
+	KeyFeatures   []string                `json:"key_features" example:"[\"Bahan ripstop anti robek\"]"`
+	ImageURLs     []string                `json:"image_urls" validate:"omitempty,dive,url"`
 	Fabrics       []ProductFabricRequest  `json:"fabrics" validate:"omitempty,dive"`
 	Wholesale     []WholesalePriceRequest `json:"wholesale" validate:"omitempty,dive"`
 	DesignModel   *ProductModelRequest    `json:"design_model" validate:"omitempty"`
 }
 
 type ProductUpdateRequest struct {
-	CategoryID    string                  `json:"category_id" validate:"omitempty,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Name          string                  `json:"name" validate:"omitempty" example:"Kemeja Taktikal Premium 7200 V2"`
-	Description   string                  `json:"description" validate:"omitempty" example:"Versi update"`
-	BasePrice     float64                 `json:"base_price" validate:"omitempty,gt=0" example:"190000"`
-	Slug          string                  `json:"slug" validate:"omitempty" example:"kemeja-taktikal-premium-7200-v2"`
-	GSMInfo       string                  `json:"gsm_info" validate:"omitempty" example:"220gsm"`
-	FabricSummary string                  `json:"fabric_summary" validate:"omitempty" example:"Ripstop Cotton"`
+	CategoryID    string                  `json:"category_id" validate:"omitempty,uuid"`
+	Name          string                  `json:"name" validate:"omitempty"`
+	Description   string                  `json:"description" validate:"omitempty"`
+	BasePrice     float64                 `json:"base_price" validate:"omitempty,gt=0"`
+	Slug          string                  `json:"slug" validate:"omitempty"`
+	GSMInfo       string                  `json:"gsm_info" validate:"omitempty"`
+	FabricSummary string                  `json:"fabric_summary" validate:"omitempty"`
 	KeyFeatures   []string                `json:"key_features" validate:"omitempty"`
 	ImageURLs     []string                `json:"image_urls" validate:"omitempty,dive,url"`
 	Fabrics       []ProductFabricRequest  `json:"fabrics" validate:"omitempty,dive"`
@@ -94,6 +95,7 @@ type FabricColorResponse struct {
 
 type ProductFabricResponse struct {
 	ID              string                `json:"id"`
+	SpecTemplateID  *string               `json:"spec_template_id,omitempty"`
 	Name            string                `json:"name"`
 	Description     string                `json:"description"`
 	Composition     string                `json:"composition"`
@@ -132,17 +134,17 @@ type ProductModelResponse struct {
 // --- MAIN RESPONSE ---
 
 type ProductResponse struct {
-	ID            string                   `json:"id" example:"999e4567-e89b-12d3-a456-426614174000"`
-	CategoryID    string                   `json:"category_id" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Name          string                   `json:"name" example:"Kemeja Taktikal Premium 7200"`
-	Description   string                   `json:"description" example:"Kemeja taktikal bahan ripstop cotton"`
-	BasePrice     float64                  `json:"base_price" example:"185000"`
-	Slug          string                   `json:"slug" example:"kemeja-taktikal-premium-7200"`
-	GSMInfo       string                   `json:"gsm_info" example:"210gsm"`
-	FabricSummary string                   `json:"fabric_summary" example:"Ripstop"`
-	Rating        float64                  `json:"rating" example:"4.9"`
-	SoldCount     int                      `json:"sold_count" example:"1240"`
-	ReviewCount   int                      `json:"review_count" example:"318"`
+	ID            string                   `json:"id"`
+	CategoryID    string                   `json:"category_id"`
+	Name          string                   `json:"name"`
+	Description   string                   `json:"description"`
+	BasePrice     float64                  `json:"base_price"`
+	Slug          string                   `json:"slug"`
+	GSMInfo       string                   `json:"gsm_info"`
+	FabricSummary string                   `json:"fabric_summary"`
+	Rating        float64                  `json:"rating"`
+	SoldCount     int                      `json:"sold_count"`
+	ReviewCount   int                      `json:"review_count"`
 	KeyFeatures   []string                 `json:"key_features,omitempty"`
 	CreatedAt     time.Time                `json:"created_at"`
 	UpdatedAt     time.Time                `json:"updated_at"`
@@ -177,6 +179,7 @@ func (r *ProductCreateRequest) ToDomainCreateInput() domain.ProductCreateInput {
 			})
 		}
 		input.Fabrics = append(input.Fabrics, domain.ProductFabricInput{
+			SpecTemplateID:  fab.SpecTemplateID,
 			Name:            fab.Name,
 			Description:     fab.Description,
 			Composition:     fab.Composition,
@@ -242,6 +245,7 @@ func (r *ProductUpdateRequest) ToDomainUpdateInput() domain.ProductUpdateInput {
 				})
 			}
 			input.Fabrics = append(input.Fabrics, domain.ProductFabricInput{
+				SpecTemplateID:  fab.SpecTemplateID,
 				Name:            fab.Name,
 				Description:     fab.Description,
 				Composition:     fab.Composition,
@@ -332,6 +336,7 @@ func ToProductResponse(p *domain.Product) ProductResponse {
 			}
 			resp.Fabrics = append(resp.Fabrics, ProductFabricResponse{
 				ID:              fab.ID,
+				SpecTemplateID:  fab.SpecTemplateID,
 				Name:            fab.Name,
 				Description:     fab.Description,
 				Composition:     fab.Composition,

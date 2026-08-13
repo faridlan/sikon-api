@@ -6,22 +6,30 @@ import (
 )
 
 type SpecTemplate struct {
-	ID        string
-	Name      string
-	Spec      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID              string
+	Name            string // e.g. "American Drill"
+	Spec            string // e.g. "Jenis tekstil yang banyak digunakan..."
+	Description     string // e.g. "Kain tebal, tidak gampang kusut"
+	Composition     string // e.g. "65% Polyester, 35% Viscose"
+	CareInstruction string // e.g. "Cuci dengan air dingin"
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
-// Struct khusus untuk Input Usecase
 type SpecTemplateCreateInput struct {
-	Name string
-	Spec string
+	Name            string
+	Spec            string
+	Description     string
+	Composition     string
+	CareInstruction string
 }
 
 type SpecTemplateUpdateInput struct {
-	Name string
-	Spec string
+	Name            string
+	Spec            string
+	Description     string
+	Composition     string
+	CareInstruction string
 }
 
 type SpecTemplateRepository interface {

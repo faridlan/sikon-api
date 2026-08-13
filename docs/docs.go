@@ -3814,7 +3814,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Membuat template spesifikasi (misal: bahan baku) baru",
+                "description": "Membuat master kain global / template spesifikasi baru",
                 "consumes": [
                     "application/json"
                 ],
@@ -3927,7 +3927,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Memperbarui nama dan detail spesifikasi",
+                "description": "Memperbarui nama dan detail spesifikasi master kain global",
                 "consumes": [
                     "application/json"
                 ],
@@ -5794,10 +5794,7 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    },
-                    "example": [
-                        "[\"https://supa.../1.jpg\"]"
-                    ]
+                    }
                 },
                 "key_features": {
                     "type": "array",
@@ -5805,8 +5802,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "[\"Bahan ripstop anti robek\"",
-                        " \"Dual chest pocket velcro\"]"
+                        "[\"Bahan ripstop anti robek\"]"
                     ]
                 },
                 "name": {
@@ -5827,9 +5823,6 @@ const docTemplate = `{
         },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
             "properties": {
                 "base_price": {
                     "type": "number",
@@ -5838,7 +5831,7 @@ const docTemplate = `{
                 },
                 "care_instruction": {
                     "type": "string",
-                    "example": "Cuci mesin air dingin, jangan diputihkan"
+                    "example": "Cuci mesin air dingin"
                 },
                 "colors": {
                     "type": "array",
@@ -5865,6 +5858,10 @@ const docTemplate = `{
                 "price_adjustment": {
                     "type": "number",
                     "example": 0
+                },
+                "spec_template_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
                 }
             }
         },
@@ -5900,6 +5897,9 @@ const docTemplate = `{
                 },
                 "price_adjustment": {
                     "type": "number"
+                },
+                "spec_template_id": {
+                    "type": "string"
                 }
             }
         },
@@ -6029,29 +6029,25 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "base_price": {
-                    "type": "number",
-                    "example": 185000
+                    "type": "number"
                 },
                 "category": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryResponse"
                 },
                 "category_id": {
-                    "type": "string",
-                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
                 "description": {
-                    "type": "string",
-                    "example": "Kemeja taktikal bahan ripstop cotton"
+                    "type": "string"
                 },
                 "design_model": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelResponse"
                 },
                 "fabric_summary": {
-                    "type": "string",
-                    "example": "Ripstop"
+                    "type": "string"
                 },
                 "fabrics": {
                     "type": "array",
@@ -6060,12 +6056,10 @@ const docTemplate = `{
                     }
                 },
                 "gsm_info": {
-                    "type": "string",
-                    "example": "210gsm"
+                    "type": "string"
                 },
                 "id": {
-                    "type": "string",
-                    "example": "999e4567-e89b-12d3-a456-426614174000"
+                    "type": "string"
                 },
                 "images": {
                     "type": "array",
@@ -6080,24 +6074,19 @@ const docTemplate = `{
                     }
                 },
                 "name": {
-                    "type": "string",
-                    "example": "Kemeja Taktikal Premium 7200"
+                    "type": "string"
                 },
                 "rating": {
-                    "type": "number",
-                    "example": 4.9
+                    "type": "number"
                 },
                 "review_count": {
-                    "type": "integer",
-                    "example": 318
+                    "type": "integer"
                 },
                 "slug": {
-                    "type": "string",
-                    "example": "kemeja-taktikal-premium-7200"
+                    "type": "string"
                 },
                 "sold_count": {
-                    "type": "integer",
-                    "example": 1240
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -6114,23 +6103,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "base_price": {
-                    "type": "number",
-                    "example": 190000
+                    "type": "number"
                 },
                 "category_id": {
-                    "type": "string",
-                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                    "type": "string"
                 },
                 "description": {
-                    "type": "string",
-                    "example": "Versi update"
+                    "type": "string"
                 },
                 "design_model": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest"
                 },
                 "fabric_summary": {
-                    "type": "string",
-                    "example": "Ripstop Cotton"
+                    "type": "string"
                 },
                 "fabrics": {
                     "type": "array",
@@ -6139,8 +6124,7 @@ const docTemplate = `{
                     }
                 },
                 "gsm_info": {
-                    "type": "string",
-                    "example": "220gsm"
+                    "type": "string"
                 },
                 "image_urls": {
                     "type": "array",
@@ -6155,12 +6139,10 @@ const docTemplate = `{
                     }
                 },
                 "name": {
-                    "type": "string",
-                    "example": "Kemeja Taktikal Premium 7200 V2"
+                    "type": "string"
                 },
                 "slug": {
-                    "type": "string",
-                    "example": "kemeja-taktikal-premium-7200-v2"
+                    "type": "string"
                 },
                 "wholesale": {
                     "type": "array",
@@ -6363,22 +6345,46 @@ const docTemplate = `{
                 "spec"
             ],
             "properties": {
+                "care_instruction": {
+                    "type": "string",
+                    "example": "Setrika suhu sedang, jangan gunakan pemutih"
+                },
+                "composition": {
+                    "type": "string",
+                    "example": "65% Polyester / 35% Viscose"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Kain drill serbaguna untuk kemeja taktikal \u0026 seragam kerja"
+                },
                 "name": {
                     "type": "string",
-                    "example": "Bahan Rompi Standar"
+                    "example": "American Drill"
                 },
                 "spec": {
                     "type": "string",
-                    "example": "Drill Halus, Furing Peles, Resleting YKK"
+                    "example": "Tekstur miring sedang, adem dan tidak gampang kusut"
                 }
             }
         },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateResponse": {
             "type": "object",
             "properties": {
+                "care_instruction": {
+                    "type": "string",
+                    "example": "Setrika suhu sedang, jangan gunakan pemutih"
+                },
+                "composition": {
+                    "type": "string",
+                    "example": "65% Polyester / 35% Viscose"
+                },
                 "created_at": {
                     "type": "string",
                     "example": "2023-10-01T15:00:00Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Kain drill serbaguna untuk kemeja taktikal \u0026 seragam kerja"
                 },
                 "id": {
                     "type": "string",
@@ -6386,11 +6392,11 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
-                    "example": "Bahan Rompi Standar"
+                    "example": "American Drill"
                 },
                 "spec": {
                     "type": "string",
-                    "example": "Drill Halus, Furing Peles, Resleting YKK"
+                    "example": "Tekstur miring sedang, adem dan tidak gampang kusut"
                 },
                 "updated_at": {
                     "type": "string",
