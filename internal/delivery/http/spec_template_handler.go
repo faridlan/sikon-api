@@ -48,6 +48,13 @@ func (h *specTemplateHandler) CreateSpecTemplate(c *fiber.Ctx) error {
 	if err := utils.ValidateStruct(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
+	var colors []domain.FabricColorInput
+	for _, c := range req.Colors {
+		colors = append(colors, domain.FabricColorInput{
+			Name:    c.Name,
+			HexCode: c.HexCode,
+		})
+	}
 
 	domainReq := domain.SpecTemplateCreateInput{
 		Name:            req.Name,
@@ -55,6 +62,7 @@ func (h *specTemplateHandler) CreateSpecTemplate(c *fiber.Ctx) error {
 		Description:     req.Description,
 		Composition:     req.Composition,
 		CareInstruction: req.CareInstruction,
+		Colors:          colors,
 	}
 
 	specTemplate, err := h.specTemplateUsecase.CreateSpecTemplate(c.Context(), domainReq)
@@ -148,12 +156,21 @@ func (h *specTemplateHandler) UpdateSpecTemplate(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
+	var colors []domain.FabricColorInput
+	for _, c := range req.Colors {
+		colors = append(colors, domain.FabricColorInput{
+			Name:    c.Name,
+			HexCode: c.HexCode,
+		})
+	}
+
 	domainReq := domain.SpecTemplateUpdateInput{
 		Name:            req.Name,
 		Spec:            req.Spec,
 		Description:     req.Description,
 		Composition:     req.Composition,
 		CareInstruction: req.CareInstruction,
+		Colors:          colors,
 	}
 
 	specTemplate, err := h.specTemplateUsecase.UpdateSpecTemplate(c.Context(), id, domainReq)

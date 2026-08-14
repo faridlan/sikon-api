@@ -88,13 +88,13 @@ func SeedFullCustomProduct(db *gorm.DB, categoryID string, name string, price fl
 				Colors: []postgres.FabricColorModel{
 					{
 						ID:       uuid.New().String(),
-						FabricID: fabricID,
+						FabricID: &fabricID,
 						Name:     "Olive",
 						HexCode:  "#4b5320",
 					},
 					{
 						ID:       uuid.New().String(),
-						FabricID: fabricID,
+						FabricID: &fabricID,
 						Name:     "Navy",
 						HexCode:  "#1b263b",
 					},

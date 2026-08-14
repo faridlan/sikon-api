@@ -7,11 +7,12 @@ import (
 )
 
 type FabricColorModel struct {
-	ID        string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	FabricID  string    `gorm:"type:uuid;not null"`
-	Name      string    `gorm:"type:varchar(100);not null"`
-	HexCode   string    `gorm:"type:varchar(20);not null"`
-	CreatedAt time.Time `gorm:"autoCreateTime"`
+	ID             string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	FabricID       *string   `gorm:"type:uuid;index"`
+	SpecTemplateID *string   `gorm:"type:uuid;index"`
+	Name           string    `gorm:"type:varchar(100);not null"`
+	HexCode        string    `gorm:"type:varchar(20);not null"`
+	CreatedAt      time.Time `gorm:"autoCreateTime"`
 }
 
 func (FabricColorModel) TableName() string {
@@ -19,12 +20,18 @@ func (FabricColorModel) TableName() string {
 }
 
 func (m *FabricColorModel) ToDomain() domain.FabricColor {
+	fabricID := ""
+	if m.FabricID != nil {
+		fabricID = *m.FabricID
+	}
+
 	return domain.FabricColor{
-		ID:        m.ID,
-		FabricID:  m.FabricID,
-		Name:      m.Name,
-		HexCode:   m.HexCode,
-		CreatedAt: m.CreatedAt,
+		ID:             m.ID,
+		FabricID:       fabricID,
+		SpecTemplateID: m.SpecTemplateID,
+		Name:           m.Name,
+		HexCode:        m.HexCode,
+		CreatedAt:      m.CreatedAt,
 	}
 }
 
@@ -67,7 +74,7 @@ func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
 		UpdatedAt:       m.UpdatedAt,
 	}
 
-	// Jika nama/deskripsi kosong di level ProductFabric, gunakan fallback dari SpecTemplate
+	// Jika nama/deskripsi/komposisi/instruksi kosong di level ProductFabric, gunakan fallback dari SpecTemplate
 	if m.SpecTemplate != nil {
 		fabric.SpecTemplate = m.SpecTemplate.ToDomain()
 		if fabric.Name == "" {
@@ -84,9 +91,17 @@ func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
 		}
 	}
 
+	// 1. Warna khusus yang di-override di level ProductFabric
 	if len(m.Colors) > 0 {
 		var colors []domain.FabricColor
 		for _, c := range m.Colors {
+			colors = append(colors, c.ToDomain())
+		}
+		fabric.Colors = colors
+		// 2. Fallback: Warna dari Master SpecTemplate jika ProductFabric tidak memiliki warna override
+	} else if m.SpecTemplate != nil && len(m.SpecTemplate.Colors) > 0 {
+		var colors []domain.FabricColor
+		for _, c := range m.SpecTemplate.Colors {
 			colors = append(colors, c.ToDomain())
 		}
 		fabric.Colors = colors

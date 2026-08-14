@@ -3,24 +3,28 @@ package domain
 import "time"
 
 type FabricColor struct {
-	ID        string
-	FabricID  string
-	Name      string // e.g. "Khaki", "Navy", "Olive"
-	HexCode   string // e.g. "#C2B280"
+	ID       string
+	FabricID string
+
+	// Penambahan field baru (aman, pointer memastikan backward compatibility)
+	SpecTemplateID *string
+
+	Name      string
+	HexCode   string
 	CreatedAt time.Time
 }
 
 type ProductFabric struct {
 	ID              string
 	ProductID       string
-	SpecTemplateID  *string       // Pointer ke Master Kain Global
-	SpecTemplate    *SpecTemplate // Relasi domain
-	Name            string        // Custom Name jika ingin override dari SpecTemplate
+	SpecTemplateID  *string
+	SpecTemplate    *SpecTemplate
+	Name            string
 	Description     string
 	Composition     string
 	CareInstruction string
-	BasePrice       float64 // Harga dasar khusus untuk produk ini
-	PriceAdjustment float64 // Penyesuaian harga khusus produk ini
+	BasePrice       float64
+	PriceAdjustment float64
 	IsDefault       bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -28,6 +32,7 @@ type ProductFabric struct {
 	Colors []FabricColor
 }
 
+// ... (sisanya tidak berubah)
 type WholesalePrice struct {
 	ID        string
 	ProductID string

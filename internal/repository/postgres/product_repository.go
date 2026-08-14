@@ -43,7 +43,8 @@ func (r *productRepository) Create(ctx context.Context, product *domain.Product)
 			for j := range product.Fabrics[i].Colors {
 				if j < len(model.Fabrics[i].Colors) {
 					product.Fabrics[i].Colors[j].ID = model.Fabrics[i].Colors[j].ID
-					product.Fabrics[i].Colors[j].FabricID = model.Fabrics[i].ID
+					fabricID := model.Fabrics[i].ID
+					product.Fabrics[i].Colors[j].FabricID = fabricID
 				}
 			}
 		}
@@ -77,7 +78,8 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 	if err := r.db.WithContext(ctx).
 		Preload("Category").
 		Preload("Images").
-		Preload("Fabrics.SpecTemplate"). // Preload Master SpecTemplate
+		Preload("Fabrics.SpecTemplate").
+		Preload("Fabrics.SpecTemplate.Colors"). // Preload warna global milik Master SpecTemplate
 		Preload("Fabrics.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
@@ -93,7 +95,8 @@ func (r *productRepository) GetBySlug(ctx context.Context, slug string) (*domain
 	if err := r.db.WithContext(ctx).
 		Preload("Category").
 		Preload("Images").
-		Preload("Fabrics.SpecTemplate"). // Preload Master SpecTemplate
+		Preload("Fabrics.SpecTemplate").
+		Preload("Fabrics.SpecTemplate.Colors"). // Preload warna global milik Master SpecTemplate
 		Preload("Fabrics.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
@@ -150,7 +153,8 @@ func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilt
 	err := query.
 		Preload("Category").
 		Preload("Images").
-		Preload("Fabrics.SpecTemplate"). // Preload Master SpecTemplate
+		Preload("Fabrics.SpecTemplate").
+		Preload("Fabrics.SpecTemplate.Colors"). // Preload warna global milik Master SpecTemplate
 		Preload("Fabrics.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
@@ -286,7 +290,8 @@ func syncProductFabrics(ctx context.Context, db *gorm.DB, productID string, fabr
 			}
 
 			for _, c := range fab.Colors {
-				c.FabricID = fab.ID
+				fabricID := fab.ID
+				c.FabricID = &fabricID
 				if c.ID == "" {
 					if err := db.WithContext(ctx).Create(&c).Error; err != nil {
 						return TranslateError(err)

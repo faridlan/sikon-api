@@ -103,7 +103,7 @@ type ProductFabricResponse struct {
 	BasePrice       float64               `json:"base_price"`
 	PriceAdjustment float64               `json:"price_adjustment"`
 	IsDefault       bool                  `json:"is_default"`
-	Colors          []FabricColorResponse `json:"colors,omitempty"`
+	Colors          []FabricColorResponse `json:"colors"` // Dihapus omitempty agar selalau ter-render di JSON Response
 }
 
 type WholesalePriceResponse struct {
@@ -326,7 +326,7 @@ func ToProductResponse(p *domain.Product) ProductResponse {
 
 	if len(p.Fabrics) > 0 {
 		for _, fab := range p.Fabrics {
-			var colors []FabricColorResponse
+			colors := make([]FabricColorResponse, 0)
 			for _, c := range fab.Colors {
 				colors = append(colors, FabricColorResponse{
 					ID:      c.ID,

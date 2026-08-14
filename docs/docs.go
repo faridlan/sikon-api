@@ -5875,6 +5875,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "colors": {
+                    "description": "Dihapus omitempty agar selalau ter-render di JSON Response",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorResponse"
@@ -6338,6 +6339,40 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorRequest": {
+            "type": "object",
+            "required": [
+                "hex_code",
+                "name"
+            ],
+            "properties": {
+                "hex_code": {
+                    "type": "string",
+                    "example": "#1B263B"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Navy Blue"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorResponse": {
+            "type": "object",
+            "properties": {
+                "hex_code": {
+                    "type": "string",
+                    "example": "#1B263B"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Navy Blue"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateRequest": {
             "type": "object",
             "required": [
@@ -6348,6 +6383,12 @@ const docTemplate = `{
                 "care_instruction": {
                     "type": "string",
                     "example": "Setrika suhu sedang, jangan gunakan pemutih"
+                },
+                "colors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorRequest"
+                    }
                 },
                 "composition": {
                     "type": "string",
@@ -6373,6 +6414,12 @@ const docTemplate = `{
                 "care_instruction": {
                     "type": "string",
                     "example": "Setrika suhu sedang, jangan gunakan pemutih"
+                },
+                "colors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorResponse"
+                    }
                 },
                 "composition": {
                     "type": "string",

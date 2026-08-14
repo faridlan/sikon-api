@@ -1030,6 +1030,7 @@ definitions:
       care_instruction:
         type: string
       colors:
+        description: Dihapus omitempty agar selalau ter-render di JSON Response
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorResponse'
         type: array
@@ -1338,11 +1339,39 @@ definitions:
       total_revenue:
         type: number
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorRequest:
+    properties:
+      hex_code:
+        example: '#1B263B'
+        type: string
+      name:
+        example: Navy Blue
+        type: string
+    required:
+    - hex_code
+    - name
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorResponse:
+    properties:
+      hex_code:
+        example: '#1B263B'
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      name:
+        example: Navy Blue
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateRequest:
     properties:
       care_instruction:
         example: Setrika suhu sedang, jangan gunakan pemutih
         type: string
+      colors:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorRequest'
+        type: array
       composition:
         example: 65% Polyester / 35% Viscose
         type: string
@@ -1364,6 +1393,10 @@ definitions:
       care_instruction:
         example: Setrika suhu sedang, jangan gunakan pemutih
         type: string
+      colors:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorResponse'
+        type: array
       composition:
         example: 65% Polyester / 35% Viscose
         type: string

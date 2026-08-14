@@ -247,37 +247,64 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	h.db.Create(&bankAccount)
 
 	// --- 2. SETUP MASTER SPEC TEMPLATE (KAIN GLOBAL) ---
+	specRipstopID := uuid.NewString()
 	specRipstop := postgresRepo.SpecTemplateModel{
-		ID:              uuid.NewString(),
+		ID:              specRipstopID,
 		Name:            "Dummy Spec Ripstop Cotton",
 		Spec:            "Bahan ripstop serat kotak anti robek, kuat, cocok untuk kemeja & rompi outdoor.",
 		Description:     "Kain dengan konstruksi jalinan benang serat kotak presisi.",
 		Composition:     "65% Cotton / 35% Polyester",
 		CareInstruction: "Cuci mesin air dingin, jangan gunakan pemutih.",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), SpecTemplateID: &specRipstopID, Name: "Olive", HexCode: "#4b5320"},
+			{ID: uuid.NewString(), SpecTemplateID: &specRipstopID, Name: "Black", HexCode: "#000000"},
+			{ID: uuid.NewString(), SpecTemplateID: &specRipstopID, Name: "Khaki", HexCode: "#c2b280"},
+		},
 	}
+
+	specAmericanID := uuid.NewString()
 	specAmerican := postgresRepo.SpecTemplateModel{
-		ID:              uuid.NewString(),
+		ID:              specAmericanID,
 		Name:            "Dummy Spec American Drill",
 		Spec:            "Tekstur miring sedang, menyerap keringat dengan baik, warna tahan lama.",
 		Description:     "Bahan drill populer untuk seragam lapangan dan kantor.",
 		Composition:     "65% Polyester / 35% Viscose",
 		CareInstruction: "Setrika suhu sedang, jemur di tempat teduh.",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), SpecTemplateID: &specAmericanID, Name: "Navy", HexCode: "#1b263b"},
+			{ID: uuid.NewString(), SpecTemplateID: &specAmericanID, Name: "Khaki", HexCode: "#c2b280"},
+			{ID: uuid.NewString(), SpecTemplateID: &specAmericanID, Name: "Maroon", HexCode: "#800000"},
+		},
 	}
+
+	specNagataID := uuid.NewString()
 	specNagata := postgresRepo.SpecTemplateModel{
-		ID:              uuid.NewString(),
+		ID:              specNagataID,
 		Name:            "Dummy Spec Nagata Drill",
 		Spec:            "Tekstur serat lebih tebal, lembut, adem dan sangat nyaman dipakai.",
 		Description:     "Kain drill kelas premium untuk pakaian kerja eksklusif.",
 		Composition:     "100% Cotton Premium",
 		CareInstruction: "Cuci dengan warna serupa, hindari pengering panas.",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), SpecTemplateID: &specNagataID, Name: "Putih", HexCode: "#ffffff"},
+			{ID: uuid.NewString(), SpecTemplateID: &specNagataID, Name: "Hitam", HexCode: "#000000"},
+			{ID: uuid.NewString(), SpecTemplateID: &specNagataID, Name: "Grey", HexCode: "#808080"},
+		},
 	}
+
+	specLacosteID := uuid.NewString()
 	specLacoste := postgresRepo.SpecTemplateModel{
-		ID:              uuid.NewString(),
+		ID:              specLacosteID,
 		Name:            "Dummy Spec Lacoste CVC",
 		Spec:            "Rajutan pique berpori khas polo shirt, adem, dan tidak mudah berserabut.",
 		Description:     "Bahan kain kaos berkerah dengan tekstur honeycomb.",
 		Composition:     "60% Cotton / 40% Polyester",
 		CareInstruction: "Jangan diperas terlalu kuat, gantung saat menjemur.",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), SpecTemplateID: &specLacosteID, Name: "Navy", HexCode: "#1b263b"},
+			{ID: uuid.NewString(), SpecTemplateID: &specLacosteID, Name: "Red", HexCode: "#ff0000"},
+			{ID: uuid.NewString(), SpecTemplateID: &specLacosteID, Name: "White", HexCode: "#ffffff"},
+		},
 	}
 
 	h.db.Create(&specRipstop)
@@ -401,7 +428,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// D. Produk Kemeja Series 1
+	// D. Produk Kemeja Series 1 (Memakai warna bawaan dari SpecTemplate)
 	prodKemeja1ID := uuid.NewString()
 	dm1ID := uuid.NewString()
 	fab1Kemeja1 := uuid.NewString()
@@ -429,10 +456,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				Name:           "Ripstop Cotton Premium",
 				BasePrice:      185000,
 				IsDefault:      true,
-				Colors: []postgresRepo.FabricColorModel{
-					{ID: uuid.NewString(), FabricID: fab1Kemeja1, Name: "Olive", HexCode: "#4b5320"},
-					{ID: uuid.NewString(), FabricID: fab1Kemeja1, Name: "Black", HexCode: "#000000"},
-				},
+				Colors:         []postgresRepo.FabricColorModel{}, // Kosong agar otomatis mewarisi warna dari SpecTemplate
 			},
 		},
 		DesignModel: &postgresRepo.DesignerModel{
@@ -450,7 +474,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// E. Produk Kemeja Series 2
+	// E. Produk Kemeja Series 2 (Memakai warna bawaan dari SpecTemplate)
 	prodKemeja2ID := uuid.NewString()
 	dm2ID := uuid.NewString()
 	fab1Kemeja2 := uuid.NewString()
@@ -478,10 +502,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				Name:           "American Drill High",
 				BasePrice:      190000,
 				IsDefault:      true,
-				Colors: []postgresRepo.FabricColorModel{
-					{ID: uuid.NewString(), FabricID: fab1Kemeja2, Name: "Navy", HexCode: "#1b263b"},
-					{ID: uuid.NewString(), FabricID: fab1Kemeja2, Name: "Khaki", HexCode: "#c2b280"},
-				},
+				Colors:         []postgresRepo.FabricColorModel{}, // Kosong agar otomatis mewarisi warna dari SpecTemplate
 			},
 		},
 		DesignModel: &postgresRepo.DesignerModel{

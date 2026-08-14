@@ -7,13 +7,16 @@ import (
 
 type SpecTemplate struct {
 	ID              string
-	Name            string // e.g. "American Drill"
-	Spec            string // e.g. "Jenis tekstil yang banyak digunakan..."
-	Description     string // e.g. "Kain tebal, tidak gampang kusut"
-	Composition     string // e.g. "65% Polyester, 35% Viscose"
-	CareInstruction string // e.g. "Cuci dengan air dingin"
+	Name            string
+	Spec            string
+	Description     string
+	Composition     string
+	CareInstruction string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+
+	// Penambahan field baru (aman)
+	Colors []FabricColor
 }
 
 type SpecTemplateCreateInput struct {
@@ -22,6 +25,9 @@ type SpecTemplateCreateInput struct {
 	Description     string
 	Composition     string
 	CareInstruction string
+
+	// Penambahan field baru (aman)
+	Colors []FabricColorInput
 }
 
 type SpecTemplateUpdateInput struct {
@@ -30,6 +36,9 @@ type SpecTemplateUpdateInput struct {
 	Description     string
 	Composition     string
 	CareInstruction string
+
+	// Penambahan field baru (aman)
+	Colors []FabricColorInput
 }
 
 type SpecTemplateRepository interface {
