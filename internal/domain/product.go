@@ -47,6 +47,7 @@ type FabricColorInput struct {
 }
 
 type ProductFabricInput struct {
+	SpecTemplateID  *string // Nullable/Optional
 	Name            string
 	Description     string
 	Composition     string

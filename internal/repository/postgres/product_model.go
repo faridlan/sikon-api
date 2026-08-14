@@ -140,17 +140,20 @@ func FromProductDomain(d *domain.Product) *ProductModel {
 		for _, fab := range d.Fabrics {
 			var colorModels []FabricColorModel
 			for _, c := range fab.Colors {
+				fabricID := fab.ID
 				colorModels = append(colorModels, FabricColorModel{
-					ID:       c.ID,
-					FabricID: fab.ID,
-					Name:     c.Name,
-					HexCode:  c.HexCode,
+					ID:             c.ID,
+					FabricID:       &fabricID,
+					SpecTemplateID: c.SpecTemplateID,
+					Name:           c.Name,
+					HexCode:        c.HexCode,
 				})
 			}
 
 			fabModels = append(fabModels, ProductFabricModel{
 				ID:              fab.ID,
 				ProductID:       d.ID,
+				SpecTemplateID:  fab.SpecTemplateID, // Dihubungkan ke SpecTemplateID
 				Name:            fab.Name,
 				Description:     fab.Description,
 				Composition:     fab.Composition,

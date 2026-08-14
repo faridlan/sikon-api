@@ -967,15 +967,12 @@ definitions:
         example: 210gsm
         type: string
       image_urls:
-        example:
-        - '["https://supa.../1.jpg"]'
         items:
           type: string
         type: array
       key_features:
         example:
-        - '["Bahan ripstop anti robek"'
-        - ' "Dual chest pocket velcro"]'
+        - '["Bahan ripstop anti robek"]'
         items:
           type: string
         type: array
@@ -1001,7 +998,7 @@ definitions:
         minimum: 0
         type: number
       care_instruction:
-        example: Cuci mesin air dingin, jangan diputihkan
+        example: Cuci mesin air dingin
         type: string
       colors:
         items:
@@ -1022,8 +1019,9 @@ definitions:
       price_adjustment:
         example: 0
         type: number
-    required:
-    - name
+      spec_template_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricResponse:
     properties:
@@ -1032,6 +1030,7 @@ definitions:
       care_instruction:
         type: string
       colors:
+        description: Dihapus omitempty agar selalau ter-render di JSON Response
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.FabricColorResponse'
         type: array
@@ -1047,6 +1046,8 @@ definitions:
         type: string
       price_adjustment:
         type: number
+      spec_template_id:
+        type: string
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductImageResponse:
     properties:
@@ -1135,32 +1136,26 @@ definitions:
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductResponse:
     properties:
       base_price:
-        example: 185000
         type: number
       category:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CategoryResponse'
       category_id:
-        example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       created_at:
         type: string
       description:
-        example: Kemeja taktikal bahan ripstop cotton
         type: string
       design_model:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelResponse'
       fabric_summary:
-        example: Ripstop
         type: string
       fabrics:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricResponse'
         type: array
       gsm_info:
-        example: 210gsm
         type: string
       id:
-        example: 999e4567-e89b-12d3-a456-426614174000
         type: string
       images:
         items:
@@ -1171,19 +1166,14 @@ definitions:
           type: string
         type: array
       name:
-        example: Kemeja Taktikal Premium 7200
         type: string
       rating:
-        example: 4.9
         type: number
       review_count:
-        example: 318
         type: integer
       slug:
-        example: kemeja-taktikal-premium-7200
         type: string
       sold_count:
-        example: 1240
         type: integer
       updated_at:
         type: string
@@ -1195,25 +1185,20 @@ definitions:
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductUpdateRequest:
     properties:
       base_price:
-        example: 190000
         type: number
       category_id:
-        example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       description:
-        example: Versi update
         type: string
       design_model:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest'
       fabric_summary:
-        example: Ripstop Cotton
         type: string
       fabrics:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductFabricRequest'
         type: array
       gsm_info:
-        example: 220gsm
         type: string
       image_urls:
         items:
@@ -1224,10 +1209,8 @@ definitions:
           type: string
         type: array
       name:
-        example: Kemeja Taktikal Premium 7200 V2
         type: string
       slug:
-        example: kemeja-taktikal-premium-7200-v2
         type: string
       wholesale:
         items:
@@ -1356,13 +1339,50 @@ definitions:
       total_revenue:
         type: number
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorRequest:
+    properties:
+      hex_code:
+        example: '#1B263B'
+        type: string
+      name:
+        example: Navy Blue
+        type: string
+    required:
+    - hex_code
+    - name
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorResponse:
+    properties:
+      hex_code:
+        example: '#1B263B'
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      name:
+        example: Navy Blue
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateRequest:
     properties:
+      care_instruction:
+        example: Setrika suhu sedang, jangan gunakan pemutih
+        type: string
+      colors:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorRequest'
+        type: array
+      composition:
+        example: 65% Polyester / 35% Viscose
+        type: string
+      description:
+        example: Kain drill serbaguna untuk kemeja taktikal & seragam kerja
+        type: string
       name:
-        example: Bahan Rompi Standar
+        example: American Drill
         type: string
       spec:
-        example: Drill Halus, Furing Peles, Resleting YKK
+        example: Tekstur miring sedang, adem dan tidak gampang kusut
         type: string
     required:
     - name
@@ -1370,17 +1390,30 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateResponse:
     properties:
+      care_instruction:
+        example: Setrika suhu sedang, jangan gunakan pemutih
+        type: string
+      colors:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorResponse'
+        type: array
+      composition:
+        example: 65% Polyester / 35% Viscose
+        type: string
       created_at:
         example: "2023-10-01T15:00:00Z"
+        type: string
+      description:
+        example: Kain drill serbaguna untuk kemeja taktikal & seragam kerja
         type: string
       id:
         example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       name:
-        example: Bahan Rompi Standar
+        example: American Drill
         type: string
       spec:
-        example: Drill Halus, Furing Peles, Resleting YKK
+        example: Tekstur miring sedang, adem dan tidak gampang kusut
         type: string
       updated_at:
         example: "2023-10-01T15:00:00Z"
@@ -4326,7 +4359,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Membuat template spesifikasi (misal: bahan baku) baru'
+      description: Membuat master kain global / template spesifikasi baru
       parameters:
       - description: Data Template Spesifikasi Baru
         in: body
@@ -4430,7 +4463,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Memperbarui nama dan detail spesifikasi
+      description: Memperbarui nama dan detail spesifikasi master kain global
       parameters:
       - description: SpecTemplate ID (UUID)
         in: path

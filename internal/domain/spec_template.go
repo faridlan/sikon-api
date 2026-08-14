@@ -6,22 +6,39 @@ import (
 )
 
 type SpecTemplate struct {
-	ID        string
-	Name      string
-	Spec      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID              string
+	Name            string
+	Spec            string
+	Description     string
+	Composition     string
+	CareInstruction string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+
+	// Penambahan field baru (aman)
+	Colors []FabricColor
 }
 
-// Struct khusus untuk Input Usecase
 type SpecTemplateCreateInput struct {
-	Name string
-	Spec string
+	Name            string
+	Spec            string
+	Description     string
+	Composition     string
+	CareInstruction string
+
+	// Penambahan field baru (aman)
+	Colors []FabricColorInput
 }
 
 type SpecTemplateUpdateInput struct {
-	Name string
-	Spec string
+	Name            string
+	Spec            string
+	Description     string
+	Composition     string
+	CareInstruction string
+
+	// Penambahan field baru (aman)
+	Colors []FabricColorInput
 }
 
 type SpecTemplateRepository interface {

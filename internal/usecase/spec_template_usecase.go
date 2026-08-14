@@ -26,8 +26,18 @@ func (u *specTemplateUsecase) CreateSpecTemplate(c context.Context, input domain
 	defer cancel()
 
 	specTemplate := &domain.SpecTemplate{
-		Name: input.Name,
-		Spec: input.Spec,
+		Name:            input.Name,
+		Spec:            input.Spec,
+		Description:     input.Description,
+		Composition:     input.Composition,
+		CareInstruction: input.CareInstruction,
+	}
+
+	for _, c := range input.Colors {
+		specTemplate.Colors = append(specTemplate.Colors, domain.FabricColor{
+			Name:    c.Name,
+			HexCode: c.HexCode,
+		})
 	}
 
 	if err := u.specTemplateRepo.Create(ctx, specTemplate); err != nil {
@@ -92,6 +102,27 @@ func (u *specTemplateUsecase) UpdateSpecTemplate(c context.Context, id string, i
 	}
 	if input.Spec != "" {
 		existingSpecTemplate.Spec = input.Spec
+	}
+	if input.Description != "" {
+		existingSpecTemplate.Description = input.Description
+	}
+	if input.Composition != "" {
+		existingSpecTemplate.Composition = input.Composition
+	}
+	if input.CareInstruction != "" {
+		existingSpecTemplate.CareInstruction = input.CareInstruction
+	}
+
+	if input.Colors != nil {
+		var newColors []domain.FabricColor
+		for _, c := range input.Colors {
+			newColors = append(newColors, domain.FabricColor{
+				SpecTemplateID: &id,
+				Name:           c.Name,
+				HexCode:        c.HexCode,
+			})
+		}
+		existingSpecTemplate.Colors = newColors
 	}
 
 	if err := u.specTemplateRepo.Update(ctx, existingSpecTemplate); err != nil {
