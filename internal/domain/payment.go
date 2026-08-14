@@ -60,6 +60,7 @@ type PaymentFilter struct {
 	Search      string
 	PaymentType string
 	Status      string // Filter berdasarkan verification status
+	SalesID     string
 	StartDate   string
 	EndDate     string
 }

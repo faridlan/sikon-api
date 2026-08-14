@@ -14,9 +14,9 @@ type DashboardUsecase struct {
 	mock.Mock
 }
 
-// GetReceivablesReport provides a mock function with given fields: ctx
-func (_m *DashboardUsecase) GetReceivablesReport(ctx context.Context) ([]domain.ReceivableReportItem, error) {
-	ret := _m.Called(ctx)
+// GetReceivablesReport provides a mock function with given fields: ctx, salesID
+func (_m *DashboardUsecase) GetReceivablesReport(ctx context.Context, salesID string) ([]domain.ReceivableReportItem, error) {
+	ret := _m.Called(ctx, salesID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetReceivablesReport")
@@ -24,19 +24,19 @@ func (_m *DashboardUsecase) GetReceivablesReport(ctx context.Context) ([]domain.
 
 	var r0 []domain.ReceivableReportItem
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]domain.ReceivableReportItem, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]domain.ReceivableReportItem, error)); ok {
+		return rf(ctx, salesID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []domain.ReceivableReportItem); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, string) []domain.ReceivableReportItem); ok {
+		r0 = rf(ctx, salesID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.ReceivableReportItem)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, salesID)
 	} else {
 		r1 = ret.Error(1)
 	}

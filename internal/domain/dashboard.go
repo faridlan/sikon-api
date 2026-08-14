@@ -38,18 +38,19 @@ type ReceivableReportItem struct {
 type DashboardFilter struct {
 	StartDate string // Format: YYYY-MM-DD
 	EndDate   string // Format: YYYY-MM-DD
+	SalesID   string
 }
 
 // DashboardRepository adalah kontrak untuk layer database (GORM)
 type DashboardRepository interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
-	GetReceivablesReport(ctx context.Context) ([]ReceivableReportItem, error)
+	GetReceivablesReport(ctx context.Context, salesID string) ([]ReceivableReportItem, error) // <-- Tambah salesID
 }
 
 // DashboardUsecase adalah kontrak untuk layer logika bisnis
 type DashboardUsecase interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
-	GetReceivablesReport(ctx context.Context) ([]ReceivableReportItem, error)
+	GetReceivablesReport(ctx context.Context, salesID string) ([]ReceivableReportItem, error)
 }
