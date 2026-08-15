@@ -52,6 +52,7 @@ type Order struct {
 	TaxPpn          float64
 	TaxPph          float64
 	TotalAmount     float64
+	TotalQty        int
 	ShippingCost    float64
 	CourierName     string
 	ShippingAddress string
@@ -146,10 +147,14 @@ func (o *Order) CalculateTotals() {
 	// (Mencegah subtotal jadi 0 jika kita hanya me-load header order dari DB)
 	if len(o.Items) > 0 {
 		var subtotal float64
+		var totalQty int
 		for _, item := range o.Items {
 			subtotal += item.Price * float64(item.Qty)
+			totalQty += item.Qty
 		}
 		o.Subtotal = subtotal
+		o.TotalQty = totalQty
+
 	}
 
 	// 2. Hitung Grand Total

@@ -1961,7 +1961,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter berdasarkan ID Batch PO (UUID)",
+                        "description": "Filter berdasarkan ID Batch PO (UUID). Gunakan 'all' untuk melihat semua PO, atau biarkan kosong untuk otomatis memilih PO aktif.",
                         "name": "batch_po_id",
                         "in": "query"
                     },
@@ -5421,6 +5421,10 @@ const docTemplate = `{
                 "total_amount": {
                     "type": "number",
                     "example": 3550000
+                },
+                "total_qty": {
+                    "type": "integer",
+                    "example": 100
                 },
                 "updated_at": {
                     "type": "string",

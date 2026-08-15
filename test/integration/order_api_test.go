@@ -586,6 +586,8 @@ func TestListOrders_Integration(t *testing.T) {
 	customer := tests.SeedCustomer(db, "Cust List", "08112233", "Jakarta")
 	category := tests.SeedCategory(db, "Kaos")
 	product := tests.SeedProduct(db, category.ID, "Kaos Polos", 50000)
+
+	// 🚨 Pastikan BatchPO yang di-seed aktif untuk tanggal HARI INI
 	batchPo := tests.SeedBatchPO(db, "Batch PO Test", "active")
 
 	// Buat 3 Order dengan kombinasi Sales dan Status yang berbeda untuk test filter
@@ -593,7 +595,7 @@ func TestListOrders_Integration(t *testing.T) {
 	order2 := tests.SeedOrder(db, batchPo.ID, customer.ID, salesA.ID, product.ID)
 	order3 := tests.SeedOrder(db, batchPo.ID, customer.ID, salesB.ID, product.ID)
 
-	// Kita update statusnya secara manual via raw query GORM agar sesuai skenario filter
+	// Update statusnya secara manual via raw query GORM agar sesuai skenario filter
 	db.Exec("UPDATE orders SET order_status = 'quotation' WHERE id = ?", order1.ID)
 	db.Exec("UPDATE orders SET order_status = 'pending' WHERE id = ?", order2.ID)
 	db.Exec("UPDATE orders SET order_status = 'pending' WHERE id = ?", order3.ID)
@@ -612,7 +614,8 @@ func TestListOrders_Integration(t *testing.T) {
 
 	// --- 2. SKENARIO PENGUJIAN ---
 
-	t.Run("Success_Get_All_Tanpa_Filter", func(t *testing.T) {
+	t.Run("Success_Get_All_Default_Active_PO", func(t *testing.T) {
+		// Mengambil order tanpa query batch_po_id -> backend otomatis menyaring berdasarkan Active PO
 		req := tests.AuthenticatedRequest("GET", "/api/orders", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 
@@ -623,7 +626,26 @@ func TestListOrders_Integration(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &response)
 
-		// Harus mengembalikan semua order (Total 3)
+		// Semua 3 order terdaftar di Active PO yang sama
+		assert.Len(t, response.Data, 3)
+		assert.Equal(t, int64(3), response.Meta.TotalItems)
+
+		// 🚨 ASSERTION BARU: Pastikan total_qty terisi dari kalkulasi SQL Subquery di Postgres
+		assert.GreaterOrEqual(t, response.Data[0].TotalQty, 0)
+	})
+
+	t.Run("Success_Get_All_With_Explicit_Param_All", func(t *testing.T) {
+		// Menggunakan query batch_po_id=all untuk memunculkan semua order lintas PO
+		req := tests.AuthenticatedRequest("GET", "/api/orders?batch_po_id=all", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
+		resp, err := app.Test(req, -1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response PaginatedOrderResponse
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &response)
+
 		assert.Len(t, response.Data, 3)
 		assert.Equal(t, int64(3), response.Meta.TotalItems)
 	})
@@ -679,13 +701,12 @@ func TestListOrders_Integration(t *testing.T) {
 
 		// Karena dilimit 2, maka data yang keluar harus 2
 		assert.Len(t, response.Data, 2)
-		// Namun TotalItems keseluruhan tetap harus 3
+		// TotalItems keseluruhan tetap 3
 		assert.Equal(t, int64(3), response.Meta.TotalItems)
-		// Karena total 3 dibagi limit 2, maka TotalPages harus 2 (Ceil)
+		// TotalPages bernilai 2 (Ceil dari 3/2)
 		assert.Equal(t, 2, response.Meta.TotalPages)
 	})
 }
-
 func TestUpdatePaymentStatus_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)

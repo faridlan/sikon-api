@@ -140,7 +140,7 @@ func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 // @Param page query int false "Nomor Halaman" default(1)
 // @Param limit query int false "Batas Data per Halaman" default(10)
 // @Param search query string false "Cari berdasarkan Nomor Order (ORD-XXX) atau Nama Customer"
-// @Param batch_po_id query string false "Filter berdasarkan ID Batch PO (UUID)"
+// @Param batch_po_id query string false "Filter berdasarkan ID Batch PO (UUID). Gunakan 'all' untuk melihat semua PO, atau biarkan kosong untuk otomatis memilih PO aktif."
 // @Param customer_id query string false "Filter berdasarkan ID Customer (UUID)"
 // @Param sales_id query string false "Filter berdasarkan ID Sales (UUID)"
 // @Param order_status query string false "Filter Status Order (Enum: quotation, pending, production, ready, completed, canceled)"

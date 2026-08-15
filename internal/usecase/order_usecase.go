@@ -171,6 +171,16 @@ func (u *orderUsecase) ListOrders(c context.Context, filter domain.OrderFilter, 
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
+	// 🚨 ATURAN BISNIS BARU (DEFAULT ACTIVE BATCH PO):
+	// Jika Frontend TIDAK mengirim batch_po_id (kosong ""),
+	// Otomatis cari Batch PO yang sedang AKTIF hari ini.
+	if filter.BatchPoID == "" {
+		activePO, err := u.batchPoRepo.GetActivePOByDate(ctx, time.Now())
+		if err == nil && activePO != nil {
+			filter.BatchPoID = activePO.ID
+		}
+	}
+
 	offset := query.GetOffset()
 	limit := query.Limit
 

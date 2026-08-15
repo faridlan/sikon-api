@@ -71,6 +71,7 @@ type OrderResponse struct {
 	TaxPpn          float64    `json:"tax_ppn" example:"0"`
 	TaxPph          float64    `json:"tax_ph" example:"0"`
 	TotalAmount     float64    `json:"total_amount" example:"3550000"`
+	TotalQty        int        `json:"total_qty" example:"100"`
 	ShippingCost    float64    `json:"shipping_cost" example:"50000"`
 	CourierName     string     `json:"courier_name" example:"JNE Trucking"`
 	ShippingAddress string     `json:"shipping_address" example:"Jl. Sudirman No. 123, Jakarta"`
@@ -90,6 +91,11 @@ type OrderResponse struct {
 }
 
 func ToOrderResponse(o *domain.Order) OrderResponse {
+
+	if o.TotalQty == 0 && len(o.Items) > 0 {
+		o.CalculateTotals()
+	}
+
 	resp := OrderResponse{
 		ID:              o.ID,
 		OrderNumber:     o.OrderNumber,
@@ -101,6 +107,7 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 		TaxPpn:          o.TaxPpn,
 		TaxPph:          o.TaxPph,
 		TotalAmount:     o.TotalAmount,
+		TotalQty:        o.TotalQty,
 		ShippingCost:    o.ShippingCost,
 		CourierName:     o.CourierName,
 		ShippingAddress: o.ShippingAddress,
