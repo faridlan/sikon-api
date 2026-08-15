@@ -35,3 +35,8 @@ Thumbs.db
 /postgres-data/
 
 assets
+
+# Ignore Local Database Backups & Logs
+backups/
+*.sql
+*.sql.gz
