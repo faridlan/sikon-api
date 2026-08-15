@@ -39,9 +39,7 @@ func NewSeederHandler(db *gorm.DB, storage domain.StorageService) SeederHandler 
 	}
 }
 
-// Helper lokal untuk membaca file dari folder lokal dan mengunggahnya ke Supabase
 func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath string, targetFolder string) (string, error) {
-	// 1. Cek & Buka file fisik dari disk
 	resolvedPath := localFilePath
 	if _, err := os.Stat(resolvedPath); os.IsNotExist(err) {
 		resolvedPath = filepath.Join("..", "..", localFilePath)
@@ -64,7 +62,6 @@ func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath strin
 		contentType = "image/jpeg"
 	}
 
-	// 2. Buat buffer multipart form in-memory agar fileHeader.Open() berhasil
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -81,9 +78,8 @@ func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath strin
 	}
 	_ = writer.Close()
 
-	// 3. Parse kembali ke multipart.Form untuk mendapatkan *multipart.FileHeader yang VALID
 	reader := multipart.NewReader(body, writer.Boundary())
-	form, err := reader.ReadForm(10 << 20) // 10MB limit
+	form, err := reader.ReadForm(10 << 20)
 	if err != nil {
 		return "", fmt.Errorf("gagal parsing form header: %w", err)
 	}
@@ -94,7 +90,6 @@ func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath strin
 		return "", fmt.Errorf("gagal mengekstrak file header dari memory")
 	}
 
-	// 4. Upload via Storage Service
 	uniqueFileName := fmt.Sprintf("%s_%s", fileNameOnly, uuid.NewString()[:8])
 	uploadedURL, err := h.storageService.UploadFile(ctx, files[0], targetFolder, uniqueFileName)
 	if err != nil {
@@ -104,12 +99,13 @@ func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath strin
 	return uploadedURL, nil
 }
 
-// @Summary Hapus Semua Data Seeder
-// @Tags Seeder
-// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
-// @Security BearerAuth
-// @Router /seeder/clear [post]
 func (h *seederHandler) Clear(c *fiber.Ctx) error {
+	// Guarding Tambahan: Pastikan hanya Owner yang bisa mengosongkan DB
+	userRole, _ := c.Locals("userRole").(domain.Role)
+	if userRole != "" && userRole != domain.RoleOwner {
+		return utils.SendError(c, fiber.StatusForbidden, "Akses ditolak: Hanya Owner yang dapat membersihkan data seeder")
+	}
+
 	// Hapus Relasi Produk
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductModelViewModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.DesignerModel{})
@@ -135,23 +131,15 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil membersihkan data seeder", nil)
 }
 
-// @Summary Generate Data Testing Realistis
-// @Tags Seeder
-// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
-// @Security BearerAuth
-// @Router /seeder/generate [post]
 func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	ctx := c.Context()
 
-	// Hash password dummy agar bisa digunakan untuk login
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	if err != nil {
 		return utils.SendError(c, fiber.StatusInternalServerError, "Gagal memproses password dummy seeder")
 	}
 
 	// --- 1. SETUP MASTER DATA USER & BANK ---
-
-	// Owner Dummy (Menggantikan role admin lama)
 	ownerDummy := postgresRepo.UserModel{
 		ID:         uuid.NewString(),
 		Name:       "Owner (Dummy)",
@@ -166,6 +154,27 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	var existingOwner postgresRepo.UserModel
 	if err := h.db.Where("email = ?", ownerDummy.Email).First(&existingOwner).Error; err != nil {
 		h.db.Create(&ownerDummy)
+	} else {
+		ownerDummy = existingOwner
+	}
+
+	// Accounting Dummy
+	accountingDummy := postgresRepo.UserModel{
+		ID:         uuid.NewString(),
+		Name:       "Jonathan (Accounting Dummy)",
+		Email:      "jonathan_dummy@sikon.com",
+		Password:   string(hashedPassword),
+		Role:       string(domain.RoleAccounting),
+		Phone:      "6281200000005",
+		StatusText: "Online sekarang",
+		IsActive:   true,
+		SortOrder:  5,
+	}
+	var existingAccounting postgresRepo.UserModel
+	if err := h.db.Where("email = ?", accountingDummy.Email).First(&existingAccounting).Error; err != nil {
+		h.db.Create(&accountingDummy)
+	} else {
+		accountingDummy = existingAccounting
 	}
 
 	// Sales Dummies
@@ -214,17 +223,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			IsActive:   true,
 			SortOrder:  4,
 		},
-		{
-			ID:         uuid.NewString(),
-			Name:       "Jonathan (Accounting Dummy)",
-			Email:      "jonathan_dummy@sikon.com",
-			Password:   string(hashedPassword),
-			Role:       string(domain.RoleAccounting),
-			Phone:      "6281200000004",
-			StatusText: "Online sekarang",
-			IsActive:   true,
-			SortOrder:  5,
-		},
 	}
 
 	var activeSalesIDs []string
@@ -246,7 +244,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 	h.db.Create(&bankAccount)
 
-	// --- 2. SETUP MASTER SPEC TEMPLATE (KAIN GLOBAL) ---
+	// --- 2. SETUP MASTER SPEC TEMPLATE ---
 	specRipstopID := uuid.NewString()
 	specRipstop := postgresRepo.SpecTemplateModel{
 		ID:              specRipstopID,
@@ -312,7 +310,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	h.db.Create(&specNagata)
 	h.db.Create(&specLacoste)
 
-	// --- 3. SETUP 4 KATEGORI ---
+	// --- 3. SETUP KATEGORI ---
 	catKemeja := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Kemeja"}
 	catRompi := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Rompi"}
 	catCelana := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Celana"}
@@ -336,25 +334,21 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		folder string
 		target *string
 	}{
-		// Products
 		{"assets/Product/kemeja.jpg", "products", &imgKemejaURL},
 		{"assets/Product/rompi.jpg", "products", &imgRompiURL},
 		{"assets/Product/celana.jpg", "products", &imgCelanaURL},
 		{"assets/Product/polo.jpg", "products", &imgPoloURL},
 
-		// Mockups - Masks
 		{"assets/Mockup/front-mask-long.png", "mockups", &maskFrontLong},
 		{"assets/Mockup/back-mask-long.png", "mockups", &maskBackLong},
 		{"assets/Mockup/front-mask-short.png", "mockups", &maskFrontShort},
 		{"assets/Mockup/back-mask-short.png", "mockups", &maskBackShort},
 
-		// Mockups - Series 1
 		{"assets/Mockup/series1-front-long.png", "mockups", &s1FrontLong},
 		{"assets/Mockup/series1-back-long.png", "mockups", &s1BackLong},
 		{"assets/Mockup/series1-front-short.png", "mockups", &s1FrontShort},
 		{"assets/Mockup/series1-back-short.png", "mockups", &s1BackShort},
 
-		// Mockups - Series 2
 		{"assets/Mockup/series2-front-long.png", "mockups", &s2FrontLong},
 		{"assets/Mockup/series2-back-long.png", "mockups", &s2BackLong},
 		{"assets/Mockup/series2-front-short.png", "mockups", &s2FrontShort},
@@ -370,8 +364,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 
 	// --- 5. SETUP PRODUK DUMMY ---
-
-	// A. Produk Rompi
 	prodRompiID := uuid.NewString()
 	prodRompi := postgresRepo.ProductModel{
 		ID:            prodRompiID,
@@ -390,7 +382,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// B. Produk Celana
 	prodCelanaID := uuid.NewString()
 	prodCelana := postgresRepo.ProductModel{
 		ID:            prodCelanaID,
@@ -409,7 +400,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// C. Produk Polo
 	prodPoloID := uuid.NewString()
 	prodPolo := postgresRepo.ProductModel{
 		ID:            prodPoloID,
@@ -428,7 +418,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// D. Produk Kemeja Series 1 (Memakai warna bawaan dari SpecTemplate)
 	prodKemeja1ID := uuid.NewString()
 	dm1ID := uuid.NewString()
 	fab1Kemeja1 := uuid.NewString()
@@ -452,11 +441,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			{
 				ID:             fab1Kemeja1,
 				ProductID:      prodKemeja1ID,
-				SpecTemplateID: &specRipstop.ID, // Dihubungkan ke SpecTemplate
+				SpecTemplateID: &specRipstop.ID,
 				Name:           "Ripstop Cotton Premium",
 				BasePrice:      185000,
 				IsDefault:      true,
-				Colors:         []postgresRepo.FabricColorModel{}, // Kosong agar otomatis mewarisi warna dari SpecTemplate
+				Colors:         []postgresRepo.FabricColorModel{},
 			},
 		},
 		DesignModel: &postgresRepo.DesignerModel{
@@ -474,7 +463,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// E. Produk Kemeja Series 2 (Memakai warna bawaan dari SpecTemplate)
 	prodKemeja2ID := uuid.NewString()
 	dm2ID := uuid.NewString()
 	fab1Kemeja2 := uuid.NewString()
@@ -498,11 +486,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			{
 				ID:             fab1Kemeja2,
 				ProductID:      prodKemeja2ID,
-				SpecTemplateID: &specAmerican.ID, // Dihubungkan ke SpecTemplate
+				SpecTemplateID: &specAmerican.ID,
 				Name:           "American Drill High",
 				BasePrice:      190000,
 				IsDefault:      true,
-				Colors:         []postgresRepo.FabricColorModel{}, // Kosong agar otomatis mewarisi warna dari SpecTemplate
+				Colors:         []postgresRepo.FabricColorModel{},
 			},
 		},
 		DesignModel: &postgresRepo.DesignerModel{
@@ -520,7 +508,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// Simpan Semua Produk Ke Database
 	h.db.Create(&prodRompi)
 	h.db.Create(&prodCelana)
 	h.db.Create(&prodPolo)
@@ -529,7 +516,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 	products := []postgresRepo.ProductModel{prodRompi, prodCelana, prodPolo, prodKemeja1, prodKemeja2}
 
-	// --- 6. SETUP CUSTOMERS (Round-Robin Sales) ---
+	// --- 6. SETUP CUSTOMERS ---
 	var customers []postgresRepo.CustomerModel
 	customerNames := []string{"Dummy Cust PT A", "Dummy Cust PT B", "Dummy Cust Personal C", "Dummy Cust CV D", "Dummy Cust Personal E", "Dummy Cust CV F"}
 
@@ -559,24 +546,31 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		h.db.Create(&ec)
 	}
 
-	// --- 8. SETUP BATCH PO ---
+	// --- 8. SETUP BATCH PO (Menggunakan Bulan Terakhir & Berjalan) ---
+	now := time.Now()
+	nowStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	nowEnd := nowStart.AddDate(0, 1, -1)
+
 	poSchedules := []struct {
 		Name   string
 		Month  int
 		Year   int
-		Start  string
-		End    string
+		Start  time.Time
+		End    time.Time
 		Status string
 	}{
-		{"PO 1 AGUSTUS 2026", 8, 2026, "2026-08-01", "2026-08-07", string(domain.BatchPOStatusClosed)},
-		{"PO 2 AGUSTUS 2026", 8, 2026, "2026-08-08", "2026-08-15", string(domain.BatchPOStatusActive)},
+		{
+			Name:   fmt.Sprintf("PO 1 %s %d", strings.ToUpper(now.Month().String()), now.Year()),
+			Month:  int(now.Month()),
+			Year:   now.Year(),
+			Start:  nowStart,
+			End:    nowEnd,
+			Status: string(domain.BatchPOStatusActive),
+		},
 	}
 
 	var batchPOs []postgresRepo.BatchPOModel
 	for _, p := range poSchedules {
-		start, _ := time.Parse("2006-01-02", p.Start)
-		end, _ := time.Parse("2006-01-02", p.End)
-
 		po := postgresRepo.BatchPOModel{
 			ID:          uuid.NewString(),
 			Name:        p.Name,
@@ -584,28 +578,25 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			Quota:       500,
 			TargetMonth: p.Month,
 			TargetYear:  p.Year,
-			StartDate:   start,
-			EndDate:     end,
+			StartDate:   p.Start,
+			EndDate:     p.End,
 		}
 		h.db.Create(&po)
 		batchPOs = append(batchPOs, po)
 	}
 
-	// --- 9. LOOPING TRANSAKSI HARIAN ---
-	startDate, _ := time.Parse("2006-01-02", "2026-08-01")
-	endDate, _ := time.Parse("2006-01-02", "2026-08-12")
+	// --- 9. LOOPING TRANSAKSI HARIAN (12 Hari Terakhir hingga Hari Ini) ---
+	startDate := now.AddDate(0, 0, -12)
+	endDate := now
 
 	orderCounter := 1
 	expenseCounter := 0
 
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
 		var activePoID *string
-		for _, po := range batchPOs {
-			if (d.Equal(po.StartDate) || d.After(po.StartDate)) && (d.Before(po.EndDate) || d.Equal(po.EndDate)) {
-				poID := po.ID
-				activePoID = &poID
-				break
-			}
+		if len(batchPOs) > 0 {
+			poID := batchPOs[0].ID
+			activePoID = &poID
 		}
 
 		if activePoID == nil {
@@ -684,7 +675,10 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 			if paidAmount > 0 && approvedTimePtr != nil {
 				payTime := approvedTimePtr.Add(2 * time.Hour)
-				verifierID := *cust.SalesID
+
+				// 🚨 FIX ATURAN BISNIS:
+				// Pembayaran diverifikasi oleh Jonathan (Accounting Dummy) atau Owner Dummy, BUKAN oleh Sales!
+				verifierID := accountingDummy.ID
 
 				payment := postgresRepo.PaymentModel{
 					ID:              uuid.NewString(),
@@ -693,7 +687,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 					Amount:          paidAmount,
 					PaymentType:     "dp",
 					Status:          string(domain.PaymentVerificationVerified),
-					VerifiedByID:    &verifierID,
+					VerifiedByID:    &verifierID, // Menggunakan Accounting ID
 					VerifiedAt:      &payTime,
 					PaymentDate:     payTime,
 					ReferenceNumber: fmt.Sprintf("SEED-PAY-%04d", orderCounter),

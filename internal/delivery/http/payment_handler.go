@@ -91,6 +91,14 @@ func (h *paymentHandler) GetPayment(c *fiber.Ctx) error {
 		return utils.HandleDomainError(c, err)
 	}
 
+	// 🚨 Scoping check untuk Get Single Payment
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	if userRole == domain.RoleSales && payment.Order != nil && payment.Order.SalesID != userID {
+		return utils.SendError(c, fiber.StatusForbidden, "Akses ditolak: Anda hanya dapat melihat pembayaran dari pesanan Anda")
+	}
+
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data pembayaran", dto.ToPaymentResponse(payment))
 }
 
@@ -114,10 +122,22 @@ func (h *paymentHandler) ListPayments(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	salesIDFilter := c.Query("sales_id")
+
+	// 🚨 ENFORCE DATA SCOPING PAYMENT:
+	// Jika Sales yang login, kunci SalesID ke userID-nya
+	if userRole == domain.RoleSales {
+		salesIDFilter = userID
+	}
+
 	filter := domain.PaymentFilter{
 		Search:      c.Query("search"),
 		PaymentType: c.Query("payment_type"),
-		Status:      c.Query("status"), // BARU: Filter berdasarkan status verifikasi
+		Status:      c.Query("status"),
+		SalesID:     salesIDFilter, // Gunakan SalesID terenkripsi/terkunci
 		StartDate:   c.Query("start_date"),
 		EndDate:     c.Query("end_date"),
 	}
@@ -201,14 +221,8 @@ func (h *paymentHandler) VerifyPayment(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	userID := c.Get("X-User-Id")
-
-	// Validasi apakah X-User-Id benar-benar format UUID
-	if err := utils.ValidateUUID(userID, "x-user-id"); err != nil {
-		// Jika X-User-Id dari FE berupa dummy string biasa (bukan UUID format),
-		// kosongkan nilainya agar diset NULL atau fallback ke nilai aman tanpa merusak SQL constraint
-		userID = ""
-	}
+	// 🚨 PERBAIKAN SECURITY: Ambil userID dari JWT claims (Locals), bukan dari Header X-User-Id
+	userID, _ := c.Locals("userID").(string)
 
 	input := domain.PaymentVerifyInput{
 		Status:       domain.PaymentVerificationStatus(req.Status),

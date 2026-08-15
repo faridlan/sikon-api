@@ -22,8 +22,6 @@ func (r *paymentRepository) Create(ctx context.Context, payment *domain.Payment)
 	}
 
 	model := FromPaymentDomain(payment)
-
-	// 🚨 GUNAKAN GetTx AGAR BERJALAN DI DALAM TRANSAKSI YANG SAMA
 	db := GetTx(ctx, r.db)
 
 	if err := db.WithContext(ctx).Create(model).Error; err != nil {
@@ -40,8 +38,7 @@ func (r *paymentRepository) Create(ctx context.Context, payment *domain.Payment)
 
 func (r *paymentRepository) GetByID(ctx context.Context, id string) (*domain.Payment, error) {
 	var model PaymentModel
-
-	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+	db := GetTx(ctx, r.db)
 
 	if err := db.WithContext(ctx).Preload("Order").Preload("BankAccount").Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, TranslateError(err)
@@ -53,65 +50,76 @@ func (r *paymentRepository) Fetch(ctx context.Context, limit, offset int, filter
 	var models []PaymentModel
 	var total int64
 
-	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+	db := GetTx(ctx, r.db)
+	query := db.WithContext(ctx).Model(&PaymentModel{}).
+		Joins("LEFT JOIN orders ON orders.id = payments.order_id")
 
-	// Mulai query base
-	query := db.WithContext(ctx).Model(&PaymentModel{})
-
-	// 1. Filter Search (mencari substring di No Ref atau exact match di OrderID)
 	if filter.Search != "" {
-		searchParam := "%" + filter.Search + "%"
-		// ::text digunakan di PostgreSQL untuk memungkinkan ILIKE pada tipe data UUID (OrderID)
-		query = query.Where("reference_number ILIKE ? OR order_id::text ILIKE ?", searchParam, searchParam)
+		searchTerm := "%" + filter.Search + "%"
+		query = query.Where("payments.reference_number ILIKE ? OR orders.order_number ILIKE ?", searchTerm, searchTerm)
 	}
-
-	// 2. Filter Payment Type
 	if filter.PaymentType != "" {
-		query = query.Where("payment_type = ?", filter.PaymentType)
+		query = query.Where("payments.payment_type = ?", filter.PaymentType)
 	}
-
-	// 3. Filter Start Date (dari awal hari)
+	if filter.Status != "" {
+		query = query.Where("payments.status = ?", filter.Status)
+	}
+	if filter.SalesID != "" {
+		query = query.Where("orders.sales_id = ?", filter.SalesID)
+	}
 	if filter.StartDate != "" {
-		query = query.Where("payment_date >= ?", filter.StartDate+" 00:00:00")
+		query = query.Where("payments.payment_date >= ?", filter.StartDate+" 00:00:00")
 	}
-
-	// 4. Filter End Date (hingga akhir hari)
 	if filter.EndDate != "" {
-		query = query.Where("payment_date <= ?", filter.EndDate+" 23:59:59")
+		query = query.Where("payments.payment_date <= ?", filter.EndDate+" 23:59:59")
 	}
 
-	// Hitung total data yang cocok dengan query
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
-	// Eksekusi pengambilan datanya
-	if err := query.Preload("Order").Preload("BankAccount").
-		Limit(limit).Offset(offset).Order("payment_date DESC").
-		Find(&models).Error; err != nil {
+	err := query.
+		Preload("Order").
+		Preload("BankAccount").
+		Preload("VerifiedBy").
+		Limit(limit).
+		Offset(offset).
+		Order("payments.created_at DESC").
+		Find(&models).Error
+
+	if err != nil {
 		return nil, 0, TranslateError(err)
 	}
 
 	payments := make([]domain.Payment, len(models))
-	for i, model := range models {
-		payments[i] = *model.ToDomain()
+	for i, m := range models {
+		payments[i] = *m.ToDomain()
 	}
+
 	return payments, total, nil
 }
 
 func (r *paymentRepository) Update(ctx context.Context, payment *domain.Payment) error {
-	model := FromPaymentDomain(payment)
+	db := GetTx(ctx, r.db)
 
-	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+	// Menggunakan Map untuk menghindari jebakan Zero Value GORM Struct
+	updates := map[string]any{
+		"reference_number": payment.ReferenceNumber,
+		"payment_type":     string(payment.PaymentType),
+		"amount":           payment.Amount,
+		"bank_account_id":  payment.BankAccountID,
+		"payment_date":     payment.PaymentDate,
+		"updated_at":       time.Now(),
+	}
 
-	if err := db.WithContext(ctx).Model(&PaymentModel{ID: model.ID}).Updates(model).Error; err != nil {
+	if err := db.WithContext(ctx).Table("payments").Where("id = ? AND deleted_at IS NULL", payment.ID).Updates(updates).Error; err != nil {
 		return TranslateError(err)
 	}
 	return nil
 }
 
 func (r *paymentRepository) Delete(ctx context.Context, id string) error {
-	db := GetTx(ctx, r.db) // Gunakan transaksi jika ada
+	db := GetTx(ctx, r.db)
 
 	if err := db.WithContext(ctx).Where("id = ?", id).Delete(&PaymentModel{}).Error; err != nil {
 		return TranslateError(err)
@@ -121,8 +129,6 @@ func (r *paymentRepository) Delete(ctx context.Context, id string) error {
 
 func (r *paymentRepository) GetByOrderID(ctx context.Context, orderID string) ([]domain.Payment, error) {
 	var models []PaymentModel
-
-	// 🚨 GUNAKAN GetTx
 	db := GetTx(ctx, r.db)
 
 	err := db.WithContext(ctx).
@@ -142,8 +148,8 @@ func (r *paymentRepository) GetByOrderID(ctx context.Context, orderID string) ([
 	return payments, nil
 }
 
+// 🚨 PERBAIKAN RACE CONDITION & DOUBLE VERIFICATION
 func (r *paymentRepository) UpdateVerificationStatus(ctx context.Context, paymentID string, status domain.PaymentVerificationStatus, verifiedByID string, verifiedAt time.Time) error {
-	// 1. Tangani verifiedByID agar tidak mengirim string kosong "" ke kolom UUID PostgreSQL
 	var verifiedByVal any = verifiedByID
 	if verifiedByID == "" {
 		verifiedByVal = nil
@@ -151,20 +157,25 @@ func (r *paymentRepository) UpdateVerificationStatus(ctx context.Context, paymen
 
 	updates := map[string]any{
 		"status":         string(status),
-		"verified_by_id": verifiedByVal, // 👈 Diset nil/NULL jika string kosong
+		"verified_by_id": verifiedByVal,
 		"verified_at":    verifiedAt,
 		"updated_at":     time.Now(),
 	}
 
-	// 2. Gunakan GetTx agar mendukung transaksi dari Usecase
 	db := GetTx(ctx, r.db)
 
-	err := db.WithContext(ctx).Table("payments").
-		Where("id = ? AND deleted_at IS NULL", paymentID).
-		Updates(updates).Error
+	// Guarding: Kunci hanya pembayaran berstatus 'pending' yang boleh di-update
+	res := db.WithContext(ctx).Table("payments").
+		Where("id = ? AND status = ? AND deleted_at IS NULL", paymentID, domain.PaymentVerificationPending).
+		Updates(updates)
 
-	if err != nil {
-		return TranslateError(err)
+	if res.Error != nil {
+		return TranslateError(res.Error)
+	}
+
+	// Jika RowsAffected == 0, artinya status sudah di-verify/reject sebelumnya (mencegah double execution)
+	if res.RowsAffected == 0 {
+		return domain.NewError(domain.ErrConflict, "Pembayaran ini sudah pernah diverifikasi atau diproses sebelumnya")
 	}
 
 	return nil

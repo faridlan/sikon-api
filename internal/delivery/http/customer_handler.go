@@ -47,15 +47,22 @@ func (h *customerHandler) CreateCustomer(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	// Ekstrak User ID dari JWT Claims yang disimpan oleh JWTMiddleware
+	// Ekstrak User ID dan Role dari JWT Claims
 	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	// 🚨 ATURAN BISNIS: Jika yang login adalah Sales, paksa SalesID ke ID miliknya sendiri
+	salesID := req.SalesID
+	if userRole == domain.RoleSales {
+		salesID = userID
+	}
 
 	domainReq := domain.CustomerCreateInput{
 		Name:      req.Name,
 		Phone:     req.Phone,
 		Address:   req.Address,
 		CreatedBy: userID,
-		SalesID:   req.SalesID,
+		SalesID:   salesID, // Gunakan ID yang sudah divalidasi
 	}
 
 	customer, err := h.customerUsecase.CreateCustomer(c.Context(), domainReq)
@@ -161,11 +168,21 @@ func (h *customerHandler) UpdateCustomer(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
+	// Ekstrak User ID dan Role dari JWT Claims
+	operatorID, _ := c.Locals("userID").(string)
+	operatorRole, _ := c.Locals("userRole").(domain.Role)
+
+	// 🚨 ATURAN BISNIS: Jika yang login adalah Sales, paksa SalesID ke ID miliknya sendiri
+	salesID := req.SalesID
+	if operatorRole == domain.RoleSales {
+		salesID = operatorID
+	}
+
 	domainReq := domain.CustomerUpdateInput{
 		Name:    req.Name,
 		Phone:   req.Phone,
 		Address: req.Address,
-		SalesID: req.SalesID,
+		SalesID: salesID, // Gunakan ID yang sudah divalidasi
 	}
 
 	customer, err := h.customerUsecase.UpdateCustomer(c.Context(), id, domainReq)

@@ -15,7 +15,6 @@ import (
 )
 
 func TestDashboardUsecase_GetSummary(t *testing.T) {
-	// Setup data mock balikan dari repo
 	mockSummary := &domain.DashboardSummary{
 		TotalRevenue:         100000000,
 		TotalPaymentReceived: 40000000,
@@ -30,26 +29,39 @@ func TestDashboardUsecase_GetSummary(t *testing.T) {
 		EndDate:   "2026-06-30",
 	}
 
-	t.Run("Success - Get Dashboard Summary", func(t *testing.T) {
-		// 1. Inisiasi Mock Repository
+	t.Run("Success - Get Dashboard Summary (Owner/Global)", func(t *testing.T) {
 		mockRepo := new(mocks.DashboardRepository)
-
-		// 2. Inisiasi Usecase dengan Mock Repo dan Timeout
 		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
 
-		// 3. Set Ekspektasi: Usecase harus memanggil repo.GetSummary dengan filter yang sama persis
 		mockRepo.On("GetSummary", mock.Anything, filter).Return(mockSummary, nil).Once()
 
-		// 4. Eksekusi
 		result, err := uc.GetSummary(context.Background(), filter)
 
-		// 5. Asersi
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, float64(100000000), result.TotalRevenue)
 		assert.Equal(t, int64(15), result.TotalActiveOrders)
 
-		// 6. Pastikan ekspektasi pemanggilan fungsi mock benar-benar terjadi
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Get Dashboard Summary dengan Scoping SalesID", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		salesFilter := domain.DashboardFilter{
+			StartDate: "2026-06-01",
+			EndDate:   "2026-06-30",
+			SalesID:   "sales-uuid-123", // Data Scoping Sales
+		}
+
+		mockRepo.On("GetSummary", mock.Anything, salesFilter).Return(mockSummary, nil).Once()
+
+		result, err := uc.GetSummary(context.Background(), salesFilter)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
 		mockRepo.AssertExpectations(t)
 	})
 
@@ -57,7 +69,6 @@ func TestDashboardUsecase_GetSummary(t *testing.T) {
 		mockRepo := new(mocks.DashboardRepository)
 		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
 
-		// Set Ekspektasi: Repo mengembalikan error (misal db down)
 		mockErr := errors.New("database connection lost")
 		mockRepo.On("GetSummary", mock.Anything, filter).Return(nil, mockErr).Once()
 
@@ -88,7 +99,6 @@ func TestDashboardUsecase_GetSummary(t *testing.T) {
 }
 
 func TestDashboardUsecase_GetSalesReport(t *testing.T) {
-	// Setup data mock balikan dari repo (2 hari data simulasi)
 	mockReport := []domain.SalesReportItem{
 		{
 			Date:            "2026-06-24",
@@ -111,7 +121,7 @@ func TestDashboardUsecase_GetSalesReport(t *testing.T) {
 		EndDate:   "2026-06-30",
 	}
 
-	t.Run("Success - Get Sales Report", func(t *testing.T) {
+	t.Run("Success - Get Sales Report (Global)", func(t *testing.T) {
 		mockRepo := new(mocks.DashboardRepository)
 		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
 
@@ -122,10 +132,28 @@ func TestDashboardUsecase_GetSalesReport(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Len(t, result, 2)
-
-		// Verifikasi data hari pertama
 		assert.Equal(t, "2026-06-24", result[0].Date)
 		assert.Equal(t, float64(220000), result[0].TotalRevenue)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Get Sales Report dengan Scoping SalesID", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		salesFilter := domain.DashboardFilter{
+			StartDate: "2026-06-01",
+			EndDate:   "2026-06-30",
+			SalesID:   "sales-uuid-123",
+		}
+
+		mockRepo.On("GetSalesReport", mock.Anything, salesFilter).Return(mockReport, nil).Once()
+
+		result, err := uc.GetSalesReport(context.Background(), salesFilter)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -134,7 +162,6 @@ func TestDashboardUsecase_GetSalesReport(t *testing.T) {
 		mockRepo := new(mocks.DashboardRepository)
 		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
 
-		// Jika tidak ada transaksi, repo mengembalikan array kosong
 		emptyReport := []domain.SalesReportItem{}
 		mockRepo.On("GetSalesReport", mock.Anything, filter).Return(emptyReport, nil).Once()
 
@@ -165,7 +192,6 @@ func TestDashboardUsecase_GetSalesReport(t *testing.T) {
 }
 
 func TestDashboardUsecase_GetReceivablesReport(t *testing.T) {
-	// Setup data mock balikan dari repo
 	mockReport := []domain.ReceivableReportItem{
 		{
 			OrderID:       "order-1",
@@ -180,21 +206,38 @@ func TestDashboardUsecase_GetReceivablesReport(t *testing.T) {
 		},
 	}
 
-	t.Run("Success - Get Receivables Report", func(t *testing.T) {
+	t.Run("Success - Get Receivables Report (Global / Owner)", func(t *testing.T) {
 		mockRepo := new(mocks.DashboardRepository)
 		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
 
-		mockRepo.On("GetReceivablesReport", mock.Anything).Return(mockReport, nil).Once()
+		// 🚨 Penyesuaian: Passing string kosong "" untuk Owner/Finance (Melihat seluruh data)
+		mockRepo.On("GetReceivablesReport", mock.Anything, "").Return(mockReport, nil).Once()
 
-		result, err := uc.GetReceivablesReport(context.Background())
+		result, err := uc.GetReceivablesReport(context.Background(), "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Len(t, result, 1)
-
-		// Verifikasi kalkulasi matematis DTO yang dikirimkan
 		assert.Equal(t, "PT Maju Jaya", result[0].CustomerName)
 		assert.Equal(t, float64(100000), result[0].RemainingBill)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Get Receivables Report dengan Scoping SalesID", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		salesID := "sales-uuid-123"
+
+		// 🚨 Penyesuaian: Passing salesID untuk filter khusus Sales
+		mockRepo.On("GetReceivablesReport", mock.Anything, salesID).Return(mockReport, nil).Once()
+
+		result, err := uc.GetReceivablesReport(context.Background(), salesID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Len(t, result, 1)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -204,9 +247,9 @@ func TestDashboardUsecase_GetReceivablesReport(t *testing.T) {
 		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
 
 		emptyReport := []domain.ReceivableReportItem{}
-		mockRepo.On("GetReceivablesReport", mock.Anything).Return(emptyReport, nil).Once()
+		mockRepo.On("GetReceivablesReport", mock.Anything, "").Return(emptyReport, nil).Once()
 
-		result, err := uc.GetReceivablesReport(context.Background())
+		result, err := uc.GetReceivablesReport(context.Background(), "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -220,9 +263,9 @@ func TestDashboardUsecase_GetReceivablesReport(t *testing.T) {
 		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
 
 		mockErr := errors.New("database connection timeout")
-		mockRepo.On("GetReceivablesReport", mock.Anything).Return(nil, mockErr).Once()
+		mockRepo.On("GetReceivablesReport", mock.Anything, "").Return(nil, mockErr).Once()
 
-		result, err := uc.GetReceivablesReport(context.Background())
+		result, err := uc.GetReceivablesReport(context.Background(), "")
 
 		assert.Error(t, err)
 		assert.Nil(t, result)

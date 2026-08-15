@@ -36,10 +36,20 @@ func NewDashboardHandler(du domain.DashboardUsecase) DashboardHandler {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /dashboard/summary [get]
 func (h *dashboardHandler) GetSummary(c *fiber.Ctx) error {
-	// Tangkap query param dari URL (otomatis kosong jika tidak dikirim)
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	salesIDFilter := ""
+	// 🚨 ENFORCE DASHBOARD SCOPING:
+	// Jika yang login adalah Sales, paksakan SalesID ke ID dirinya
+	if userRole == domain.RoleSales {
+		salesIDFilter = userID
+	}
+
 	filter := domain.DashboardFilter{
 		StartDate: c.Query("start_date"),
 		EndDate:   c.Query("end_date"),
+		SalesID:   salesIDFilter, // Kunci SalesID
 	}
 
 	summary, err := h.dashboardUsecase.GetSummary(c.Context(), filter)
@@ -62,9 +72,18 @@ func (h *dashboardHandler) GetSummary(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /dashboard/sales-report [get]
 func (h *dashboardHandler) GetSalesReport(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	salesIDFilter := ""
+	if userRole == domain.RoleSales {
+		salesIDFilter = userID
+	}
+
 	filter := domain.DashboardFilter{
 		StartDate: c.Query("start_date"),
 		EndDate:   c.Query("end_date"),
+		SalesID:   salesIDFilter, // Kunci SalesID untuk grafik
 	}
 
 	report, err := h.dashboardUsecase.GetSalesReport(c.Context(), filter)
@@ -87,7 +106,16 @@ func (h *dashboardHandler) GetSalesReport(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /dashboard/receivables-report [get]
 func (h *dashboardHandler) GetReceivablesReport(c *fiber.Ctx) error {
-	report, err := h.dashboardUsecase.GetReceivablesReport(c.Context())
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	salesIDFilter := ""
+	if userRole == domain.RoleSales {
+		salesIDFilter = userID
+	}
+
+	// Oper salesIDFilter ke Usecase
+	report, err := h.dashboardUsecase.GetReceivablesReport(c.Context(), salesIDFilter)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
 	}

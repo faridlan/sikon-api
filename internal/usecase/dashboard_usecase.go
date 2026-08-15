@@ -23,8 +23,6 @@ func (u *dashboardUsecase) GetSummary(c context.Context, filter domain.Dashboard
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Karena format tanggal dan kalkulasi murni sudah ditangani di repo,
-	// usecase cukup memanggilnya secara langsung.
 	return u.dashboardRepo.GetSummary(ctx, filter)
 }
 
@@ -33,13 +31,12 @@ func (u *dashboardUsecase) GetSalesReport(c context.Context, filter domain.Dashb
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	// Langsung teruskan ke repository karena ini murni kueri pembacaan data
 	return u.dashboardRepo.GetSalesReport(ctx, filter)
 }
 
-func (u *dashboardUsecase) GetReceivablesReport(c context.Context) ([]domain.ReceivableReportItem, error) {
+func (u *dashboardUsecase) GetReceivablesReport(c context.Context, salesID string) ([]domain.ReceivableReportItem, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
-	return u.dashboardRepo.GetReceivablesReport(ctx)
+	return u.dashboardRepo.GetReceivablesReport(ctx, salesID)
 }

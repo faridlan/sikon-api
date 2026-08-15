@@ -46,7 +46,6 @@ func NewOrderHandler(ou domain.OrderUsecase) OrderHandler {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders [post]
 func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	var req dto.OrderCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
@@ -55,10 +54,23 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
+	// Ambil data identitas user yang sedang login dari middleware JWTMiddleware
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	salesID := req.SalesID
+
+	// 🚨 ENFORCE ATURAN #3:
+	// Jika yang menginput order adalah Sales, paksa SalesID ke ID dirinya sendiri.
+	// Jika Owner/Admin/Accounting, mereka bebas memilih SalesID dari payload request.
+	if userRole == domain.RoleSales {
+		salesID = userID
+	}
+
 	domainReq := domain.OrderCreateInput{
 		BatchPoID:       req.BatchPoID,
 		CustomerID:      req.CustomerID,
-		SalesID:         req.SalesID,
+		SalesID:         salesID, // Memakai salesID yang telah divalidasi/locked
 		ShippingCost:    req.ShippingCost,
 		CourierName:     req.CourierName,
 		ShippingAddress: req.ShippingAddress,
@@ -99,7 +111,6 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id} [get]
 func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -108,6 +119,14 @@ func (h *orderHandler) GetOrder(c *fiber.Ctx) error {
 	order, err := h.orderUsecase.GetOrder(c.Context(), id)
 	if err != nil {
 		return utils.HandleDomainError(c, err)
+	}
+
+	// Option Data Scoping: Jika Sales mencoba mengintip order milik Sales lain via URL Direct ID
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	if userRole == domain.RoleSales && order.SalesID != userID {
+		return utils.SendError(c, fiber.StatusForbidden, "Akses ditolak: Anda hanya dapat melihat pesanan milik Anda sendiri")
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil detail pesanan", dto.ToOrderResponse(order))
@@ -136,11 +155,22 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	salesIDFilter := c.Query("sales_id")
+
+	// 🚨 ENFORCE ATURAN #1:
+	// Jika role = Sales, paksakan filter SalesID = userID yang sedang login.
+	if userRole == domain.RoleSales {
+		salesIDFilter = userID
+	}
+
 	filter := domain.OrderFilter{
 		Search:        c.Query("search"),
 		BatchPoID:     c.Query("batch_po_id"),
 		CustomerID:    c.Query("customer_id"),
-		SalesID:       c.Query("sales_id"),
+		SalesID:       salesIDFilter, // Menggunakan filter yang sudah terkunci untuk Sales
 		OrderStatus:   c.Query("order_status"),
 		PaymentStatus: c.Query("payment_status"),
 		StartDate:     c.Query("start_date"),
@@ -172,7 +202,6 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id} [put]
 func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -219,7 +248,6 @@ func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/status [patch]
 func (h *orderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -256,7 +284,6 @@ func (h *orderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id} [delete]
 func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -284,7 +311,6 @@ func (h *orderHandler) DeleteOrder(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/payment-status [patch]
 func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	id := c.Params("id")
 	if err := utils.ValidateUUID(id, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -323,7 +349,6 @@ func (h *orderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/items [post]
 func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	orderID := c.Params("id")
 	if err := utils.ValidateUUID(orderID, "id"); err != nil {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
@@ -369,7 +394,6 @@ func (h *orderHandler) AddOrderItem(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/items/{itemId} [put]
 func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	orderID := c.Params("id")
 	itemID := c.Params("itemId")
 
@@ -411,7 +435,6 @@ func (h *orderHandler) UpdateOrderItem(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.ErrorResponse "Unauthorized"
 // @Router /orders/{id}/items/{itemId} [delete]
 func (h *orderHandler) DeleteOrderItem(c *fiber.Ctx) error {
-	// ... (Isi fungsi tetap sama)
 	orderID := c.Params("id")
 	itemID := c.Params("itemId")
 

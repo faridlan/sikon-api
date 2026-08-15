@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -68,10 +69,8 @@ func RoleGuard(allowedRoles ...domain.Role) fiber.Handler {
 			return c.Next()
 		}
 
-		for _, role := range allowedRoles {
-			if userRole == role {
-				return c.Next()
-			}
+		if slices.Contains(allowedRoles, userRole) {
+			return c.Next()
 		}
 
 		return utils.SendError(c, fiber.StatusForbidden, "Akses ditolak: Anda tidak memiliki hak akses untuk fitur ini")
