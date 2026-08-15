@@ -20,6 +20,7 @@ const (
 	OrderStatusCanceled   OrderStatus = "canceled"
 
 	PaymentStatusUnpaid  PaymentStatus = "unpaid"
+	PaymentStatusPending PaymentStatus = "pending"
 	PaymentStatusPartial PaymentStatus = "partial"
 	PaymentStatusPaid    PaymentStatus = "paid"
 )
