@@ -710,6 +710,9 @@ definitions:
       total_amount:
         example: 3550000
         type: number
+      total_qty:
+        example: 100
+        type: integer
       updated_at:
         example: "2023-10-01T15:00:00Z"
         type: string
@@ -3132,7 +3135,8 @@ paths:
         in: query
         name: search
         type: string
-      - description: Filter berdasarkan ID Batch PO (UUID)
+      - description: Filter berdasarkan ID Batch PO (UUID). Gunakan 'all' untuk melihat
+          semua PO, atau biarkan kosong untuk otomatis memilih PO aktif.
         in: query
         name: batch_po_id
         type: string

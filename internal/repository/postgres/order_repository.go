@@ -66,8 +66,9 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 	var models []OrderModel
 	var total int64
 
-	// 1. Inisiasi instance GORM Model & Join ke tabel customers
+	// 1. Inisiasi Query & Hitung total_qty via SQL Subquery secara performan
 	query := r.db.WithContext(ctx).Model(&OrderModel{}).
+		Select("orders.*, (SELECT COALESCE(SUM(qty), 0) FROM order_items WHERE order_items.order_id = orders.id) as total_qty").
 		Joins("LEFT JOIN customers ON customers.id = orders.customer_id")
 
 	// 2. Terapkan Filter Dinamis
@@ -75,9 +76,12 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 		searchKeyword := "%" + filter.Search + "%"
 		query = query.Where("orders.order_number ILIKE ? OR customers.name ILIKE ?", searchKeyword, searchKeyword)
 	}
-	if filter.BatchPoID != "" {
+
+	// 🚨 LOGIC FILTER BATCH PO (Mendukung 'all' untuk bypass filter)
+	if filter.BatchPoID != "" && filter.BatchPoID != "all" {
 		query = query.Where("orders.batch_po_id = ?", filter.BatchPoID)
 	}
+
 	if filter.CustomerID != "" {
 		query = query.Where("orders.customer_id = ?", filter.CustomerID)
 	}
@@ -102,7 +106,7 @@ func (r *orderRepository) Fetch(ctx context.Context, filter domain.OrderFilter, 
 		return nil, 0, TranslateError(err)
 	}
 
-	// 4. Ambil Data dengan Pagination, Preload, dan Order by COALESCE(approved_at, created_at)
+	// 4. Ambil Data dengan Pagination, Preload, dan Ordering
 	err := query.
 		Preload("Customer").
 		Preload("Sales").

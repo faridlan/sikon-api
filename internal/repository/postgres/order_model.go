@@ -40,6 +40,7 @@ type OrderModel struct {
 	TaxPpn          float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
 	TaxPph          float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
 	TotalAmount     float64        `gorm:"type:decimal(15,2);not null"`
+	TotalQty        int            `gorm:"->;column:total_qty"`
 	ShippingCost    float64        `gorm:"type:decimal(12,2);not null"`
 	CourierName     string         `gorm:"type:varchar(100)"`
 	ShippingAddress string         `gorm:"type:text"`
@@ -110,6 +111,7 @@ func (m *OrderModel) ToDomain() *domain.Order {
 		TaxPpn:          m.TaxPpn,         // Mapping Baru
 		TaxPph:          m.TaxPph,         // Mapping Baru
 		TotalAmount:     m.TotalAmount,
+		TotalQty:        m.TotalQty, // Mapping Baru
 		ShippingCost:    m.ShippingCost,
 		CourierName:     m.CourierName,
 		ShippingAddress: m.ShippingAddress,

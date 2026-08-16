@@ -186,35 +186,71 @@ func TestOrderUsecase_GetOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_ListOrders(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
-
-	// 1. Siapkan mock input
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
 
-	// Tambahkan mock filter (boleh kosong atau diisi sebagai representasi request FE)
-	filter := domain.OrderFilter{
-		OrderStatus: "pending",
-	}
+	t.Run("Success - Auto Set Active Batch PO When Filter Empty", func(t *testing.T) {
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
 
-	t.Run("Success", func(t *testing.T) {
-		mockOrders := []domain.Order{{ID: "1"}, {ID: "2"}}
+		// Filter dari FE tanpa batch_po_id
+		inputFilter := domain.OrderFilter{
+			OrderStatus: "pending",
+		}
 
-		// Perhatikan penambahan parameter 'filter' pada mock.On()
-		mockOrderRepo.On("Fetch", mock.Anything, filter, 10, 0).
+		activePO := &domain.BatchPO{ID: "po-active-august"}
+
+		// 1. Ekspektasi: Usecase akan mencari Active PO berdasarkan tanggal hari ini
+		mockBatchPoRepo.On("GetActivePOByDate", mock.Anything, mock.AnythingOfType("time.Time")).
+			Return(activePO, nil).Once()
+
+		// 2. Ekspektasi: Filter yang masuk ke Repository.Fetch SUDAH terisi BatchPoID dari Active PO
+		expectedFilter := inputFilter
+		expectedFilter.BatchPoID = activePO.ID
+
+		mockOrders := []domain.Order{{ID: "1", TotalQty: 10}, {ID: "2", TotalQty: 5}}
+		mockOrderRepo.On("Fetch", mock.Anything, expectedFilter, 10, 0).
 			Return(mockOrders, int64(2), nil).Once()
 
-		// Panggil usecase dengan menyertakan parameter 'filter'
-		orders, meta, err := uc.ListOrders(context.Background(), filter, query)
+		orders, meta, err := uc.ListOrders(context.Background(), inputFilter, query)
 
 		assert.NoError(t, err)
 		assert.Len(t, orders, 2)
 		assert.Equal(t, 1, meta.TotalPages)
 		assert.Equal(t, int64(2), meta.TotalItems)
 		assert.Equal(t, 10, meta.Limit)
+
+		mockBatchPoRepo.AssertExpectations(t)
+		mockOrderRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Explicit Batch PO 'all' (Skip Active PO Lookup)", func(t *testing.T) {
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+
+		// Filter dari FE mengirim batch_po_id = "all"
+		explicitFilter := domain.OrderFilter{
+			BatchPoID: "all",
+		}
+
+		mockOrders := []domain.Order{{ID: "1"}, {ID: "2"}}
+		mockOrderRepo.On("Fetch", mock.Anything, explicitFilter, 10, 0).
+			Return(mockOrders, int64(2), nil).Once()
+
+		orders, meta, err := uc.ListOrders(context.Background(), explicitFilter, query)
+
+		assert.NoError(t, err)
+		assert.Len(t, orders, 2)
+		assert.Equal(t, 1, meta.TotalPages)
+
+		// Memastikan GetActivePOByDate TIDAK DIPANGGIL karena batch_po_id sudah diisi "all"
+		mockBatchPoRepo.AssertNotCalled(t, "GetActivePOByDate")
+		mockOrderRepo.AssertExpectations(t)
 	})
 
 	t.Run("Error_From_Repository", func(t *testing.T) {
-		// Mock ketika repository mengembalikan error (misal koneksi database terputus)
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+
+		filter := domain.OrderFilter{
+			BatchPoID: "po-123", // Menggunakan PO ID eksplisit
+		}
 		expectedErr := errors.New("database error")
 
 		mockOrderRepo.On("Fetch", mock.Anything, filter, 10, 0).
@@ -222,14 +258,15 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 
 		orders, meta, err := uc.ListOrders(context.Background(), filter, query)
 
-		// Verifikasi bahwa usecase meneruskan error dengan benar
 		assert.Error(t, err)
 		assert.Nil(t, orders)
 		assert.Equal(t, expectedErr, err)
-		assert.Equal(t, 0, meta.TotalPages) // Meta harus kosong jika error
+		assert.Equal(t, 0, meta.TotalPages)
+
+		mockBatchPoRepo.AssertNotCalled(t, "GetActivePOByDate")
+		mockOrderRepo.AssertExpectations(t)
 	})
 }
-
 func TestOrderUsecase_UpdateOrder(t *testing.T) {
 	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
