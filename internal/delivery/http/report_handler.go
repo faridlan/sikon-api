@@ -121,7 +121,7 @@ func (h *reportHandler) GetPOSummaryReport(c *fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param batch_po_id query string false "Filter berdasarkan ID Batch PO (UUID)"
-// @Param order_status query string false "Filter berdasarkan status order (production, completed)"
+// @Param order_status query string false "Filter berdasarkan status order (production, ready)"
 // @Param sort_by query string false "Urutkan data (amount_desc, amount_asc, date_asc, date_desc)"
 // @Success 200 {object} utils.SuccessResponse[[]dto.ReceivableDetailResponse]
 // @Failure 500 {object} utils.ErrorResponse

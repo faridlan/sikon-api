@@ -474,7 +474,7 @@ func (r *reportRepository) GetReceivablesDetailData(ctx context.Context, filter 
 		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
 		Joins("LEFT JOIN (SELECT order_id, SUM(amount) as total_paid FROM payments WHERE status = 'verified' AND deleted_at IS NULL GROUP BY order_id) p ON p.order_id = o.id").
 		Where("o.deleted_at IS NULL").
-		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusCompleted).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady).
 		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial).
 		Where("(o.total_amount - COALESCE(p.total_paid, 0)) > 0")
 
