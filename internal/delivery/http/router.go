@@ -179,6 +179,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 
 	// --- Dashboard Routes ---
 	dashboard := protected.Group("/dashboard")
+	dashboard.Get("/overview", guardInternal, handlers.DashboardHandler.GetOverview)
 	dashboard.Get("/summary", guardInternal, handlers.DashboardHandler.GetSummary)
 	dashboard.Get("/sales-report", guardSales, handlers.DashboardHandler.GetSalesReport)
 	dashboard.Get("/receivables-report", guardFinance, handlers.DashboardHandler.GetReceivablesReport)
