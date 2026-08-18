@@ -34,6 +34,41 @@ type ReceivableReportItem struct {
 	RemainingBill float64 `json:"remaining_bill"`
 }
 
+// ========================================================================
+// 🚨 TAMBAHAN STRUCT DTO / ENTITY DEDICATED UNTUK SINGLE ENDPOINT OVERVIEW
+// ========================================================================
+
+type ActionRequiredOverview struct {
+	UnverifiedPaymentsCount int64 `json:"unverified_payments_count"`
+	ReadyOrdersCount        int64 `json:"ready_orders_count"`
+	PendingOrdersCount      int64 `json:"pending_orders_count"`
+}
+
+type RecentOrderOverview struct {
+	ID           string  `json:"id"`
+	OrderNumber  string  `json:"order_number"`
+	CustomerName string  `json:"customer_name"`
+	OrderStatus  string  `json:"order_status"`
+	TotalAmount  float64 `json:"total_amount"`
+}
+
+type RecentPaymentOverview struct {
+	ID          string  `json:"id"`
+	PaymentDate string  `json:"payment_date"`
+	PaymentType string  `json:"payment_type"`
+	Status      string  `json:"status"`
+	Amount      float64 `json:"amount"`
+}
+
+type DashboardOverview struct {
+	Summary        DashboardSummary        `json:"summary"`
+	ActiveBatchPO  *BatchPO                `json:"active_batch_po"`
+	ActionRequired ActionRequiredOverview  `json:"action_required"`
+	ChartTrends    []SalesReportItem       `json:"chart_trends"`
+	RecentOrders   []RecentOrderOverview   `json:"recent_orders"`
+	RecentPayments []RecentPaymentOverview `json:"recent_payments"`
+}
+
 // DashboardFilter untuk menyaring laporan berdasarkan rentang waktu (harian, bulanan, tahunan)
 type DashboardFilter struct {
 	StartDate string // Format: YYYY-MM-DD
@@ -45,7 +80,8 @@ type DashboardFilter struct {
 type DashboardRepository interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
-	GetReceivablesReport(ctx context.Context, salesID string) ([]ReceivableReportItem, error) // <-- Tambah salesID
+	GetReceivablesReport(ctx context.Context, salesID string) ([]ReceivableReportItem, error)
+	GetOverview(ctx context.Context, salesID string) (*DashboardOverview, error) // 👈 1. TAMBAHKAN METHOD INI
 }
 
 // DashboardUsecase adalah kontrak untuk layer logika bisnis
@@ -53,4 +89,5 @@ type DashboardUsecase interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
 	GetReceivablesReport(ctx context.Context, salesID string) ([]ReceivableReportItem, error)
+	GetOverview(ctx context.Context, salesID string) (*DashboardOverview, error) // 👈 2. TAMBAHKAN METHOD INI
 }

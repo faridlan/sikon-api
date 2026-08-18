@@ -181,3 +181,119 @@ func (r *dashboardRepository) GetReceivablesReport(ctx context.Context, salesID 
 
 	return report, nil
 }
+
+func (r *dashboardRepository) GetOverview(ctx context.Context, salesID string) (*domain.DashboardOverview, error) {
+	overview := &domain.DashboardOverview{
+		RecentOrders:   []domain.RecentOrderOverview{},
+		RecentPayments: []domain.RecentPaymentOverview{},
+	}
+
+	// 1. Ambil Summary (Menggunakan method yang sudah ada)
+	summary, err := r.GetSummary(ctx, domain.DashboardFilter{SalesID: salesID})
+	if err != nil {
+		return nil, err
+	}
+	overview.Summary = *summary
+
+	// 2. Ambil Chart Trends (14 Hari Terakhir)
+	now := time.Now()
+	startDate14Days := now.AddDate(0, 0, -14).Format("2006-01-02")
+	endDateToday := now.Format("2006-01-02")
+
+	chartTrends, err := r.GetSalesReport(ctx, domain.DashboardFilter{
+		StartDate: startDate14Days,
+		EndDate:   endDateToday,
+		SalesID:   salesID,
+	})
+	if err == nil {
+		overview.ChartTrends = chartTrends
+	}
+
+	// 3. Ambil Active Batch PO (Hari Ini)
+	var activePOModel BatchPOModel
+	errActivePO := r.db.WithContext(ctx).
+		Where("status = ? AND ? BETWEEN start_date AND end_date", domain.BatchPOStatusActive, now).
+		First(&activePOModel).Error
+
+	if errActivePO == nil {
+		overview.ActiveBatchPO = activePOModel.ToDomain()
+	}
+
+	// 4. Hitung Badges "Action Required" (Fast SQL Count Queries)
+	orderQuery := r.db.WithContext(ctx).Model(&OrderModel{})
+	paymentQuery := r.db.WithContext(ctx).Model(&PaymentModel{})
+
+	if salesID != "" {
+		orderQuery = orderQuery.Where("sales_id = ?", salesID)
+		paymentQuery = paymentQuery.Joins("LEFT JOIN orders ON orders.id = payments.order_id").Where("orders.sales_id = ?", salesID)
+	}
+
+	paymentQuery.Where("payments.status = ?", domain.PaymentVerificationPending).Count(&overview.ActionRequired.UnverifiedPaymentsCount)
+
+	// Reset/Copy query untuk count order status
+	orderQuery.Session(&gorm.Session{}).Where("order_status = ?", domain.OrderStatusReady).Count(&overview.ActionRequired.ReadyOrdersCount)
+	orderQuery.Session(&gorm.Session{}).Where("order_status = ?", domain.OrderStatusPending).Count(&overview.ActionRequired.PendingOrdersCount)
+
+	// 5. Ambil Recent Orders (Limit 6 Data)
+	var recentOrders []struct {
+		ID           string
+		OrderNumber  string
+		CustomerName string
+		OrderStatus  string
+		TotalAmount  float64
+	}
+
+	recentOrderQ := r.db.WithContext(ctx).Table("orders o").
+		Select("o.id, o.order_number, c.name as customer_name, o.order_status, o.total_amount").
+		Joins("LEFT JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL").
+		Where("o.deleted_at IS NULL")
+
+	if salesID != "" {
+		recentOrderQ = recentOrderQ.Where("o.sales_id = ?", salesID)
+	}
+
+	err = recentOrderQ.Order("COALESCE(o.approved_at, o.created_at) DESC").Limit(6).Scan(&recentOrders).Error
+	if err == nil {
+		for _, ro := range recentOrders {
+			overview.RecentOrders = append(overview.RecentOrders, domain.RecentOrderOverview{
+				ID:           ro.ID,
+				OrderNumber:  ro.OrderNumber,
+				CustomerName: ro.CustomerName,
+				OrderStatus:  ro.OrderStatus,
+				TotalAmount:  ro.TotalAmount,
+			})
+		}
+	}
+
+	// 6. Ambil Recent Payments (Limit 6 Data)
+	var recentPayments []struct {
+		ID          string
+		PaymentDate time.Time
+		PaymentType string
+		Status      string
+		Amount      float64
+	}
+
+	recentPayQ := r.db.WithContext(ctx).Table("payments p").
+		Select("p.id, p.payment_date, p.payment_type, p.status, p.amount").
+		Where("p.deleted_at IS NULL")
+
+	if salesID != "" {
+		recentPayQ = recentPayQ.Joins("LEFT JOIN orders o ON o.id = p.order_id").Where("o.sales_id = ?", salesID)
+	}
+
+	err = recentPayQ.Order("p.payment_date DESC").Limit(6).Scan(&recentPayments).Error
+	if err == nil {
+		for _, rp := range recentPayments {
+			overview.RecentPayments = append(overview.RecentPayments, domain.RecentPaymentOverview{
+				ID:          rp.ID,
+				PaymentDate: rp.PaymentDate.Format(time.RFC3339),
+				PaymentType: rp.PaymentType,
+				Status:      rp.Status,
+				Amount:      rp.Amount,
+			})
+		}
+	}
+
+	return overview, nil
+}

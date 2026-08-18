@@ -12,6 +12,7 @@ type DashboardHandler interface {
 	GetSummary(c *fiber.Ctx) error
 	GetSalesReport(c *fiber.Ctx) error
 	GetReceivablesReport(c *fiber.Ctx) error
+	GetOverview(c *fiber.Ctx) error
 }
 
 type dashboardHandler struct {
@@ -121,4 +122,30 @@ func (h *dashboardHandler) GetReceivablesReport(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil laporan piutang pesanan", dto.ToReceivableReportItemResponseList(report))
+}
+
+// @Summary Get Dashboard Overview (Single Aggregated Endpoint)
+// @Description Mengambil seluruh ringkasan data dashboard dalam 1 request HTTP (Summary, Active Batch PO, Action Required Badges, Recent Orders, & Recent Payments).
+// @Tags Dashboard
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.SuccessResponse[dto.DashboardOverviewResponse]
+// @Failure 500 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Router /dashboard/overview [get]
+func (h *dashboardHandler) GetOverview(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	userRole, _ := c.Locals("userRole").(domain.Role)
+
+	salesIDFilter := ""
+	if userRole == domain.RoleSales {
+		salesIDFilter = userID
+	}
+
+	overview, err := h.dashboardUsecase.GetOverview(c.Context(), salesIDFilter)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data ringkasan dashboard", dto.ToDashboardOverviewResponse(overview))
 }

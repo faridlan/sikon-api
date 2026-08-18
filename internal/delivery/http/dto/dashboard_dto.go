@@ -31,6 +31,74 @@ type ReceivableReportItemResponse struct {
 	RemainingBill float64 `json:"remaining_bill"`
 }
 
+// --- DTO OVERVIEW BARU ---
+
+type ActionRequiredOverviewResponse struct {
+	UnverifiedPaymentsCount int64 `json:"unverified_payments_count"`
+	ReadyOrdersCount        int64 `json:"ready_orders_count"`
+	PendingOrdersCount      int64 `json:"pending_orders_count"`
+}
+
+type RecentOrderOverviewResponse struct {
+	ID           string  `json:"id"`
+	OrderNumber  string  `json:"order_number"`
+	CustomerName string  `json:"customer_name"`
+	OrderStatus  string  `json:"order_status"`
+	TotalAmount  float64 `json:"total_amount"`
+}
+
+type RecentPaymentOverviewResponse struct {
+	ID          string  `json:"id"`
+	PaymentDate string  `json:"payment_date"`
+	PaymentType string  `json:"payment_type"`
+	Status      string  `json:"status"`
+	Amount      float64 `json:"amount"`
+}
+
+type DashboardOverviewResponse struct {
+	Summary        DashboardSummaryResponse        `json:"summary"`
+	ActiveBatchPO  *BatchPOResponse                `json:"active_batch_po"`
+	ActionRequired ActionRequiredOverviewResponse  `json:"action_required"`
+	ChartTrends    []SalesReportItemResponse       `json:"chart_trends"`
+	RecentOrders   []RecentOrderOverviewResponse   `json:"recent_orders"`
+	RecentPayments []RecentPaymentOverviewResponse `json:"recent_payments"`
+}
+
+func ToDashboardOverviewResponse(d *domain.DashboardOverview) DashboardOverviewResponse {
+	if d == nil {
+		return DashboardOverviewResponse{}
+	}
+
+	var activePO *BatchPOResponse
+	if d.ActiveBatchPO != nil {
+		po := ToBatchPOResponse(d.ActiveBatchPO)
+		activePO = &po
+	}
+
+	recentOrders := make([]RecentOrderOverviewResponse, len(d.RecentOrders))
+	for i, o := range d.RecentOrders {
+		recentOrders[i] = RecentOrderOverviewResponse(o)
+	}
+
+	recentPayments := make([]RecentPaymentOverviewResponse, len(d.RecentPayments))
+	for i, p := range d.RecentPayments {
+		recentPayments[i] = RecentPaymentOverviewResponse(p)
+	}
+
+	return DashboardOverviewResponse{
+		Summary:       ToDashboardSummaryResponse(&d.Summary),
+		ActiveBatchPO: activePO,
+		ActionRequired: ActionRequiredOverviewResponse{
+			UnverifiedPaymentsCount: d.ActionRequired.UnverifiedPaymentsCount,
+			ReadyOrdersCount:        d.ActionRequired.ReadyOrdersCount,
+			PendingOrdersCount:      d.ActionRequired.PendingOrdersCount,
+		},
+		ChartTrends:    ToSalesReportItemResponseList(d.ChartTrends),
+		RecentOrders:   recentOrders,
+		RecentPayments: recentPayments,
+	}
+}
+
 func ToDashboardSummaryResponse(d *domain.DashboardSummary) DashboardSummaryResponse {
 	return DashboardSummaryResponse{
 		TotalRevenue:         d.TotalRevenue,

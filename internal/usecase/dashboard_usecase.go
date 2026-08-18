@@ -40,3 +40,10 @@ func (u *dashboardUsecase) GetReceivablesReport(c context.Context, salesID strin
 
 	return u.dashboardRepo.GetReceivablesReport(ctx, salesID)
 }
+
+func (u *dashboardUsecase) GetOverview(c context.Context, salesID string) (*domain.DashboardOverview, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	return u.dashboardRepo.GetOverview(ctx, salesID)
+}

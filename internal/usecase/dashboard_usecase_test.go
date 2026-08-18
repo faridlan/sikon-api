@@ -274,3 +274,101 @@ func TestDashboardUsecase_GetReceivablesReport(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 }
+
+func TestDashboardUsecase_GetOverview(t *testing.T) {
+	mockOverview := &domain.DashboardOverview{
+		Summary: domain.DashboardSummary{
+			TotalRevenue:         100000000,
+			TotalPaymentReceived: 40000000,
+			TotalReceivable:      60000000,
+			TotalActiveOrders:    15,
+			TotalCompletedOrders: 50,
+			TotalCanceledOrders:  2,
+		},
+		ActiveBatchPO: &domain.BatchPO{
+			ID:     "po-active-uuid",
+			Name:   "PO 2 AGUSTUS 2026",
+			Status: domain.BatchPOStatusActive,
+			Quota:  500,
+		},
+		ActionRequired: domain.ActionRequiredOverview{
+			UnverifiedPaymentsCount: 3,
+			ReadyOrdersCount:        10,
+			PendingOrdersCount:      2,
+		},
+		RecentOrders: []domain.RecentOrderOverview{
+			{
+				ID:           "ord-uuid-1",
+				OrderNumber:  "ORD-20260815-0001",
+				CustomerName: "Dummy Cust PT A",
+				OrderStatus:  "completed",
+				TotalAmount:  5000000,
+			},
+		},
+		RecentPayments: []domain.RecentPaymentOverview{
+			{
+				ID:          "pay-uuid-1",
+				PaymentDate: "2026-08-15T10:00:00Z",
+				PaymentType: "dp",
+				Status:      "verified",
+				Amount:      2500000,
+			},
+		},
+	}
+
+	t.Run("Success - Get Dashboard Overview (Owner/Global)", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		salesID := "" // Global / Owner tanpa scoping salesID
+
+		mockRepo.On("GetOverview", mock.Anything, salesID).Return(mockOverview, nil).Once()
+
+		result, err := uc.GetOverview(context.Background(), salesID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(100000000), result.Summary.TotalRevenue)
+		assert.Equal(t, int64(3), result.ActionRequired.UnverifiedPaymentsCount)
+		assert.Equal(t, int64(10), result.ActionRequired.ReadyOrdersCount)
+		assert.Len(t, result.RecentOrders, 1)
+		assert.Len(t, result.RecentPayments, 1)
+		assert.Equal(t, "po-active-uuid", result.ActiveBatchPO.ID)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Get Dashboard Overview dengan Scoping SalesID", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		salesID := "sales-uuid-123" // Filter spesifik sales
+
+		mockRepo.On("GetOverview", mock.Anything, salesID).Return(mockOverview, nil).Once()
+
+		result, err := uc.GetOverview(context.Background(), salesID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - Repository Failed", func(t *testing.T) {
+		mockRepo := new(mocks.DashboardRepository)
+		uc := usecase.NewDashboardUsecase(mockRepo, time.Second*2)
+
+		salesID := ""
+		mockErr := errors.New("database connection failed")
+
+		mockRepo.On("GetOverview", mock.Anything, salesID).Return(nil, mockErr).Once()
+
+		result, err := uc.GetOverview(context.Background(), salesID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, mockErr, err)
+
+		mockRepo.AssertExpectations(t)
+	})
+}
