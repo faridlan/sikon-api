@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag" // 👈 1. Tambahkan package flag
 	"log/slog"
 	"os"
 	"os/signal"
@@ -14,7 +15,6 @@ import (
 	"github.com/gofiber/swagger"
 	"github.com/joho/godotenv"
 
-	// Sesuaikan module path ini jika berbeda
 	"github.com/faridlan/sikon-api/docs"
 	"github.com/faridlan/sikon-api/internal/config"
 	myHttp "github.com/faridlan/sikon-api/internal/delivery/http"
@@ -22,25 +22,19 @@ import (
 	"github.com/faridlan/sikon-api/internal/infrastructure/supabase"
 	"github.com/faridlan/sikon-api/internal/repository/postgres"
 	"github.com/faridlan/sikon-api/internal/usecase"
+	tests "github.com/faridlan/sikon-api/test"
 
-	// Import docs untuk Swagger (jangan dihapus)
+	// 👈 2. Import package test/seeder
 	_ "github.com/faridlan/sikon-api/docs"
 )
 
-// @title SIKOn API (Sistem Integrasi Konveksi Online)
-// @version 1.0
-// @description Ini adalah dokumentasi API untuk MVP ERP SIKOn.
-// @host localhost:8080
-// @BasePath /api
-
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description Masukkan token dengan format: Bearer {token}
 func main() {
 	// ==========================================
-	// 0. INISIALISASI KONFIGURASI & LOGGER
+	// 0. PARSE CLI FLAGS & ENV
 	// ==========================================
+	seedFlag := flag.Bool("seed", false, "Jalankan initial seeder untuk membuat akun admin/owner")
+	flag.Parse()
+
 	config.InitLogger()
 
 	err := godotenv.Load()
@@ -53,7 +47,7 @@ func main() {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
-	dbURL := os.Getenv("DB_URL") // Contoh: postgres://user:pass@host:5432/dbname?sslmode=disable
+	dbURL := os.Getenv("DB_URL")
 
 	supabaseURL := os.Getenv("SUPABASE_URL")
 	supabaseKey := os.Getenv("SUPABASE_KEY")
@@ -83,13 +77,20 @@ func main() {
 	// Inisiasi Koneksi Database
 	db := config.InitDB(dbUser, dbPassword, dbHost, dbPort, dbName)
 
-	// Context timeout untuk membatasi lama eksekusi query (Cegah query gantung)
-	contextTimeout := 5 * time.Second
+	// ==========================================
+	// 🚨 EXECUTE SEEDER JIKA CLI FLAG `--seed` DITANGKAP
+	// ==========================================
+	if *seedFlag {
+		slog.Info("🌱 Memproses CLI Initial Seeder...")
+		tests.SeedInitialAdmin(db)
+		slog.Info("🌱 Seeder selesai dieksekusi. Melanjutkan startup server...")
+	}
 
+	contextTimeout := 5 * time.Second
 	storageService := supabase.NewSupabaseStorage(supabaseURL, supabaseKey, supabaseBucket)
 
 	// ==========================================
-	// 1. INISIASI REPOSITORY (Layer Data)
+	// 1. INISIASI REPOSITORY
 	// ==========================================
 	userRepo := postgres.NewUserRepository(db)
 	categoryRepo := postgres.NewCategoryRepository(db)
@@ -106,7 +107,7 @@ func main() {
 	expenseRepo := postgres.NewExpenseRepository(db)
 
 	// ==========================================
-	// 2. INISIASI USECASE (Layer Logika Bisnis)
+	// 2. INISIASI USECASE
 	// ==========================================
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtSecret, jwtTTL, contextTimeout)
 	userUsecase := usecase.NewUserUsecase(userRepo, storageService, txManager, contextTimeout)
@@ -125,7 +126,7 @@ func main() {
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
 
 	// ==========================================
-	// 3. INISIASI HANDLER (Layer Delivery)
+	// 3. INISIASI HANDLER
 	// ==========================================
 	authHandler := myHttp.NewAuthHandler(authUsecase)
 	userHandler := myHttp.NewUserHandler(userUsecase)
@@ -144,7 +145,7 @@ func main() {
 	seederHandler := myHttp.NewSeederHandler(db, storageService)
 
 	// ==========================================
-	// 4. BUNGKUS KE DALAM STRUCT REGISTRY ROUTER
+	// 4. BUNGKUS HANDLERS
 	// ==========================================
 	handlers := myHttp.Handlers{
 		AuthHandler:         authHandler,
@@ -186,18 +187,16 @@ func main() {
 	app.Use(requestid.New())
 	app.Use(middleware.SlogMiddleware())
 
-	// Setup Swagger
 	swaggerHost := os.Getenv("SWAGGER_HOST")
 	if swaggerHost != "" {
 		docs.SwaggerInfo.Host = swaggerHost
 	}
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	// Daftarkan semua route dari router.go dengan JWT Secret
 	myHttp.SetupRoutes(app, handlers, jwtSecret)
 
 	// ==========================================
-	// 6. JALANKAN SERVER DENGAN GRACEFUL SHUTDOWN
+	// 6. JALANKAN SERVER
 	// ==========================================
 	port := os.Getenv("APP_PORT")
 	if port == "" {
