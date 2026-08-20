@@ -19,6 +19,7 @@ type SalesReportItemResponse struct {
 	CompletedOrders int64   `json:"completed_orders"`
 	CanceledOrders  int64   `json:"canceled_orders"`
 }
+
 type ReceivableReportItemResponse struct {
 	OrderID       string  `json:"order_id"`
 	OrderNumber   string  `json:"order_number"`
@@ -30,8 +31,6 @@ type ReceivableReportItemResponse struct {
 	TotalPaid     float64 `json:"total_paid"`
 	RemainingBill float64 `json:"remaining_bill"`
 }
-
-// --- DTO OVERVIEW BARU ---
 
 type ActionRequiredOverviewResponse struct {
 	UnverifiedPaymentsCount int64 `json:"unverified_payments_count"`
@@ -55,9 +54,18 @@ type RecentPaymentOverviewResponse struct {
 	Amount      float64 `json:"amount"`
 }
 
+type ActiveBatchPOOverviewResponse struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	Quota           int    `json:"quota"`
+	TotalQtyOrdered int64  `json:"total_qty_ordered"` // Total pcs terisi
+	RemainingQuota  int64  `json:"remaining_quota"`   // Sisa kuota pcs
+}
+
 type DashboardOverviewResponse struct {
 	Summary        DashboardSummaryResponse        `json:"summary"`
-	ActiveBatchPO  *BatchPOResponse                `json:"active_batch_po"`
+	ActiveBatchPO  *ActiveBatchPOOverviewResponse  `json:"active_batch_po"` // 👈 Update DTO ini
 	ActionRequired ActionRequiredOverviewResponse  `json:"action_required"`
 	ChartTrends    []SalesReportItemResponse       `json:"chart_trends"`
 	RecentOrders   []RecentOrderOverviewResponse   `json:"recent_orders"`
@@ -69,10 +77,16 @@ func ToDashboardOverviewResponse(d *domain.DashboardOverview) DashboardOverviewR
 		return DashboardOverviewResponse{}
 	}
 
-	var activePO *BatchPOResponse
+	var activePO *ActiveBatchPOOverviewResponse
 	if d.ActiveBatchPO != nil {
-		po := ToBatchPOResponse(d.ActiveBatchPO)
-		activePO = &po
+		activePO = &ActiveBatchPOOverviewResponse{
+			ID:              d.ActiveBatchPO.ID,
+			Name:            d.ActiveBatchPO.Name,
+			Status:          d.ActiveBatchPO.Status,
+			Quota:           d.ActiveBatchPO.Quota,
+			TotalQtyOrdered: d.ActiveBatchPO.TotalQtyOrdered,
+			RemainingQuota:  d.ActiveBatchPO.RemainingQuota,
+		}
 	}
 
 	recentOrders := make([]RecentOrderOverviewResponse, len(d.RecentOrders))
@@ -86,13 +100,9 @@ func ToDashboardOverviewResponse(d *domain.DashboardOverview) DashboardOverviewR
 	}
 
 	return DashboardOverviewResponse{
-		Summary:       ToDashboardSummaryResponse(&d.Summary),
-		ActiveBatchPO: activePO,
-		ActionRequired: ActionRequiredOverviewResponse{
-			UnverifiedPaymentsCount: d.ActionRequired.UnverifiedPaymentsCount,
-			ReadyOrdersCount:        d.ActionRequired.ReadyOrdersCount,
-			PendingOrdersCount:      d.ActionRequired.PendingOrdersCount,
-		},
+		Summary:        ToDashboardSummaryResponse(&d.Summary),
+		ActiveBatchPO:  activePO,
+		ActionRequired: ActionRequiredOverviewResponse(d.ActionRequired),
 		ChartTrends:    ToSalesReportItemResponseList(d.ChartTrends),
 		RecentOrders:   recentOrders,
 		RecentPayments: recentPayments,
@@ -112,7 +122,6 @@ func ToDashboardSummaryResponse(d *domain.DashboardSummary) DashboardSummaryResp
 
 func ToSalesReportItemResponseList(data []domain.SalesReportItem) []SalesReportItemResponse {
 	var result []SalesReportItemResponse
-
 	for _, item := range data {
 		result = append(result, SalesReportItemResponse{
 			Date:            item.Date,
@@ -122,12 +131,9 @@ func ToSalesReportItemResponseList(data []domain.SalesReportItem) []SalesReportI
 			CanceledOrders:  item.CanceledOrders,
 		})
 	}
-
-	// Pastikan mengembalikan array kosong [] jika tidak ada data, BUKAN null
 	if result == nil {
 		result = []SalesReportItemResponse{}
 	}
-
 	return result
 }
 
