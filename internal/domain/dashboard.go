@@ -4,13 +4,13 @@ import "context"
 
 // DashboardSummary merepresentasikan data agregasi untuk laporan halaman depan
 type DashboardSummary struct {
-	TotalRevenue         float64 // Total nilai pesanan (Grand Total dari order yang tidak batal)
-	TotalPaymentReceived float64 // Total uang riil yang sudah masuk ke kas (Dari tabel payments)
+	TotalRevenue         float64 // Total nilai pesanan (Grand Total dari order valid/approved: production, ready, completed)
+	TotalPaymentReceived float64 // Total uang riil yang sudah masuk ke kas (Dari tabel payments status verified)
 	TotalReceivable      float64 // Total piutang (Sisa tagihan yang belum dibayar customer)
 
-	TotalActiveOrders    int64 // Jumlah pesanan yang sedang berjalan (Status: pending & production)
-	TotalCompletedOrders int64 // Jumlah pesanan yang sudah selesai dikerjakan
-	TotalCanceledOrders  int64 // Jumlah pesanan yang dibatalkan
+	TotalActiveOrders    int64 // Jumlah pesanan yang sedang berjalan (Status: production & ready)
+	TotalCompletedOrders int64 // Jumlah pesanan yang sudah selesai dikerjakan (Status: completed)
+	TotalCanceledOrders  int64 // Jumlah pesanan yang dibatalkan (Status: canceled)
 }
 
 type SalesReportItem struct {
@@ -34,10 +34,6 @@ type ReceivableReportItem struct {
 	RemainingBill float64 `json:"remaining_bill"`
 }
 
-// ========================================================================
-// 🚨 TAMBAHAN STRUCT DTO / ENTITY DEDICATED UNTUK SINGLE ENDPOINT OVERVIEW
-// ========================================================================
-
 type ActionRequiredOverview struct {
 	UnverifiedPaymentsCount int64 `json:"unverified_payments_count"`
 	ReadyOrdersCount        int64 `json:"ready_orders_count"`
@@ -60,34 +56,41 @@ type RecentPaymentOverview struct {
 	Amount      float64 `json:"amount"`
 }
 
+// 🚨 STRUCT KHUSUS BATCH PO DENGAN INFORMATION KUOTA TERPAKAINYA
+type ActiveBatchPOOverview struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	Quota           int    `json:"quota"`
+	TotalQtyOrdered int64  `json:"total_qty_ordered"` // Total pcs baju yang dipesan
+	RemainingQuota  int64  `json:"remaining_quota"`   // Sisa kuota pcs baju yang tersedia
+}
+
 type DashboardOverview struct {
 	Summary        DashboardSummary        `json:"summary"`
-	ActiveBatchPO  *BatchPO                `json:"active_batch_po"`
+	ActiveBatchPO  *ActiveBatchPOOverview  `json:"active_batch_po"` // 👈 Menggunakan struct overview khusus
 	ActionRequired ActionRequiredOverview  `json:"action_required"`
 	ChartTrends    []SalesReportItem       `json:"chart_trends"`
 	RecentOrders   []RecentOrderOverview   `json:"recent_orders"`
 	RecentPayments []RecentPaymentOverview `json:"recent_payments"`
 }
 
-// DashboardFilter untuk menyaring laporan berdasarkan rentang waktu (harian, bulanan, tahunan)
 type DashboardFilter struct {
 	StartDate string // Format: YYYY-MM-DD
 	EndDate   string // Format: YYYY-MM-DD
 	SalesID   string
 }
 
-// DashboardRepository adalah kontrak untuk layer database (GORM)
 type DashboardRepository interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
 	GetReceivablesReport(ctx context.Context, salesID string) ([]ReceivableReportItem, error)
-	GetOverview(ctx context.Context, salesID string) (*DashboardOverview, error) // 👈 1. TAMBAHKAN METHOD INI
+	GetOverview(ctx context.Context, salesID string) (*DashboardOverview, error)
 }
 
-// DashboardUsecase adalah kontrak untuk layer logika bisnis
 type DashboardUsecase interface {
 	GetSummary(ctx context.Context, filter DashboardFilter) (*DashboardSummary, error)
 	GetSalesReport(ctx context.Context, filter DashboardFilter) ([]SalesReportItem, error)
 	GetReceivablesReport(ctx context.Context, salesID string) ([]ReceivableReportItem, error)
-	GetOverview(ctx context.Context, salesID string) (*DashboardOverview, error) // 👈 2. TAMBAHKAN METHOD INI
+	GetOverview(ctx context.Context, salesID string) (*DashboardOverview, error)
 }

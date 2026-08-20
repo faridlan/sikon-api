@@ -23,9 +23,8 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 	orderQuery := r.db.WithContext(ctx).Model(&OrderModel{})
 	paymentQuery := r.db.WithContext(ctx).Model(&PaymentModel{}).
 		Joins("LEFT JOIN orders ON orders.id = payments.order_id").
-		Where("payments.status = ?", domain.PaymentVerificationVerified) // 🚨 FIX FINANCIAL BUG: Hanya uang terverifikasi!
+		Where("payments.status = ?", domain.PaymentVerificationVerified)
 
-	// 🚨 FIX SCOPING: Tambahkan filter SalesID jika diisi (untuk role Sales)
 	if filter.SalesID != "" {
 		orderQuery = orderQuery.Where("sales_id = ?", filter.SalesID)
 		paymentQuery = paymentQuery.Where("orders.sales_id = ?", filter.SalesID)
@@ -42,6 +41,7 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 	}
 
 	// 2. Eksekusi Kalkulasi Order
+	// 🚨 REVISI LOGIKA: Total Revenue HANYA dari order valid yang masuk produksi/siap/selesai
 	type OrderStats struct {
 		TotalRevenue    float64
 		ActiveOrders    int64
@@ -51,8 +51,8 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 	var stats OrderStats
 
 	err := orderQuery.Select(`
-		COALESCE(SUM(CASE WHEN order_status != 'canceled' THEN total_amount ELSE 0 END), 0) as total_revenue,
-		COALESCE(SUM(CASE WHEN order_status IN ('pending', 'production', 'ready') THEN 1 ELSE 0 END), 0) as active_orders,
+		COALESCE(SUM(CASE WHEN order_status IN ('production', 'ready', 'completed') THEN total_amount ELSE 0 END), 0) as total_revenue,
+		COALESCE(SUM(CASE WHEN order_status IN ('production', 'ready') THEN 1 ELSE 0 END), 0) as active_orders,
 		COALESCE(SUM(CASE WHEN order_status = 'completed' THEN 1 ELSE 0 END), 0) as completed_orders,
 		COALESCE(SUM(CASE WHEN order_status = 'canceled' THEN 1 ELSE 0 END), 0) as canceled_orders
 	`).Scan(&stats).Error
@@ -66,20 +66,20 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 	summary.TotalCompletedOrders = stats.CompletedOrders
 	summary.TotalCanceledOrders = stats.CanceledOrders
 
-	// 3. Eksekusi Kalkulasi Total Uang Masuk
+	// 3. Eksekusi Kalkulasi Total Uang Masuk (Verified Payments)
 	err = paymentQuery.Select("COALESCE(SUM(payments.amount), 0)").Scan(&summary.TotalPaymentReceived).Error
 	if err != nil {
 		return nil, TranslateError(err)
 	}
 
-	// 4. Eksekusi Kalkulasi Piutang All-Time (Perhatikan scoping SalesID)
+	// 4. Eksekusi Kalkulasi Piutang All-Time (Order Valid dikurangi Uang Masuk Verified)
 	var allTimeRevenue float64
 	var allTimePayment float64
 
-	allTimeOrderQ := r.db.WithContext(ctx).Model(&OrderModel{}).Where("order_status != 'canceled'")
+	allTimeOrderQ := r.db.WithContext(ctx).Model(&OrderModel{}).Where("order_status IN (?, ?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady, domain.OrderStatusCompleted)
 	allTimePaymentQ := r.db.WithContext(ctx).Model(&PaymentModel{}).
 		Joins("LEFT JOIN orders ON orders.id = payments.order_id").
-		Where("payments.status = ?", domain.PaymentVerificationVerified) // 🚨 FIX FINANCIAL BUG
+		Where("payments.status = ?", domain.PaymentVerificationVerified)
 
 	if filter.SalesID != "" {
 		allTimeOrderQ = allTimeOrderQ.Where("sales_id = ?", filter.SalesID)
@@ -102,7 +102,6 @@ func (r *dashboardRepository) GetSalesReport(ctx context.Context, filter domain.
 
 	query := r.db.WithContext(ctx).Model(&OrderModel{})
 
-	// 🚨 FIX SCOPING SALES
 	if filter.SalesID != "" {
 		query = query.Where("sales_id = ?", filter.SalesID)
 	}
@@ -119,7 +118,7 @@ func (r *dashboardRepository) GetSalesReport(ctx context.Context, filter domain.
 
 	err := query.Select(`
 		TO_CHAR(created_at, 'YYYY-MM-DD') as date,
-		COALESCE(SUM(CASE WHEN order_status != 'canceled' THEN total_amount ELSE 0 END), 0) as total_revenue,
+		COALESCE(SUM(CASE WHEN order_status IN ('production', 'ready', 'completed') THEN total_amount ELSE 0 END), 0) as total_revenue,
 		COUNT(id) as total_orders,
 		COALESCE(SUM(CASE WHEN order_status = 'completed' THEN 1 ELSE 0 END), 0) as completed_orders,
 		COALESCE(SUM(CASE WHEN order_status = 'canceled' THEN 1 ELSE 0 END), 0) as canceled_orders
@@ -158,10 +157,9 @@ func (r *dashboardRepository) GetReceivablesReport(ctx context.Context, salesID 
 		Joins("LEFT JOIN users u ON u.id = o.sales_id AND u.deleted_at IS NULL").
 		Joins("LEFT JOIN payments p ON p.order_id = o.id AND p.deleted_at IS NULL").
 		Where("o.deleted_at IS NULL").
-		Where("o.order_status IN (?, ?, ?)", domain.OrderStatusPending, domain.OrderStatusProduction, domain.OrderStatusReady).
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady).
 		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial)
 
-	// 🚨 FIX SCOPING: Tambahkan klausa ini jika dipanggil oleh Sales
 	if salesID != "" {
 		query = query.Where("o.sales_id = ?", salesID)
 	}
@@ -186,9 +184,10 @@ func (r *dashboardRepository) GetOverview(ctx context.Context, salesID string) (
 	overview := &domain.DashboardOverview{
 		RecentOrders:   []domain.RecentOrderOverview{},
 		RecentPayments: []domain.RecentPaymentOverview{},
+		ChartTrends:    []domain.SalesReportItem{},
 	}
 
-	// 1. Ambil Summary (Menggunakan method yang sudah ada)
+	// 1. Ambil Summary
 	summary, err := r.GetSummary(ctx, domain.DashboardFilter{SalesID: salesID})
 	if err != nil {
 		return nil, err
@@ -209,17 +208,37 @@ func (r *dashboardRepository) GetOverview(ctx context.Context, salesID string) (
 		overview.ChartTrends = chartTrends
 	}
 
-	// 3. Ambil Active Batch PO (Hari Ini)
+	// 3. Ambil Active Batch PO + Hitung Kuota Terpakai (Total Qty Ordered) & Sisa Kuota
 	var activePOModel BatchPOModel
 	errActivePO := r.db.WithContext(ctx).
-		Where("status = ? AND ? BETWEEN start_date AND end_date", domain.BatchPOStatusActive, now).
+		Where("status = ? AND ? BETWEEN start_date AND end_date AND deleted_at IS NULL", domain.BatchPOStatusActive, now).
 		First(&activePOModel).Error
 
 	if errActivePO == nil {
-		overview.ActiveBatchPO = activePOModel.ToDomain()
+		var totalQtyOrdered int64
+		r.db.WithContext(ctx).Table("order_items oi").
+			Joins("JOIN orders o ON o.id = oi.order_id").
+			Where("o.batch_po_id = ? AND o.order_status IN (?, ?, ?)", activePOModel.ID, domain.OrderStatusProduction, domain.OrderStatusReady, domain.OrderStatusCompleted).
+			Where("o.deleted_at IS NULL AND oi.deleted_at IS NULL").
+			Select("COALESCE(SUM(oi.qty), 0)").
+			Scan(&totalQtyOrdered)
+
+		remainingQuota := int64(activePOModel.Quota) - totalQtyOrdered
+		if remainingQuota < 0 {
+			remainingQuota = 0
+		}
+
+		overview.ActiveBatchPO = &domain.ActiveBatchPOOverview{
+			ID:              activePOModel.ID,
+			Name:            activePOModel.Name,
+			Status:          activePOModel.Status,
+			Quota:           activePOModel.Quota,
+			TotalQtyOrdered: totalQtyOrdered,
+			RemainingQuota:  remainingQuota,
+		}
 	}
 
-	// 4. Hitung Badges "Action Required" (Fast SQL Count Queries)
+	// 4. Hitung Badges "Action Required"
 	orderQuery := r.db.WithContext(ctx).Model(&OrderModel{})
 	paymentQuery := r.db.WithContext(ctx).Model(&PaymentModel{})
 
@@ -230,11 +249,11 @@ func (r *dashboardRepository) GetOverview(ctx context.Context, salesID string) (
 
 	paymentQuery.Where("payments.status = ?", domain.PaymentVerificationPending).Count(&overview.ActionRequired.UnverifiedPaymentsCount)
 
-	// Reset/Copy query untuk count order status
 	orderQuery.Session(&gorm.Session{}).Where("order_status = ?", domain.OrderStatusReady).Count(&overview.ActionRequired.ReadyOrdersCount)
 	orderQuery.Session(&gorm.Session{}).Where("order_status = ?", domain.OrderStatusPending).Count(&overview.ActionRequired.PendingOrdersCount)
 
 	// 5. Ambil Recent Orders (Limit 6 Data)
+	// 🚨 REVISI LOGIKA: HANYA tampilkan order yang sudah masuk produksi, siap kirim, atau selesai
 	var recentOrders []struct {
 		ID           string
 		OrderNumber  string
@@ -246,7 +265,8 @@ func (r *dashboardRepository) GetOverview(ctx context.Context, salesID string) (
 	recentOrderQ := r.db.WithContext(ctx).Table("orders o").
 		Select("o.id, o.order_number, c.name as customer_name, o.order_status, o.total_amount").
 		Joins("LEFT JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL").
-		Where("o.deleted_at IS NULL")
+		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady, domain.OrderStatusCompleted) // 👈 HANYA ORDER VALID
 
 	if salesID != "" {
 		recentOrderQ = recentOrderQ.Where("o.sales_id = ?", salesID)

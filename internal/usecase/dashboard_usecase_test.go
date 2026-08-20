@@ -285,11 +285,14 @@ func TestDashboardUsecase_GetOverview(t *testing.T) {
 			TotalCompletedOrders: 50,
 			TotalCanceledOrders:  2,
 		},
-		ActiveBatchPO: &domain.BatchPO{
-			ID:     "po-active-uuid",
-			Name:   "PO 2 AGUSTUS 2026",
-			Status: domain.BatchPOStatusActive,
-			Quota:  500,
+		// 🚨 PERBAIKAN: Gunakan struct domain.ActiveBatchPOOverview
+		ActiveBatchPO: &domain.ActiveBatchPOOverview{
+			ID:              "po-active-uuid",
+			Name:            "PO 2 AGUSTUS 2026",
+			Status:          string(domain.BatchPOStatusActive),
+			Quota:           500,
+			TotalQtyOrdered: 380, // Total pcs terisi
+			RemainingQuota:  120, // Sisa kuota pcs
 		},
 		ActionRequired: domain.ActionRequiredOverview{
 			UnverifiedPaymentsCount: 3,
@@ -301,7 +304,7 @@ func TestDashboardUsecase_GetOverview(t *testing.T) {
 				ID:           "ord-uuid-1",
 				OrderNumber:  "ORD-20260815-0001",
 				CustomerName: "Dummy Cust PT A",
-				OrderStatus:  "completed",
+				OrderStatus:  string(domain.OrderStatusProduction), // Status valid
 				TotalAmount:  5000000,
 			},
 		},
@@ -310,7 +313,7 @@ func TestDashboardUsecase_GetOverview(t *testing.T) {
 				ID:          "pay-uuid-1",
 				PaymentDate: "2026-08-15T10:00:00Z",
 				PaymentType: "dp",
-				Status:      "verified",
+				Status:      string(domain.PaymentVerificationVerified),
 				Amount:      2500000,
 			},
 		},
@@ -333,7 +336,12 @@ func TestDashboardUsecase_GetOverview(t *testing.T) {
 		assert.Equal(t, int64(10), result.ActionRequired.ReadyOrdersCount)
 		assert.Len(t, result.RecentOrders, 1)
 		assert.Len(t, result.RecentPayments, 1)
+
+		// 🚨 PERBAIKAN ASSERTION BATCH PO OVERVIEW
+		assert.NotNil(t, result.ActiveBatchPO)
 		assert.Equal(t, "po-active-uuid", result.ActiveBatchPO.ID)
+		assert.Equal(t, int64(380), result.ActiveBatchPO.TotalQtyOrdered)
+		assert.Equal(t, int64(120), result.ActiveBatchPO.RemainingQuota)
 
 		mockRepo.AssertExpectations(t)
 	})
