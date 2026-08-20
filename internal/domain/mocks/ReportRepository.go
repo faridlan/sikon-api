@@ -201,6 +201,36 @@ func (_m *ReportRepository) GetReceivablesDetailData(ctx context.Context, filter
 	return r0, r1
 }
 
+// GetTaxAnnualReportData provides a mock function with given fields: ctx, year
+func (_m *ReportRepository) GetTaxAnnualReportData(ctx context.Context, year int) (*domain.TaxAnnualReport, error) {
+	ret := _m.Called(ctx, year)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTaxAnnualReportData")
+	}
+
+	var r0 *domain.TaxAnnualReport
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (*domain.TaxAnnualReport, error)); ok {
+		return rf(ctx, year)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int) *domain.TaxAnnualReport); ok {
+		r0 = rf(ctx, year)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.TaxAnnualReport)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, year)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetTotalExpenseByBatchPOs provides a mock function with given fields: ctx, poIDs
 func (_m *ReportRepository) GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error) {
 	ret := _m.Called(ctx, poIDs)

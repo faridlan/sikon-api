@@ -413,3 +413,52 @@ func ToDailyReportResponse(src *domain.DailyReport) DailyReportResponse {
 		POSalesDetails: poSalesDetails,
 	}
 }
+
+// ============================================================================
+// 5. DTO JALUR PAJAK (TAX REPORT)
+// ============================================================================
+
+type TaxMonthlyBreakdownResponse struct {
+	Month        int     `json:"month"`
+	MonthName    string  `json:"month_name"`
+	GrossRevenue float64 `json:"gross_revenue"`
+	TaxRate      float64 `json:"tax_rate"`
+	TaxPayable   float64 `json:"tax_payable"`
+}
+
+type TaxAnnualReportResponse struct {
+	TaxYear            int                           `json:"tax_year"`
+	EntityType         string                        `json:"entity_type"`
+	TaxType            string                        `json:"tax_type"`
+	TotalAnnualRevenue float64                       `json:"total_annual_revenue"`
+	TotalTaxPayable    float64                       `json:"total_tax_payable"`
+	IsExceedsThreshold bool                          `json:"is_exceeds_threshold"`
+	MonthlyBreakdowns  []TaxMonthlyBreakdownResponse `json:"monthly_breakdowns"`
+}
+
+func ToTaxAnnualReportResponse(src *domain.TaxAnnualReport) TaxAnnualReportResponse {
+	if src == nil {
+		return TaxAnnualReportResponse{}
+	}
+
+	breakdowns := make([]TaxMonthlyBreakdownResponse, 0, len(src.MonthlyBreakdowns))
+	for _, m := range src.MonthlyBreakdowns {
+		breakdowns = append(breakdowns, TaxMonthlyBreakdownResponse{
+			Month:        m.Month,
+			MonthName:    m.MonthName,
+			GrossRevenue: m.GrossRevenue,
+			TaxRate:      m.TaxRate,
+			TaxPayable:   m.TaxPayable,
+		})
+	}
+
+	return TaxAnnualReportResponse{
+		TaxYear:            src.TaxYear,
+		EntityType:         src.EntityType,
+		TaxType:            src.TaxType,
+		TotalAnnualRevenue: src.TotalAnnualRevenue,
+		TotalTaxPayable:    src.TotalTaxPayable,
+		IsExceedsThreshold: src.IsExceedsThreshold,
+		MonthlyBreakdowns:  breakdowns,
+	}
+}

@@ -186,7 +186,28 @@ type ReceivablesFilter struct {
 }
 
 // ============================================================================
-// 5. INTERFACE KONTRAK (REPOSITORIES & USECASES)
+// 6. Tax Report (Laporan Pajak Tahunan & Bulanan)
+// ============================================================================
+type TaxMonthlyBreakdown struct {
+	Month        int     `json:"month"`         // 1 - 12
+	MonthName    string  `json:"month_name"`    // "Januari", "Februari", dst
+	GrossRevenue float64 `json:"gross_revenue"` // Total Omzet dari order sah di bulan tersebut
+	TaxRate      float64 `json:"tax_rate"`      // 0.005 (0.5%)
+	TaxPayable   float64 `json:"tax_payable"`   // GrossRevenue * TaxRate
+}
+
+type TaxAnnualReport struct {
+	TaxYear            int                   `json:"tax_year"`
+	EntityType         string                `json:"entity_type"`          // "CV"
+	TaxType            string                `json:"tax_type"`             // "PPh Final UMKM (PP 55/2022)"
+	TotalAnnualRevenue float64               `json:"total_annual_revenue"` // Total Omzet 1 Tahun
+	TotalTaxPayable    float64               `json:"total_tax_payable"`    // Total Pajak 1 Tahun
+	IsExceedsThreshold bool                  `json:"is_exceeds_threshold"` // true jika Omzet > Rp 4.8 M
+	MonthlyBreakdowns  []TaxMonthlyBreakdown `json:"monthly_breakdowns"`
+}
+
+// ============================================================================
+// 6. INTERFACE KONTRAK (REPOSITORIES & USECASES)
 // ============================================================================
 
 type ReportRepository interface {
@@ -202,6 +223,9 @@ type ReportRepository interface {
 	// Helper terpisah untuk mengambil total Pengeluaran berdasarkan Tipe (HPP vs OPEX)
 	GetExpenseBreakdownByDateRange(ctx context.Context, startDate, endDate time.Time) (totalHPP float64, totalOPEX float64, err error)
 	GetTotalExpenseByBatchPOs(ctx context.Context, poIDs []string) (float64, error)
+
+	// Laporan Pajak Tahunan & Bulanan
+	GetTaxAnnualReportData(ctx context.Context, year int) (*TaxAnnualReport, error)
 }
 
 type ReportUsecase interface {
@@ -210,4 +234,5 @@ type ReportUsecase interface {
 	GetPOSummaryReport(ctx context.Context, poID string) (*POSummaryReport, error)
 	GetReceivablesDetailReport(ctx context.Context, filter ReceivablesFilter) ([]ReceivableDetail, error)
 	GetDailyReport(ctx context.Context, date time.Time) (*DailyReport, error)
+	GetTaxAnnualReport(ctx context.Context, year int) (*TaxAnnualReport, error)
 }

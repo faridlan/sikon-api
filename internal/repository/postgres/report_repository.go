@@ -757,3 +757,68 @@ func (r *reportRepository) GetDailyReportData(ctx context.Context, targetDate ti
 
 	return report, nil
 }
+
+func (r *reportRepository) GetTaxAnnualReportData(ctx context.Context, year int) (*domain.TaxAnnualReport, error) {
+	report := &domain.TaxAnnualReport{
+		TaxYear:           year,
+		EntityType:        "CV",
+		TaxType:           "PPh Final UMKM (PP 55/2022)",
+		MonthlyBreakdowns: make([]domain.TaxMonthlyBreakdown, 0),
+	}
+
+	// 1. Query Agregasi Omzet per Bulan (Hanya Order Sah/Approved: production, ready, completed)
+	type monthlyRevenue struct {
+		Month        int
+		GrossRevenue float64
+	}
+
+	var revenues []monthlyRevenue
+	err := r.db.WithContext(ctx).Table("orders").
+		Select("EXTRACT(MONTH FROM approved_at) as month, COALESCE(SUM(total_amount), 0) as gross_revenue").
+		Where("EXTRACT(YEAR FROM approved_at) = ? AND deleted_at IS NULL", year).
+		Where("order_status IN (?, ?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady, domain.OrderStatusCompleted).
+		Group("EXTRACT(MONTH FROM approved_at)").
+		Order("month ASC").
+		Scan(&revenues).Error
+
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+
+	// Map hasil query ke map golang agar mudah di-lookup
+	revMap := make(map[int]float64)
+	for _, rev := range revenues {
+		revMap[rev.Month] = rev.GrossRevenue
+	}
+
+	monthNames := []string{
+		"", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+		"Juli", "Agustus", "September", "Oktober", "November", "Desember",
+	}
+
+	var totalAnnualRev float64
+	var totalTaxPayable float64
+
+	// 2. Loop 12 Bulan (1 - 12) untuk menyusun Breakdown Lengkap
+	for m := 1; m <= 12; m++ {
+		gross := revMap[m]
+		taxPayable := gross * 0.005 // 0.5% PPh Final UMKM
+
+		totalAnnualRev += gross
+		totalTaxPayable += taxPayable
+
+		report.MonthlyBreakdowns = append(report.MonthlyBreakdowns, domain.TaxMonthlyBreakdown{
+			Month:        m,
+			MonthName:    monthNames[m],
+			GrossRevenue: gross,
+			TaxRate:      0.005,
+			TaxPayable:   taxPayable,
+		})
+	}
+
+	report.TotalAnnualRevenue = totalAnnualRev
+	report.TotalTaxPayable = totalTaxPayable
+	report.IsExceedsThreshold = totalAnnualRev > 4800000000 // Flag jika tembus 4.8 Miliar
+
+	return report, nil
+}

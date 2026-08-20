@@ -191,6 +191,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	reports.Get("/po/:po_id/summary", guardInternal, handlers.ReportHandler.GetPOSummaryReport)
 	reports.Get("/receivables", guardFinance, handlers.ReportHandler.GetReceivablesReport)
 	reports.Get("/daily", guardFinance, handlers.ReportHandler.GetDailyReport)
+	reports.Get("/tax-annual", guardFinance, handlers.ReportHandler.GetTaxAnnualReport)
 
 	// --- Uploads & Seeder Routes ---
 	uploads := protected.Group("/uploads")
