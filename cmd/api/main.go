@@ -28,6 +28,15 @@ import (
 	_ "github.com/faridlan/sikon-api/docs"
 )
 
+// @title SIKOn API (Sistem Integrasi Konveksi Online)
+// @version 1.0
+// @description Ini adalah dokumentasi API untuk MVP ERP SIKOn.
+// @host localhost:8080
+// @BasePath /api
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Masukkan token dengan format: Bearer {token}
 func main() {
 	// ==========================================
 	// 0. PARSE CLI FLAGS & ENV
@@ -105,6 +114,9 @@ func main() {
 	reportRepo := postgres.NewReportRepository(db)
 	batchPORepo := postgres.NewBatchPORepository(db)
 	expenseRepo := postgres.NewExpenseRepository(db)
+	workerRepo := postgres.NewWorkerRepository(db)
+	workLogRepo := postgres.NewWorkLogRepository(db)
+	payrollRepo := postgres.NewPayrollRepository(db)
 
 	// ==========================================
 	// 2. INISIASI USECASE
@@ -120,6 +132,9 @@ func main() {
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, contextTimeout)
 	uploadUsecase := usecase.NewUploadUsecase(storageService, contextTimeout)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, contextTimeout)
+	workerUsecase := usecase.NewWorkerUsecase(workerRepo, contextTimeout)
+	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, contextTimeout)
+	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, contextTimeout)
 
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, contextTimeout)
@@ -143,6 +158,9 @@ func main() {
 	uploadHandler := myHttp.NewUploadHandler(uploadUsecase)
 	expenseHandler := myHttp.NewExpenseHandler(expenseUsecase)
 	seederHandler := myHttp.NewSeederHandler(db, storageService)
+	workerHandler := myHttp.NewWorkerHandler(workerUsecase)
+	workLogHandler := myHttp.NewWorkLogHandler(workLogUsecase)
+	payrollHandler := myHttp.NewPayrollHandler(payrollUsecase)
 
 	// ==========================================
 	// 4. BUNGKUS HANDLERS
@@ -163,6 +181,9 @@ func main() {
 		UploadHandler:       uploadHandler,
 		ExpenseHandler:      expenseHandler,
 		SeederHandler:       seederHandler,
+		WorkerHandler:       workerHandler,
+		WorkLogHandler:      workLogHandler,
+		PayrollHandler:      payrollHandler,
 	}
 
 	// ==========================================

@@ -118,7 +118,10 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductFabricModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductImageModel{})
 
-	// Hapus Data Utama
+	// Hapus Data Utama & Payroll Modul
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.WorkLogModel{})
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.PayrollModel{})
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.WorkerModel{})
 
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ExpenseModel{})
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Cat Exp%").Delete(&postgresRepo.ExpenseCategoryModel{})
@@ -126,15 +129,14 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.OrderItemModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.OrderModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.BatchPOModel{})
-	h.db.Unscoped().Where("name LIKE ?", "Dummy Cust%").Delete(&postgresRepo.CustomerModel{})
+	h.db.Unscoped().Where("name LIKE ?", "Dummy Cust%").Delete(&postgresRepo.CustomerModel{}) // 👈 Hapus Customer DULU
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Prod%").Delete(&postgresRepo.ProductModel{})
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Cat%").Delete(&postgresRepo.CategoryModel{})
-	h.db.Unscoped().Where("email LIKE ?", "%_dummy@sikon.com").Delete(&postgresRepo.UserModel{})
+	h.db.Unscoped().Where("email LIKE ?", "%_dummy@sikon.com").Delete(&postgresRepo.UserModel{}) // 👈 Hapus User SETELAH Customer
 	h.db.Unscoped().Where("account_number = ?", "999888777").Delete(&postgresRepo.BankAccountModel{})
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Spec%").Delete(&postgresRepo.SpecTemplateModel{})
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil membersihkan data seeder", nil)
-
 }
 
 // @Summary Generate Data Testing Realistis
@@ -152,7 +154,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 
 	// --- 1. SETUP MASTER DATA USER & BANK ---
-	// Owner Dummy (Menggantikan role admin lama)
 	ownerDummy := postgresRepo.UserModel{
 		ID:         uuid.NewString(),
 		Name:       "Owner (Dummy)",
@@ -166,9 +167,13 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 
 	var existingOwner postgresRepo.UserModel
+	var ownerID string // Variable penampung ID Owner yang valid
 
 	if err := h.db.Where("email = ?", ownerDummy.Email).First(&existingOwner).Error; err != nil {
 		h.db.Create(&ownerDummy)
+		ownerID = ownerDummy.ID
+	} else {
+		ownerID = existingOwner.ID // Gunakan ID dari database jika user sudah ada!
 	}
 
 	// Sales Dummies
@@ -240,7 +245,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		} else {
 			activeSalesIDs = append(activeSalesIDs, existing.ID)
 		}
-
 	}
 
 	bankAccount := postgresRepo.BankAccountModel{
@@ -436,7 +440,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// D. Produk Kemeja Series 1 (Memakai warna bawaan dari SpecTemplate)
+	// D. Produk Kemeja Series 1
 	prodKemeja1ID := uuid.NewString()
 	dm1ID := uuid.NewString()
 	fab1Kemeja1 := uuid.NewString()
@@ -460,11 +464,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			{
 				ID:             fab1Kemeja1,
 				ProductID:      prodKemeja1ID,
-				SpecTemplateID: &specRipstop.ID, // Dihubungkan ke SpecTemplate
+				SpecTemplateID: &specRipstop.ID,
 				Name:           "Ripstop Cotton Premium",
 				BasePrice:      185000,
 				IsDefault:      true,
-				Colors:         []postgresRepo.FabricColorModel{}, // Kosong agar otomatis mewarisi warna dari SpecTemplate
+				Colors:         []postgresRepo.FabricColorModel{},
 			},
 		},
 
@@ -483,8 +487,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		},
 	}
 
-	// E. Produk Kemeja Series 2 (Memakai warna bawaan dari SpecTemplate)
-
+	// E. Produk Kemeja Series 2
 	prodKemeja2ID := uuid.NewString()
 	dm2ID := uuid.NewString()
 	fab1Kemeja2 := uuid.NewString()
@@ -508,11 +511,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			{
 				ID:             fab1Kemeja2,
 				ProductID:      prodKemeja2ID,
-				SpecTemplateID: &specAmerican.ID, // Dihubungkan ke SpecTemplate
+				SpecTemplateID: &specAmerican.ID,
 				Name:           "American Drill High",
 				BasePrice:      190000,
 				IsDefault:      true,
-				Colors:         []postgresRepo.FabricColorModel{}, // Kosong agar otomatis mewarisi warna dari SpecTemplate
+				Colors:         []postgresRepo.FabricColorModel{},
 			},
 		},
 
@@ -532,7 +535,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 
 	// Simpan Semua Produk Ke Database
-
 	h.db.Create(&prodRompi)
 	h.db.Create(&prodCelana)
 	h.db.Create(&prodPolo)
@@ -540,7 +542,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	h.db.Create(&prodKemeja2)
 	products := []postgresRepo.ProductModel{prodRompi, prodCelana, prodPolo, prodKemeja1, prodKemeja2}
 
-	// --- 6. SETUP CUSTOMERS (Round-Robin Sales) ---
+	// --- 6. SETUP CUSTOMERS ---
 	var customers []postgresRepo.CustomerModel
 	customerNames := []string{"Dummy Cust PT A", "Dummy Cust PT B", "Dummy Cust Personal C", "Dummy Cust CV D", "Dummy Cust Personal E", "Dummy Cust CV F"}
 	for i, name := range customerNames {
@@ -555,7 +557,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 		h.db.Create(&cust)
 		customers = append(customers, cust)
-
 	}
 
 	// --- 7. SETUP EXPENSE CATEGORIES ---
@@ -602,17 +603,27 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		}
 
 		h.db.Create(&po)
-
 		batchPOs = append(batchPOs, po)
-
 	}
 
-	// --- 9. LOOPING TRANSAKSI HARIAN ---
+	// --- 9. SETUP MASTER WORKER (PEKERJA KONVEKSI) ---
+	workers := []postgresRepo.WorkerModel{
+		{ID: uuid.NewString(), Name: "Mang Ade (Penjahit)", Phone: "081299990001", Role: string(domain.WorkerRoleTailor), SalaryType: string(domain.WorkerSalaryTypePieceRate), Status: string(domain.WorkerStatusActive)},
+		{ID: uuid.NewString(), Name: "Mang Wahyu (Pemotong)", Phone: "081299990002", Role: string(domain.WorkerRoleCutter), SalaryType: string(domain.WorkerSalaryTypePieceRate), Status: string(domain.WorkerStatusActive)},
+		{ID: uuid.NewString(), Name: "Kang Agus (Finishing)", Phone: "081299990003", Role: string(domain.WorkerRoleFinishing), SalaryType: string(domain.WorkerSalaryTypeDaily), Status: string(domain.WorkerStatusActive)},
+	}
 
+	for _, w := range workers {
+		h.db.Create(&w)
+	}
+
+	// --- 10. LOOPING TRANSAKSI HARIAN & WORK LOGS ---
 	startDate, _ := time.Parse("2006-01-02", "2026-08-01")
 	endDate, _ := time.Parse("2006-01-02", "2026-08-12")
 	orderCounter := 1
 	expenseCounter := 0
+	var generatedWorkLogIDs []string
+
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
 		var activePoID *string
 		for _, po := range batchPOs {
@@ -625,6 +636,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		if activePoID == nil {
 			continue
 		}
+
 		numOrders := rand.Intn(3) + 1
 		for i := 0; i < numOrders; i++ {
 			cust := customers[rand.Intn(len(customers))]
@@ -662,7 +674,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			} else {
 				appTime := d.Add(10 * time.Hour)
 				approvedTimePtr = &appTime
-
 			}
 
 			orderID := uuid.NewString()
@@ -681,6 +692,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				ApprovedAt:    approvedTimePtr,
 			}
 			h.db.Create(&order)
+
 			orderItem := postgresRepo.OrderItemModel{
 				ID:        uuid.NewString(),
 				OrderID:   orderID,
@@ -689,6 +701,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 				Price:     prod.BasePrice,
 			}
 			h.db.Create(&orderItem)
+
 			if paidAmount > 0 && approvedTimePtr != nil {
 				payTime := approvedTimePtr.Add(2 * time.Hour)
 				verifierID := *cust.SalesID
@@ -708,6 +721,26 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			}
 			orderCounter++
 		}
+
+		// Generate Catatan Kerja Borongan (WorkLog) Harian
+		tailorWorker := workers[0]
+		workLogQty := rand.Intn(20) + 5
+		ratePerQty := 12000.0
+		workLogID := uuid.NewString()
+		workLog := postgresRepo.WorkLogModel{
+			ID:          workLogID,
+			WorkerID:    tailorWorker.ID,
+			BatchPoID:   activePoID,
+			JobType:     string(domain.JobTypeJahit),
+			Qty:         workLogQty,
+			RatePerQty:  ratePerQty,
+			TotalAmount: float64(workLogQty) * ratePerQty,
+			WorkDate:    d,
+			Notes:       "Setor jahitan kemeja taktikal",
+			CreatedByID: ownerID, // 👈 Gunakan ownerID di sini!
+		}
+		h.db.Create(&workLog)
+		generatedWorkLogIDs = append(generatedWorkLogIDs, workLogID)
 
 		if rand.Intn(100) < 60 {
 			expCat := expenseCats[rand.Intn(len(expenseCats))]
@@ -736,8 +769,39 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		}
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder lengkap dengan Upload Gambar Produk, Spec Templates Kain, & Canvas Mockup!", fiber.Map{
-		"total_orders_generated":   orderCounter - 1,
-		"total_expenses_generated": expenseCounter,
+	// --- 11. SETUP DUMMY PAYROLL (REKAP GAJI MINGGUAN) ---
+	if len(generatedWorkLogIDs) > 0 {
+		payrollID := uuid.NewString()
+		payrollStart, _ := time.Parse("2006-01-02", "2026-08-01")
+		payrollEnd, _ := time.Parse("2006-01-02", "2026-08-07")
+
+		var totalPayrollAmount float64
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", generatedWorkLogIDs[:len(generatedWorkLogIDs)/2]).
+			Select("COALESCE(SUM(total_amount), 0)").
+			Scan(&totalPayrollAmount)
+
+		payroll := postgresRepo.PayrollModel{
+			ID:            payrollID,
+			PayrollNumber: "PAY-202608-001",
+			StartDate:     payrollStart,
+			EndDate:       payrollEnd,
+			TotalAmount:   totalPayrollAmount,
+			Status:        string(domain.PayrollStatusDraft),
+			CreatedByID:   ownerID, // 👈 Gunakan ownerID di sini!
+		}
+		h.db.Create(&payroll)
+
+		// Linking WorkLogs ke Payroll
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", generatedWorkLogIDs[:len(generatedWorkLogIDs)/2]).
+			Update("payroll_id", payrollID)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder lengkap dengan Upload Gambar Produk, Spec Templates Kain, Canvas Mockup, & Master Workers/Payroll!", fiber.Map{
+		"total_orders_generated":    orderCounter - 1,
+		"total_expenses_generated":  expenseCounter,
+		"total_workers_generated":   len(workers),
+		"total_work_logs_generated": len(generatedWorkLogIDs),
 	})
 }

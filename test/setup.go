@@ -82,6 +82,9 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.BatchPOModel{},
 		&postgres.ExpenseCategoryModel{},
 		&postgres.ExpenseModel{},
+		&postgres.WorkerModel{},
+		&postgres.PayrollModel{},
+		&postgres.WorkLogModel{},
 	)
 
 	// Pastikan ada test user yang valid di database untuk endpoint yang menggunakan CreatedBy dari JWT
@@ -114,6 +117,9 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	reportRepo := postgres.NewReportRepository(db)
 	batchPORepo := postgres.NewBatchPORepository(db)
 	expenseRepo := postgres.NewExpenseRepository(db)
+	workerRepo := postgres.NewWorkerRepository(db)
+	workLogRepo := postgres.NewWorkLogRepository(db)
+	payrollRepo := postgres.NewPayrollRepository(db)
 
 	// 2. Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtSecret, 24*time.Hour, timeout)
@@ -130,6 +136,9 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, timeout)
 	uploadUsecase := usecase.NewUploadUsecase(storageService, timeout)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, timeout)
+	workerUsecase := usecase.NewWorkerUsecase(workerRepo, timeout)
+	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, timeout)
+	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, timeout)
 
 	// 3. Setup Fiber Handlers
 	handlers := myHttp.Handlers{
@@ -148,6 +157,9 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		UploadHandler:       myHttp.NewUploadHandler(uploadUsecase),
 		ExpenseHandler:      myHttp.NewExpenseHandler(expenseUsecase),
 		SeederHandler:       myHttp.NewSeederHandler(db, storageService),
+		WorkerHandler:       myHttp.NewWorkerHandler(workerUsecase),
+		WorkLogHandler:      myHttp.NewWorkLogHandler(workLogUsecase),
+		PayrollHandler:      myHttp.NewPayrollHandler(payrollUsecase),
 	}
 
 	app := fiber.New()
@@ -199,6 +211,11 @@ func AuthenticatedRequest(method string, url string, body io.Reader, userID stri
 
 // ClearTables mengosongkan seluruh isi tabel sebelum/sesudah tiap test case berjalan
 func ClearTables(db *gorm.DB) {
+	db.Exec("TRUNCATE TABLE work_logs RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE payrolls RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE workers RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE expenses RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE expense_categories RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE categories RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE products RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE product_images RESTART IDENTITY CASCADE;")
@@ -215,8 +232,6 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")
-	db.Exec("TRUNCATE TABLE expense_categories RESTART IDENTITY CASCADE;")
-	db.Exec("TRUNCATE TABLE expenses RESTART IDENTITY CASCADE;")
 
 	// Re-create default test user used by generic AuthenticatedRequest calls.
 	defaultUserID := normalizeTestUserID("test-user")

@@ -27,6 +27,9 @@ type Handlers struct {
 	UploadHandler       UploadHandler
 	ExpenseHandler      ExpenseHandler
 	SeederHandler       SeederHandler
+	WorkerHandler       WorkerHandler
+	WorkLogHandler      WorkLogHandler
+	PayrollHandler      PayrollHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers & jwtSecret
@@ -166,6 +169,30 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	expenses.Post("/", guardFinance, handlers.ExpenseHandler.CreateExpense)
 	expenses.Get("/:id", guardFinance, handlers.ExpenseHandler.GetExpense)
 	expenses.Delete("/:id", guardOwner, handlers.ExpenseHandler.DeleteExpense)
+
+	// --- Workers Routes (Khusus Finance/Accounting & Owner) ---
+	workersGroup := api.Group("/workers")
+	workersGroup.Post("/", guardFinance, handlers.WorkerHandler.CreateWorker)
+	workersGroup.Get("/", guardFinance, handlers.WorkerHandler.ListWorkers)
+	workersGroup.Get("/:id", guardFinance, handlers.WorkerHandler.GetWorker)
+	workersGroup.Put("/:id", guardFinance, handlers.WorkerHandler.UpdateWorker)
+	workersGroup.Delete("/:id", guardOwner, handlers.WorkerHandler.DeleteWorker)
+
+	// --- Work Logs Routes (Khusus Finance/Accounting & Owner) ---
+	workLogsGroup := api.Group("/work-logs")
+	workLogsGroup.Post("/", guardFinance, handlers.WorkLogHandler.CreateWorkLog)
+	workLogsGroup.Get("/", guardFinance, handlers.WorkLogHandler.ListWorkLogs)
+	workLogsGroup.Get("/:id", guardFinance, handlers.WorkLogHandler.GetWorkLog)
+	workLogsGroup.Put("/:id", guardFinance, handlers.WorkLogHandler.UpdateWorkLog)
+	workLogsGroup.Delete("/:id", guardFinance, handlers.WorkLogHandler.DeleteWorkLog)
+
+	// --- Payrolls Routes (Khusus Finance/Accounting & Owner) ---
+	payrollsGroup := api.Group("/payrolls")
+	payrollsGroup.Post("/", guardFinance, handlers.PayrollHandler.CreatePayroll)
+	payrollsGroup.Get("/", guardFinance, handlers.PayrollHandler.ListPayrolls)
+	payrollsGroup.Get("/:id", guardFinance, handlers.PayrollHandler.GetPayroll)
+	payrollsGroup.Post("/:id/pay", guardFinance, handlers.PayrollHandler.ProcessPayment) // Endpoint Eksekusi Bayar Gaji -> Auto Expense HPP
+	payrollsGroup.Delete("/:id", guardOwner, handlers.PayrollHandler.DeletePayroll)
 
 	// --- Batch PO Routes ---
 	batchPos := protected.Group("/batch-pos")
