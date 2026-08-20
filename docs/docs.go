@@ -1422,6 +1422,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/dashboard/overview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil seluruh ringkasan data dashboard dalam 1 request HTTP (Summary, Active Batch PO, Action Required Badges, Recent Orders, \u0026 Recent Payments).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get Dashboard Overview (Single Aggregated Endpoint)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardOverviewResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/dashboard/receivables-report": {
             "get": {
                 "security": [
@@ -3681,7 +3718,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter berdasarkan status order (production, completed)",
+                        "description": "Filter berdasarkan status order (production, ready)",
                         "name": "order_status",
                         "in": "query"
                     },
@@ -3697,6 +3734,51 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ReceivableDetailResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/tax-annual": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil estimasi perhitungan PPh Final UMKM (PP 55/2022 tarif 0.5%) untuk entitas CV berdasarkan omzet pesanan terverifikasi per bulan.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get Tax Annual Report (Laporan Estimasi Pajak Tahunan CV)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tahun Pajak (Contoh: 2026, default: tahun berjalan)",
+                        "name": "year",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_TaxAnnualReportResponse"
                         }
                     },
                     "401": {
@@ -4517,6 +4599,45 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ActionRequiredOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "pending_orders_count": {
+                    "type": "integer"
+                },
+                "ready_orders_count": {
+                    "type": "integer"
+                },
+                "unverified_payments_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.ActiveBatchPOOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "quota": {
+                    "type": "integer"
+                },
+                "remaining_quota": {
+                    "description": "Sisa kuota pcs",
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_qty_ordered": {
+                    "description": "Total pcs terisi",
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.AuthResponseDTO": {
             "type": "object",
             "properties": {
@@ -4997,6 +5118,43 @@ const docTemplate = `{
                 },
                 "qty": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "action_required": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ActionRequiredOverviewResponse"
+                },
+                "active_batch_po": {
+                    "description": "👈 Update DTO ini",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ActiveBatchPOOverviewResponse"
+                        }
+                    ]
+                },
+                "chart_trends": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse"
+                    }
+                },
+                "recent_orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.RecentOrderOverviewResponse"
+                    }
+                },
+                "recent_payments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.RecentPaymentOverviewResponse"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardSummaryResponse"
                 }
             }
         },
@@ -6323,6 +6481,46 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.RecentOrderOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "order_status": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.RecentPaymentOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payment_date": {
+                    "type": "string"
+                },
+                "payment_type": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse": {
             "type": "object",
             "properties": {
@@ -6452,6 +6650,55 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2023-10-01T15:00:00Z"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.TaxAnnualReportResponse": {
+            "type": "object",
+            "properties": {
+                "entity_type": {
+                    "type": "string"
+                },
+                "is_exceeds_threshold": {
+                    "type": "boolean"
+                },
+                "monthly_breakdowns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.TaxMonthlyBreakdownResponse"
+                    }
+                },
+                "tax_type": {
+                    "type": "string"
+                },
+                "tax_year": {
+                    "type": "integer"
+                },
+                "total_annual_revenue": {
+                    "type": "number"
+                },
+                "total_tax_payable": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.TaxMonthlyBreakdownResponse": {
+            "type": "object",
+            "properties": {
+                "gross_revenue": {
+                    "type": "number"
+                },
+                "month": {
+                    "type": "integer"
+                },
+                "month_name": {
+                    "type": "string"
+                },
+                "tax_payable": {
+                    "type": "number"
+                },
+                "tax_rate": {
+                    "type": "number"
                 }
             }
         },
@@ -7024,6 +7271,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.DashboardOverviewResponse"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_DashboardSummaryResponse": {
             "type": "object",
             "properties": {
@@ -7123,6 +7381,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_TaxAnnualReportResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.TaxAnnualReportResponse"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_UserResponse": {
             "type": "object",
             "properties": {
@@ -7162,25 +7431,17 @@ const docTemplate = `{
                 "type": "string"
             }
         }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Masukkan token dengan format: Bearer {token}",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/api",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "SIKOn API (Sistem Integrasi Konveksi Online)",
-	Description:      "Ini adalah dokumentasi API untuk MVP ERP SIKOn.",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

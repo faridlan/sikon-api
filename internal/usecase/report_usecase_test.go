@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"github.com/faridlan/sikon-api/internal/domain/mocks"
 	"github.com/faridlan/sikon-api/internal/usecase"
 )
 
@@ -57,6 +59,10 @@ func (s stubReportRepository) GetExpenseBreakdownByDateRange(_ context.Context, 
 
 func (s stubReportRepository) GetTotalExpenseByBatchPOs(_ context.Context, _ []string) (float64, error) {
 	return s.totalHPP, s.expenseByPOErr
+}
+
+func (s stubReportRepository) GetTaxAnnualReportData(_ context.Context, _ int) (*domain.TaxAnnualReport, error) {
+	return &domain.TaxAnnualReport{}, s.err
 }
 
 // ============================================================================
@@ -360,5 +366,89 @@ func TestReportUsecase_GetDailyReport(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+}
+
+func TestReportUsecase_GetTaxAnnualReport(t *testing.T) {
+	mockReport := &domain.TaxAnnualReport{
+		TaxYear:            2026,
+		EntityType:         "CV",
+		TaxType:            "PPh Final UMKM (PP 55/2022)",
+		TotalAnnualRevenue: 1200000000, // Rp 1.2 Miliar
+		TotalTaxPayable:    6000000,    // Rp 6 Juta (0.5%)
+		IsExceedsThreshold: false,
+		MonthlyBreakdowns: []domain.TaxMonthlyBreakdown{
+			{
+				Month:        1,
+				MonthName:    "Januari",
+				GrossRevenue: 100000000,
+				TaxRate:      0.005,
+				TaxPayable:   500000,
+			},
+			{
+				Month:        2,
+				MonthName:    "Februari",
+				GrossRevenue: 100000000,
+				TaxRate:      0.005,
+				TaxPayable:   500000,
+			},
+		},
+	}
+
+	t.Run("Success - Get Tax Annual Report With Specific Year", func(t *testing.T) {
+		mockRepo := new(mocks.ReportRepository)
+		uc := usecase.NewReportUsecase(mockRepo, time.Second*2)
+
+		targetYear := 2026
+
+		mockRepo.On("GetTaxAnnualReportData", mock.Anything, targetYear).Return(mockReport, nil).Once()
+
+		result, err := uc.GetTaxAnnualReport(context.Background(), targetYear)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 2026, result.TaxYear)
+		assert.Equal(t, "CV", result.EntityType)
+		assert.Equal(t, float64(1200000000), result.TotalAnnualRevenue)
+		assert.Equal(t, float64(6000000), result.TotalTaxPayable)
+		assert.False(t, result.IsExceedsThreshold)
+		assert.Len(t, result.MonthlyBreakdowns, 2)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Get Tax Annual Report Fallback Default Year", func(t *testing.T) {
+		mockRepo := new(mocks.ReportRepository)
+		uc := usecase.NewReportUsecase(mockRepo, time.Second*2)
+
+		invalidYear := 0
+		currentYear := time.Now().Year()
+
+		mockRepo.On("GetTaxAnnualReportData", mock.Anything, currentYear).Return(mockReport, nil).Once()
+
+		result, err := uc.GetTaxAnnualReport(context.Background(), invalidYear)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - Repository Failed", func(t *testing.T) {
+		mockRepo := new(mocks.ReportRepository)
+		uc := usecase.NewReportUsecase(mockRepo, time.Second*2)
+
+		targetYear := 2026
+		mockErr := errors.New("database connection query error")
+
+		mockRepo.On("GetTaxAnnualReportData", mock.Anything, targetYear).Return(nil, mockErr).Once()
+
+		result, err := uc.GetTaxAnnualReport(context.Background(), targetYear)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, mockErr, err)
+
+		mockRepo.AssertExpectations(t)
 	})
 }

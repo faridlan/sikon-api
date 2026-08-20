@@ -142,3 +142,14 @@ func (u *reportUsecase) GetDailyReport(c context.Context, date time.Time) (*doma
 
 	return report, nil
 }
+
+func (u *reportUsecase) GetTaxAnnualReport(c context.Context, year int) (*domain.TaxAnnualReport, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	if year <= 0 {
+		year = time.Now().Year() // Default ke tahun berjalan jika tidak diisi/invalid
+	}
+
+	return u.reportRepo.GetTaxAnnualReportData(ctx, year)
+}

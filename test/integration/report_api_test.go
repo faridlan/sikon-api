@@ -448,3 +448,85 @@ func TestDailyReportEndpoint(t *testing.T) {
 	assert.Equal(t, "John Doe", response.Data.SalesDetails[0].SalesName)
 	assert.Equal(t, int64(2), response.Data.SalesDetails[0].TotalQty)
 }
+
+// ============================================================================
+// 6. TEST TAX ANNUAL REPORT ENDPOINT (Pajak PPh Final UMKM 0.5% CV)
+// ============================================================================
+func TestGetTaxAnnualReportEndpoint(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	category := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Kemeja Taktikal"}
+	db.Create(&category)
+
+	product := postgresRepo.ProductModel{ID: uuid.NewString(), CategoryID: category.ID, Name: "Kemeja PDL", BasePrice: 150000}
+	db.Create(&product)
+
+	sales := postgresRepo.UserModel{ID: uuid.NewString(), Name: "Sales Pajak", Email: "salespajak@example.com", Role: "sales"}
+	db.Create(&sales)
+
+	customer := postgresRepo.CustomerModel{ID: uuid.NewString(), Name: "PT Mitra Pajak", CreatedBy: sales.ID, SalesID: &sales.ID}
+	db.Create(&customer)
+
+	approvedTime := time.Date(2026, time.March, 15, 10, 0, 0, 0, time.UTC)
+
+	// Create order berstatus production (sah / approved)
+	order := postgresRepo.OrderModel{
+		ID:            uuid.NewString(),
+		OrderNumber:   "ORD-TAX-001",
+		CustomerID:    customer.ID,
+		SalesID:       sales.ID,
+		TotalAmount:   100000000, // Rp 100.000.000
+		OrderStatus:   string(domain.OrderStatusProduction),
+		PaymentStatus: string(domain.PaymentStatusUnpaid),
+		CreatedAt:     approvedTime,
+		ApprovedAt:    &approvedTime,
+	}
+	db.Create(&order)
+
+	orderItem := postgresRepo.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 666, Price: 150000}
+	db.Create(&orderItem)
+
+	t.Run("Success - Get Tax Annual Report For Specified Year", func(t *testing.T) {
+		req := tests.AuthenticatedRequest("GET", "/api/reports/tax-annual?year=2026", bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data dto.TaxAnnualReportResponse `json:"data"`
+		}
+		assert.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+
+		assert.Equal(t, 2026, response.Data.TaxYear)
+		assert.Equal(t, "CV", response.Data.EntityType)
+		assert.Equal(t, "PPh Final UMKM (PP 55/2022)", response.Data.TaxType)
+		assert.Equal(t, float64(100000000), response.Data.TotalAnnualRevenue)
+		assert.Equal(t, float64(500000), response.Data.TotalTaxPayable) // 0.5% dari 100jt = 500rb
+		assert.False(t, response.Data.IsExceedsThreshold)
+		assert.Len(t, response.Data.MonthlyBreakdowns, 12)
+
+		// Verifikasi bulan Maret (bulan ke-3)
+		marchBreakdown := response.Data.MonthlyBreakdowns[2]
+		assert.Equal(t, 3, marchBreakdown.Month)
+		assert.Equal(t, "Maret", marchBreakdown.MonthName)
+		assert.Equal(t, float64(100000000), marchBreakdown.GrossRevenue)
+		assert.Equal(t, float64(0.005), marchBreakdown.TaxRate)
+		assert.Equal(t, float64(500000), marchBreakdown.TaxPayable)
+	})
+
+	t.Run("Success - Fallback Default Year When Query Param Omitted", func(t *testing.T) {
+		req := tests.AuthenticatedRequest("GET", "/api/reports/tax-annual", bytes.NewBuffer(nil), "test-user", "test-user@sikon.com", domain.RoleOwner)
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+		var response struct {
+			Data dto.TaxAnnualReportResponse `json:"data"`
+		}
+		assert.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+
+		assert.Equal(t, time.Now().Year(), response.Data.TaxYear)
+		assert.Len(t, response.Data.MonthlyBreakdowns, 12)
+	})
+}

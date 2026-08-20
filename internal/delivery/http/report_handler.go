@@ -1,6 +1,7 @@
 ﻿package http
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,6 +17,7 @@ type ReportHandler interface {
 	GetPOSummaryReport(c *fiber.Ctx) error
 	GetReceivablesReport(c *fiber.Ctx) error
 	GetDailyReport(c *fiber.Ctx) error
+	GetTaxAnnualReport(c *fiber.Ctx) error
 }
 
 type reportHandler struct {
@@ -175,4 +177,37 @@ func (h *reportHandler) GetDailyReport(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil data laporan harian", dto.ToDailyReportResponse(report))
+}
+
+// @Summary Get Tax Annual Report (Laporan Estimasi Pajak Tahunan CV)
+// @Description Mengambil estimasi perhitungan PPh Final UMKM (PP 55/2022 tarif 0.5%) untuk entitas CV berdasarkan omzet pesanan terverifikasi per bulan.
+// @Tags Reports
+// @Produce json
+// @Security BearerAuth
+// @Param year query int false "Tahun Pajak (Contoh: 2026, default: tahun berjalan)"
+// @Success 200 {object} utils.SuccessResponse[dto.TaxAnnualReportResponse]
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Router /reports/tax-annual [get]
+func (h *reportHandler) GetTaxAnnualReport(c *fiber.Ctx) error {
+	yearStr := c.Query("year")
+	year := time.Now().Year()
+
+	if yearStr != "" {
+		if parsedYear, err := strconv.Atoi(yearStr); err == nil && parsedYear > 0 {
+			year = parsedYear
+		}
+	}
+
+	report, err := h.reportUsecase.GetTaxAnnualReport(c.Context(), year)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(
+		c,
+		fiber.StatusOK,
+		"Berhasil mengambil data laporan estimasi pajak tahunan CV",
+		dto.ToTaxAnnualReportResponse(report),
+	)
 }
