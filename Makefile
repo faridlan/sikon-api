@@ -33,6 +33,7 @@ migratedown:
 
 migrateforce:
 	migrate -path db/migrations -database $(DB_URL) force $(V)
+#cara pakai: make migrateforce V=1
 
 
 # ==============================================================================

@@ -1,3 +1,4 @@
+basePath: /api
 definitions:
   github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingDailyTrendResponse:
     properties:
@@ -994,6 +995,70 @@ definitions:
     required:
     - status
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollCreateRequest:
+    properties:
+      end_date:
+        example: "2026-08-20"
+        type: string
+      start_date:
+        example: "2026-08-14"
+        type: string
+      work_log_ids:
+        example:
+        - '["770e8400-e29b-41d4-a716-446655440000"]'
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - end_date
+    - start_date
+    - work_log_ids
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollResponse:
+    properties:
+      created_at:
+        example: "2026-08-20T15:00:00Z"
+        type: string
+      created_by:
+        example: 110e8400-e29b-41d4-a716-446655440000
+        type: string
+      creator:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse'
+      end_date:
+        example: "2026-08-20"
+        type: string
+      expense:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse'
+      expense_id:
+        example: 990e8400-e29b-41d4-a716-446655440000
+        type: string
+      id:
+        example: 880e8400-e29b-41d4-a716-446655440000
+        type: string
+      paid_at:
+        example: "2026-08-20T15:00:00Z"
+        type: string
+      payroll_number:
+        example: PAY-202608-001
+        type: string
+      start_date:
+        example: "2026-08-14"
+        type: string
+      status:
+        example: draft
+        type: string
+      total_amount:
+        example: 1500000
+        type: number
+      updated_at:
+        example: "2026-08-20T15:00:00Z"
+        type: string
+      work_logs:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogResponse'
+        type: array
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductCreateRequest:
     properties:
       base_price:
@@ -1647,6 +1712,203 @@ definitions:
       unit_price:
         type: number
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogCreateRequest:
+    properties:
+      batch_po_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      job_type:
+        enum:
+        - jahit
+        - potong
+        - bordir
+        - finishing
+        example: jahit
+        type: string
+      notes:
+        example: Tambahan resleting dada
+        type: string
+      qty:
+        example: 5
+        type: integer
+      rate_per_qty:
+        example: 12000
+        type: number
+      work_date:
+        example: "2026-08-20"
+        type: string
+      worker_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - job_type
+    - qty
+    - rate_per_qty
+    - work_date
+    - worker_id
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogResponse:
+    properties:
+      batch_po:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse'
+      batch_po_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      created_at:
+        example: "2026-08-20T15:00:00Z"
+        type: string
+      created_by:
+        example: 110e8400-e29b-41d4-a716-446655440000
+        type: string
+      creator:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse'
+      id:
+        example: 770e8400-e29b-41d4-a716-446655440000
+        type: string
+      job_type:
+        example: jahit
+        type: string
+      notes:
+        example: Tambahan resleting dada
+        type: string
+      payroll_id:
+        example: 880e8400-e29b-41d4-a716-446655440000
+        type: string
+      qty:
+        example: 5
+        type: integer
+      rate_per_qty:
+        example: 12000
+        type: number
+      total_amount:
+        example: 60000
+        type: number
+      updated_at:
+        example: "2026-08-20T15:00:00Z"
+        type: string
+      work_date:
+        example: "2026-08-20"
+        type: string
+      worker:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerResponse'
+      worker_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogUpdateRequest:
+    properties:
+      batch_po_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      job_type:
+        enum:
+        - jahit
+        - potong
+        - bordir
+        - finishing
+        example: jahit
+        type: string
+      notes:
+        example: Tambahan resleting dada
+        type: string
+      qty:
+        example: 5
+        type: integer
+      rate_per_qty:
+        example: 12000
+        type: number
+      work_date:
+        example: "2026-08-20"
+        type: string
+      worker_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerCreateRequest:
+    properties:
+      name:
+        example: Mang Ade
+        type: string
+      phone:
+        example: "081234567890"
+        type: string
+      role:
+        enum:
+        - tailor
+        - cutter
+        - finishing
+        - helper
+        example: tailor
+        type: string
+      salary_type:
+        enum:
+        - piece_rate
+        - daily
+        - monthly
+        example: piece_rate
+        type: string
+    required:
+    - name
+    - role
+    - salary_type
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerResponse:
+    properties:
+      created_at:
+        example: "2026-08-20T15:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Mang Ade
+        type: string
+      phone:
+        example: "081234567890"
+        type: string
+      role:
+        example: tailor
+        type: string
+      salary_type:
+        example: piece_rate
+        type: string
+      status:
+        example: active
+        type: string
+      updated_at:
+        example: "2026-08-20T15:00:00Z"
+        type: string
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerUpdateRequest:
+    properties:
+      name:
+        example: Mang Ade Supriatna
+        type: string
+      phone:
+        example: "081234567890"
+        type: string
+      role:
+        enum:
+        - tailor
+        - cutter
+        - finishing
+        - helper
+        example: tailor
+        type: string
+      salary_type:
+        enum:
+        - piece_rate
+        - daily
+        - monthly
+        example: piece_rate
+        type: string
+      status:
+        enum:
+        - active
+        - inactive
+        example: active
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_domain.PaginationMeta:
     properties:
       current_page:
@@ -1745,6 +2007,17 @@ definitions:
       meta:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PayrollResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollResponse'
+        type: array
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductResponse
   : properties:
       data:
@@ -1772,6 +2045,28 @@ definitions:
       data:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse'
+        type: array
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogResponse'
+        type: array
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkerResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerResponse'
         type: array
       message:
         type: string
@@ -1954,6 +2249,13 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PayrollResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollResponse'
+      message:
+        type: string
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductResponse
   : properties:
       data:
@@ -1989,6 +2291,20 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogResponse'
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkerResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerResponse'
+      message:
+        type: string
+    type: object
   github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj:
     properties:
       data:
@@ -2007,8 +2323,12 @@ definitions:
     additionalProperties:
       type: string
     type: object
+host: localhost:8080
 info:
   contact: {}
+  description: Ini adalah dokumentasi API untuk MVP ERP SIKOn.
+  title: SIKOn API (Sistem Integrasi Konveksi Online)
+  version: "1.0"
 paths:
   /auth/login:
     post:
@@ -4032,6 +4352,192 @@ paths:
       summary: Get Payments by Order ID
       tags:
       - Payments
+  /payrolls:
+    get:
+      parameters:
+      - default: 1
+        description: Halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Filter Status (draft, approved, paid)
+        in: query
+        name: status
+        type: string
+      - description: Filter Tanggal Awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter Tanggal Akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PayrollResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List All Payrolls
+      tags:
+      - Payrolls
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data Rekap Gaji Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PayrollResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Payroll Rekap
+      tags:
+      - Payrolls
+  /payrolls/{id}:
+    delete:
+      parameters:
+      - description: Payroll ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Payroll
+      tags:
+      - Payrolls
+    get:
+      parameters:
+      - description: Payroll ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PayrollResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Payroll Detail
+      tags:
+      - Payrolls
+  /payrolls/{id}/pay:
+    post:
+      parameters:
+      - description: Payroll ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_PayrollResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Process Payroll Payment (Approve & Auto Create Expense)
+      tags:
+      - Payrolls
   /products:
     get:
       description: Mengambil daftar seluruh produk dengan pagination, filter kategori,
@@ -4923,4 +5429,436 @@ paths:
       summary: Register a new user
       tags:
       - Users
+  /work-logs:
+    get:
+      parameters:
+      - default: 1
+        description: Halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Filter Pekerja (UUID)
+        in: query
+        name: worker_id
+        type: string
+      - description: Filter Batch PO (UUID)
+        in: query
+        name: batch_po_id
+        type: string
+      - description: Filter Payroll (UUID)
+        in: query
+        name: payroll_id
+        type: string
+      - description: Filter hanya yang belum digaji (payroll_id null)
+        in: query
+        name: is_unpaid
+        type: boolean
+      - description: Filter Jenis Pekerjaan (jahit, potong, bordir, finishing)
+        in: query
+        name: job_type
+        type: string
+      - description: Filter Tanggal Awal (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter Tanggal Akhir (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List All Work Logs
+      tags:
+      - Work Logs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data Log Borongan Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Work Log
+      tags:
+      - Work Logs
+  /work-logs/{id}:
+    delete:
+      parameters:
+      - description: WorkLog ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Work Log
+      tags:
+      - Work Logs
+    get:
+      parameters:
+      - description: WorkLog ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Work Log Detail
+      tags:
+      - Work Logs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: WorkLog ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Perubahan Work Log
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Work Log
+      tags:
+      - Work Logs
+  /workers:
+    get:
+      parameters:
+      - default: 1
+        description: Halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Pencarian nama atau nomor telepon
+        in: query
+        name: search
+        type: string
+      - description: Filter Peran (tailor, cutter, finishing, helper)
+        in: query
+        name: role
+        type: string
+      - description: Filter Tipe Gaji (piece_rate, daily, monthly)
+        in: query
+        name: salary_type
+        type: string
+      - description: Filter Status (active, inactive)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkerResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List All Workers
+      tags:
+      - Workers
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data Pekerja Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Worker
+      tags:
+      - Workers
+  /workers/{id}:
+    delete:
+      parameters:
+      - description: Worker ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Worker
+      tags:
+      - Workers
+    get:
+      parameters:
+      - description: Worker ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Worker Detail
+      tags:
+      - Workers
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Worker ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Perubahan Pekerja
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Worker
+      tags:
+      - Workers
+securityDefinitions:
+  BearerAuth:
+    description: 'Masukkan token dengan format: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
