@@ -44,6 +44,7 @@ func (s *supabaseStorage) UploadFile(ctx context.Context, fileHeader *multipart.
 
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
 	req.Header.Set("Content-Type", fileHeader.Header.Get("Content-Type"))
+	req.Header.Set("x-upsert", "true")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
