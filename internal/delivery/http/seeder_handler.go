@@ -94,7 +94,7 @@ func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath strin
 	}
 
 	// 4. Upload via Storage Service
-	uniqueFileName := fmt.Sprintf("%s_%s", fileNameOnly, uuid.NewString()[:8])
+	uniqueFileName := fmt.Sprintf("seeder_%s", fileNameOnly)
 	uploadedURL, err := h.storageService.UploadFile(ctx, files[0], targetFolder, uniqueFileName)
 	if err != nil {
 		return "", fmt.Errorf("gagal upload ke supabase: %w", err)
