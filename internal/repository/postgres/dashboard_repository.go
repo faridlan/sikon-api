@@ -30,7 +30,7 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 		paymentQuery = paymentQuery.Where("orders.sales_id = ?", filter.SalesID)
 	}
 
-	// Filter Tanggal
+	// Filter Tanggal untuk Revenue & Payment Received dalam periode tersebut
 	if filter.StartDate != "" && filter.EndDate != "" {
 		if _, errStart := time.Parse("2006-01-02", filter.StartDate); errStart == nil {
 			if _, errEnd := time.Parse("2006-01-02", filter.EndDate); errEnd == nil {
@@ -40,8 +40,7 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 		}
 	}
 
-	// 2. Eksekusi Kalkulasi Order
-	// 🚨 REVISI LOGIKA: Total Revenue HANYA dari order valid yang masuk produksi/siap/selesai
+	// 2. Eksekusi Kalkulasi Order Stats
 	type OrderStats struct {
 		TotalRevenue    float64
 		ActiveOrders    int64
@@ -72,24 +71,33 @@ func (r *dashboardRepository) GetSummary(ctx context.Context, filter domain.Dash
 		return nil, TranslateError(err)
 	}
 
-	// 4. Eksekusi Kalkulasi Piutang All-Time (Order Valid dikurangi Uang Masuk Verified)
-	var allTimeRevenue float64
-	var allTimePayment float64
-
-	allTimeOrderQ := r.db.WithContext(ctx).Model(&OrderModel{}).Where("order_status IN (?, ?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady, domain.OrderStatusCompleted)
-	allTimePaymentQ := r.db.WithContext(ctx).Model(&PaymentModel{}).
-		Joins("LEFT JOIN orders ON orders.id = payments.order_id").
-		Where("payments.status = ?", domain.PaymentVerificationVerified)
+	// 4. 🚨 PERBAIKAN KALKULASI PIUTANG (RECEIVABLE) SINKRON DENGAN LAPORAN PIUTANG
+	// Menggunakan query sub-kalkulasi presisi dari order aktif ber-status Unpaid/Partial
+	receivableQuery := r.db.WithContext(ctx).Table("orders o").
+		Select(`
+			COALESCE(SUM(o.total_amount - COALESCE(p.total_paid, 0)), 0) as total_receivable
+		`).
+		Joins(`LEFT JOIN (
+			SELECT order_id, SUM(amount) as total_paid 
+			FROM payments 
+			WHERE status = 'verified' AND deleted_at IS NULL 
+			GROUP BY order_id
+		) p ON p.order_id = o.id`).
+		Where("o.deleted_at IS NULL").
+		Where("o.order_status IN (?, ?)", domain.OrderStatusProduction, domain.OrderStatusReady).
+		Where("o.payment_status IN (?, ?)", domain.PaymentStatusUnpaid, domain.PaymentStatusPartial)
 
 	if filter.SalesID != "" {
-		allTimeOrderQ = allTimeOrderQ.Where("sales_id = ?", filter.SalesID)
-		allTimePaymentQ = allTimePaymentQ.Where("orders.sales_id = ?", filter.SalesID)
+		receivableQuery = receivableQuery.Where("o.sales_id = ?", filter.SalesID)
 	}
 
-	allTimeOrderQ.Select("COALESCE(SUM(total_amount), 0)").Scan(&allTimeRevenue)
-	allTimePaymentQ.Select("COALESCE(SUM(payments.amount), 0)").Scan(&allTimePayment)
+	var totalReceivable float64
+	err = receivableQuery.Scan(&totalReceivable).Error
+	if err != nil {
+		return nil, TranslateError(err)
+	}
 
-	summary.TotalReceivable = allTimeRevenue - allTimePayment
+	summary.TotalReceivable = totalReceivable
 	if summary.TotalReceivable < 0 {
 		summary.TotalReceivable = 0
 	}
