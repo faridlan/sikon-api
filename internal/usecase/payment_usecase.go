@@ -43,26 +43,37 @@ func (u *paymentUsecase) ProcessPayment(c context.Context, input domain.PaymentC
 			return err
 		}
 
-		// 2. Hitung sisa tagihan dari pembayaran yang SUDAH VERIFIED saja
+		// 2. Hitung sisa tagihan riil (Verified + Pending dalam antrean)
 		existingPayments, err := u.paymentRepo.GetByOrderID(txCtx, input.OrderID)
 		if err != nil {
 			return err
 		}
 
 		var totalPaidVerified float64
+		var totalPaidPending float64
+
 		for _, p := range existingPayments {
-			if p.Status == domain.PaymentVerificationVerified {
+			switch p.Status {
+			case domain.PaymentVerificationVerified:
 				totalPaidVerified += p.Amount
+			case domain.PaymentVerificationPending:
+				totalPaidPending += p.Amount
 			}
 		}
 
-		sisaTagihan := order.TotalAmount - totalPaidVerified
-		if sisaTagihan <= 0 {
+		sisaTagihanRil := order.TotalAmount - totalPaidVerified
+		maxBolehInput := sisaTagihanRil - totalPaidPending
+
+		if sisaTagihanRil <= 0 {
 			return domain.NewError(domain.ErrConflict, "Pesanan ini sudah lunas sepenuhnya")
 		}
 
-		if input.Amount > sisaTagihan {
-			return domain.NewError(domain.ErrBadParamInput, fmt.Sprintf("Nominal pembayaran (Rp %.0f) melebihi sisa tagihan (Rp %.0f)", input.Amount, sisaTagihan))
+		if totalPaidPending > 0 && maxBolehInput <= 0 {
+			return domain.NewError(domain.ErrConflict, fmt.Sprintf("Masih ada pembayaran dalam antrean verifikasi Accounting sebesar (Rp %.0f). Harap tunggu verifikasi selesai sebelum menginput pembayaran baru.", totalPaidPending))
+		}
+
+		if input.Amount > maxBolehInput {
+			return domain.NewError(domain.ErrBadParamInput, fmt.Sprintf("Nominal pembayaran (Rp %.0f) melebihi sisa tagihan yang belum diverifikasi (Rp %.0f)", input.Amount, maxBolehInput))
 		}
 
 		// 3. Simpan payment baru (Status Verifikasi: Pending)
@@ -274,21 +285,43 @@ func (u *paymentUsecase) VerifyPayment(c context.Context, paymentID string, inpu
 			return err
 		}
 
-		// 1. Gembok baris Order dengan GetByIDForUpdate
+		// 1. Lock baris Order
 		order, err := u.orderRepo.GetByIDForUpdate(txCtx, payment.OrderID)
 		if err != nil {
 			return err
 		}
 
+		// 1.5. Validasi Guarding Over-payment jika aksi verifikasi disetujui (VERIFIED)
+		if input.Status == domain.PaymentVerificationVerified {
+			allExistingPayments, err := u.paymentRepo.GetByOrderID(txCtx, payment.OrderID)
+			if err != nil {
+				return err
+			}
+
+			var currentVerifiedTotal float64
+			for _, p := range allExistingPayments {
+				// Hitung total bayar yang sudah VERIFIED (selain payment yang sedang diverifikasi saat ini)
+				if p.ID != paymentID && p.Status == domain.PaymentVerificationVerified {
+					currentVerifiedTotal += p.Amount
+				}
+			}
+
+			// Cek apakah verifikasi ini akan menyebabkan over-payment
+			if (currentVerifiedTotal + payment.Amount) > order.TotalAmount {
+				sisaMaksimal := order.TotalAmount - currentVerifiedTotal
+				return domain.NewError(domain.ErrConflict, fmt.Sprintf("Gagal verifikasi: Approval ini akan menyebabkan total pembayaran (Rp %.0f) melebihi nilai pesanan (Rp %.0f). Sisa tagihan sebenarnya hanya Rp %.0f. Silakan Reject pembayaran ganda ini.", currentVerifiedTotal+payment.Amount, order.TotalAmount, sisaMaksimal))
+			}
+		}
+
 		now := time.Now()
 
-		// 2. Update status verifikasi pembayaran (dengan Guarding status pending & DB Lock)
+		// 2. Update status verifikasi pembayaran
 		err = u.paymentRepo.UpdateVerificationStatus(txCtx, paymentID, input.Status, input.VerifiedByID, now)
 		if err != nil {
 			return err
 		}
 
-		// 3. Ambil seluruh pembayaran untuk kalkulasi total bayar sah
+		// 3. Ambil seluruh pembayaran untuk kalkulasi ulang total bayar sah
 		allPayments, err := u.paymentRepo.GetByOrderID(txCtx, payment.OrderID)
 		if err != nil {
 			return err
@@ -298,13 +331,11 @@ func (u *paymentUsecase) VerifyPayment(c context.Context, paymentID string, inpu
 		var hasPendingPayment bool
 
 		for _, p := range allPayments {
-			// Evaluasi status pembayaran terkini
 			currStatus := p.Status
 			if p.ID == paymentID {
 				currStatus = input.Status
 			}
 
-			// 🚨 FIX WARNING 1 (QF1003): Menggunakan Tagged Switch pada currStatus
 			switch currStatus {
 			case domain.PaymentVerificationVerified:
 				totalPaidVerified += p.Amount
@@ -324,34 +355,57 @@ func (u *paymentUsecase) VerifyPayment(c context.Context, paymentID string, inpu
 		} else if totalPaidVerified < order.TotalAmount {
 			newPaymentStatus = domain.PaymentStatusPartial
 		} else {
-			newPaymentStatus = domain.PaymentStatusPaid
+			// Jika ada pembayaran pending lain yang belum diverifikasi, status bayar tetap 'partial'
+			if hasPendingPayment {
+				newPaymentStatus = domain.PaymentStatusPartial
+			} else {
+				newPaymentStatus = domain.PaymentStatusPaid
+			}
 		}
 
-		// Kalkulasi Status Alur Order (OrderStatus)
+		// =========================================================================
+		// 🚨 LOGICA BARU ALUR ORDER & APPROVAL
+		// =========================================================================
 		newOrderStatus := order.OrderStatus
 
-		// 🚨 FIX WARNING 2 (QF1003): Menggunakan Tagged Switch pada input.Status
 		switch input.Status {
 		case domain.PaymentVerificationVerified:
-			// Jika pembayaran DI-APPROVE dan order masih di tahap awal ('quotation' / 'pending'),
-			// Otomatis LEMPAR KE MEJA PRODUKSI ('production')!
+			// 1. ISI APPROVED_AT: Jika ini adalah pembayaran pertama yang di-approve, catat waktunya!
+			if order.ApprovedAt == nil {
+				order.ApprovedAt = &now
+			}
+
+			// 2. OTOMATIS NAIK KE PRODUCTION:
+			// Jika status order saat ini 'quotation' atau 'pending', langsung masuk meja produksi!
 			if order.OrderStatus == domain.OrderStatusQuotation || order.OrderStatus == domain.OrderStatusPending {
 				newOrderStatus = domain.OrderStatusProduction
 			}
+
+			// 3. JIKA PELUNASAN: otomatis selesaikan order ke 'completed' jika barang sudah 'ready'
+			if order.OrderStatus == domain.OrderStatusReady && newPaymentStatus == domain.PaymentStatusPaid {
+				newOrderStatus = domain.OrderStatusCompleted
+			}
+
 		case domain.PaymentVerificationRejected:
-			// Jika pembayaran DITOLAK dan tidak ada uang verified yang masuk,
-			// Dan tidak ada pembayaran pending lain, kembalikan ke 'quotation'
+			// Jika pembayaran DITOLAK dan tidak ada uang verified sama sekali
 			if totalPaidVerified <= 0 && !hasPendingPayment {
-				if order.OrderStatus == domain.OrderStatusPending {
+				// Turunkan kembali ke quotation dan HAPUS approved_at
+				if order.OrderStatus == domain.OrderStatusPending || order.OrderStatus == domain.OrderStatusProduction {
 					newOrderStatus = domain.OrderStatusQuotation
+					order.ApprovedAt = nil
 				}
 			}
 		}
 
-		// 4. Update status order ke database
-		if err := u.orderRepo.UpdateStatus(txCtx, order.ID, newOrderStatus, newPaymentStatus); err != nil {
+		// 4. Update data Order secara utuh ke database (MENGGUNAKAN UPDATE, BUKAN UPDATESTATUS)
+		// Supaya field ApprovedAt ikut tersimpan ke PostgreSQL.
+		order.OrderStatus = newOrderStatus
+		order.PaymentStatus = newPaymentStatus
+
+		if err := u.orderRepo.Update(txCtx, order); err != nil {
 			return err
 		}
+		// =========================================================================
 
 		payment.Status = input.Status
 		payment.VerifiedByID = &input.VerifiedByID
