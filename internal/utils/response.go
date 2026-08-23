@@ -68,6 +68,8 @@ func SendError(c *fiber.Ctx, statusCode int, message string, detail ...string) e
 
 func HandleDomainError(c *fiber.Ctx, err error) error {
 	switch {
+	case errors.Is(err, domain.ErrUnauthorized):
+		return SendError(c, fiber.StatusUnauthorized, err.Error())
 	case errors.Is(err, domain.ErrNotFound):
 		return SendError(c, fiber.StatusNotFound, err.Error())
 
