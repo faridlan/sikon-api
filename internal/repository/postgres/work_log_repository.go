@@ -28,11 +28,26 @@ func (r *workLogRepository) Create(ctx context.Context, log *domain.WorkLog) err
 	return nil
 }
 
+// 🚨 BATCH INSERT: Untuk Auto Distribute Load
+func (r *workLogRepository) CreateBatch(ctx context.Context, logs []domain.WorkLog) error {
+	var models []WorkLogModel
+	for _, l := range logs {
+		models = append(models, *FromWorkLogDomain(&l))
+	}
+
+	if err := r.db.WithContext(ctx).Create(&models).Error; err != nil {
+		return TranslateError(err)
+	}
+
+	return nil
+}
+
 func (r *workLogRepository) GetByID(ctx context.Context, id string) (*domain.WorkLog, error) {
 	var model WorkLogModel
 	err := r.db.WithContext(ctx).
 		Preload("Worker").
 		Preload("BatchPO").
+		Preload("Order"). // 👈 Preload Order
 		Preload("Creator").
 		Where("id = ?", id).
 		First(&model).Error
@@ -58,6 +73,10 @@ func (r *workLogRepository) Fetch(ctx context.Context, filter domain.WorkLogFilt
 		query = query.Where("batch_po_id = ?", *filter.BatchPoID)
 	}
 
+	if filter.OrderID != nil && *filter.OrderID != "" {
+		query = query.Where("order_id = ?", *filter.OrderID)
+	}
+
 	if filter.PayrollID != nil && *filter.PayrollID != "" {
 		query = query.Where("payroll_id = ?", *filter.PayrollID)
 	}
@@ -81,6 +100,9 @@ func (r *workLogRepository) Fetch(ctx context.Context, filter domain.WorkLogFilt
 	err := query.
 		Preload("Worker").
 		Preload("BatchPO").
+		Preload("Order").          // 👈 Preload Order Utama
+		Preload("Order.Customer"). // 👈 NESTED PRELOAD: Ambil Customer di dalam Order
+		Preload("Order.Sales").    // 👈 NESTED PRELOAD: Ambil Sales di dalam Order
 		Preload("Creator").
 		Order("work_date DESC, created_at DESC").
 		Limit(limit).
@@ -105,9 +127,10 @@ func (r *workLogRepository) Update(ctx context.Context, log *domain.WorkLog) err
 	result := r.db.WithContext(ctx).
 		Model(&WorkLogModel{}).
 		Where("id = ?", log.ID).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"worker_id":    model.WorkerID,
 			"batch_po_id":  model.BatchPoID,
+			"order_id":     model.OrderID, // 👈 Update OrderID
 			"job_type":     model.JobType,
 			"qty":          model.Qty,
 			"rate_per_qty": model.RatePerQty,
@@ -137,4 +160,52 @@ func (r *workLogRepository) Delete(ctx context.Context, id string) error {
 		return domain.ErrNotFound
 	}
 	return nil
+}
+
+// 🚨 HELPER 1: Guard Akumulasi Qty per Order Konsumen & JobType
+func (r *workLogRepository) GetTotalQtyByOrderAndJobType(ctx context.Context, orderID string, jobType domain.JobType, excludeLogID string) (int, error) {
+	var totalQty int
+	query := r.db.WithContext(ctx).Model(&WorkLogModel{}).
+		Where("order_id = ? AND job_type = ? AND deleted_at IS NULL", orderID, jobType)
+
+	if excludeLogID != "" {
+		query = query.Where("id != ?", excludeLogID)
+	}
+
+	err := query.Select("COALESCE(SUM(qty), 0)").Scan(&totalQty).Error
+	if err != nil {
+		return 0, TranslateError(err)
+	}
+
+	return totalQty, nil
+}
+
+// 🚨 HELPER 2: Total Biaya Borongan per Order Spesifik
+func (r *workLogRepository) GetTotalCostByOrder(ctx context.Context, orderID string) (float64, error) {
+	var totalCost float64
+	err := r.db.WithContext(ctx).Model(&WorkLogModel{}).
+		Where("order_id = ? AND deleted_at IS NULL", orderID).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&totalCost).Error
+
+	if err != nil {
+		return 0, TranslateError(err)
+	}
+
+	return totalCost, nil
+}
+
+// 🚨 HELPER 3: Total Biaya Borongan Seluruh PO
+func (r *workLogRepository) GetTotalCostByBatchPO(ctx context.Context, batchPoID string) (float64, error) {
+	var totalCost float64
+	err := r.db.WithContext(ctx).Model(&WorkLogModel{}).
+		Where("batch_po_id = ? AND deleted_at IS NULL", batchPoID).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&totalCost).Error
+
+	if err != nil {
+		return 0, TranslateError(err)
+	}
+
+	return totalCost, nil
 }

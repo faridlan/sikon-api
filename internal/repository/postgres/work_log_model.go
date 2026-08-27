@@ -11,6 +11,7 @@ type WorkLogModel struct {
 	ID          string         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	WorkerID    string         `gorm:"type:uuid;not null"`
 	BatchPoID   *string        `gorm:"type:uuid"`
+	OrderID     *string        `gorm:"type:uuid"` // 👈 TAMBAHKAN KOLOML INI
 	PayrollID   *string        `gorm:"type:uuid"`
 	JobType     string         `gorm:"type:varchar(50);not null"`
 	Qty         int            `gorm:"not null;default:1"`
@@ -26,7 +27,8 @@ type WorkLogModel struct {
 	// Relasi (Preload)
 	Worker  *WorkerModel  `gorm:"foreignKey:WorkerID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 	BatchPO *BatchPOModel `gorm:"foreignKey:BatchPoID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Payroll *PayrollModel `gorm:"foreignKey:PayrollID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` // 👈 TAMBAHKAN RELASI & CONSTRAINT INI
+	Order   *OrderModel   `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` // 👈 RELASI ORDER
+	Payroll *PayrollModel `gorm:"foreignKey:PayrollID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Creator *UserModel    `gorm:"foreignKey:CreatedByID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 }
 
@@ -39,6 +41,7 @@ func (m *WorkLogModel) ToDomain() *domain.WorkLog {
 		ID:          m.ID,
 		WorkerID:    m.WorkerID,
 		BatchPoID:   m.BatchPoID,
+		OrderID:     m.OrderID, // 👈 MAPPER TO DOMAIN
 		PayrollID:   m.PayrollID,
 		JobType:     domain.JobType(m.JobType),
 		Qty:         m.Qty,
@@ -59,6 +62,10 @@ func (m *WorkLogModel) ToDomain() *domain.WorkLog {
 		log.BatchPO = m.BatchPO.ToDomain()
 	}
 
+	if m.Order != nil {
+		log.Order = m.Order.ToDomain() // 👈 PRELOAD ORDER
+	}
+
 	if m.Creator != nil {
 		log.Creator = m.Creator.ToDomain()
 	}
@@ -71,6 +78,7 @@ func FromWorkLogDomain(d *domain.WorkLog) *WorkLogModel {
 		ID:          d.ID,
 		WorkerID:    d.WorkerID,
 		BatchPoID:   d.BatchPoID,
+		OrderID:     d.OrderID, // 👈 MAPPER FROM DOMAIN
 		PayrollID:   d.PayrollID,
 		JobType:     string(d.JobType),
 		Qty:         d.Qty,

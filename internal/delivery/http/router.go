@@ -181,6 +181,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	// --- Work Logs Routes (Khusus Finance/Accounting & Owner) ---
 	workLogsGroup := api.Group("/work-logs")
 	workLogsGroup.Post("/", guardFinance, handlers.WorkLogHandler.CreateWorkLog)
+	workLogsGroup.Post("/distribute", guardFinance, handlers.WorkLogHandler.DistributeWorkLoad)
 	workLogsGroup.Get("/", guardFinance, handlers.WorkLogHandler.ListWorkLogs)
 	workLogsGroup.Get("/:id", guardFinance, handlers.WorkLogHandler.GetWorkLog)
 	workLogsGroup.Put("/:id", guardFinance, handlers.WorkLogHandler.UpdateWorkLog)

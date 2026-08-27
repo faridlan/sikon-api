@@ -137,7 +137,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	uploadUsecase := usecase.NewUploadUsecase(storageService, timeout)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, timeout)
 	workerUsecase := usecase.NewWorkerUsecase(workerRepo, timeout)
-	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, timeout)
+	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, orderRepo, batchPORepo, timeout)
 	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, timeout)
 
 	// 3. Setup Fiber Handlers

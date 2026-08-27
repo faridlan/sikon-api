@@ -275,3 +275,32 @@ func (r *orderRepository) GetByIDForUpdate(ctx context.Context, id string) (*dom
 
 	return model.ToDomain(), nil
 }
+
+func (r *orderRepository) GetByBatchPOID(ctx context.Context, batchPoID string) ([]domain.Order, error) {
+	var models []OrderModel
+
+	// Ambil order aktif yang ada di Batch PO tersebut beserta relasi Customer & Sales
+	err := r.db.WithContext(ctx).
+		Select("orders.*, (SELECT COALESCE(SUM(qty), 0) FROM order_items WHERE order_items.order_id = orders.id AND order_items.deleted_at IS NULL) AS total_qty").
+		Preload("Customer"). // 👈 Preload relasi Customer
+		Preload("Sales").    // 👈 Preload relasi Sales (User)
+		Where("batch_po_id = ? AND order_status IN (?, ?, ?) AND deleted_at IS NULL",
+			batchPoID,
+			domain.OrderStatusProduction,
+			domain.OrderStatusReady,
+			domain.OrderStatusCompleted,
+		).
+		Order("created_at ASC").
+		Find(&models).Error
+
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+
+	orders := make([]domain.Order, len(models))
+	for i, m := range models {
+		orders[i] = *m.ToDomain()
+	}
+
+	return orders, nil
+}

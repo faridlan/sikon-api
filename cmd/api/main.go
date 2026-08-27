@@ -133,7 +133,7 @@ func main() {
 	uploadUsecase := usecase.NewUploadUsecase(storageService, contextTimeout)
 	expenseUsecase := usecase.NewExpenseUsecase(expenseRepo, contextTimeout)
 	workerUsecase := usecase.NewWorkerUsecase(workerRepo, contextTimeout)
-	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, contextTimeout)
+	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, orderRepo, batchPORepo, contextTimeout)
 	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, contextTimeout)
 
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
