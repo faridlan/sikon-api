@@ -1728,6 +1728,10 @@ definitions:
       notes:
         example: Tambahan resleting dada
         type: string
+      order_id:
+        description: "\U0001F448 Tambah OrderID"
+        example: 990e8400-e29b-41d4-a716-446655440000
+        type: string
       qty:
         example: 5
         type: integer
@@ -1746,6 +1750,38 @@ definitions:
     - rate_per_qty
     - work_date
     - worker_id
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogDistributeRequest:
+    properties:
+      batch_po_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      job_type:
+        enum:
+        - jahit
+        - potong
+        - bordir
+        - finishing
+        example: jahit
+        type: string
+      notes:
+        example: Pembagian otomatis borongan
+        type: string
+      rate_per_qty:
+        example: 12000
+        type: number
+      work_date:
+        example: "2026-08-20"
+        type: string
+      worker_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - batch_po_id
+    - job_type
+    - rate_per_qty
+    - worker_ids
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogResponse:
     properties:
@@ -1770,6 +1806,14 @@ definitions:
         type: string
       notes:
         example: Tambahan resleting dada
+        type: string
+      order:
+        allOf:
+        - $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse'
+        description: "\U0001F448 Tambah Preload Order Response"
+      order_id:
+        description: "\U0001F448 Tambah OrderID"
+        example: 990e8400-e29b-41d4-a716-446655440000
         type: string
       payroll_id:
         example: 880e8400-e29b-41d4-a716-446655440000
@@ -1810,6 +1854,10 @@ definitions:
         type: string
       notes:
         example: Tambahan resleting dada
+        type: string
+      order_id:
+        description: "\U0001F448 Tambah OrderID"
+        example: 990e8400-e29b-41d4-a716-446655440000
         type: string
       qty:
         example: 5
@@ -2147,6 +2195,15 @@ definitions:
       data:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse'
+        type: array
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogResponse'
         type: array
       message:
         type: string
@@ -5450,6 +5507,10 @@ paths:
         in: query
         name: batch_po_id
         type: string
+      - description: Filter Order Konsumen (UUID)
+        in: query
+        name: order_id
+        type: string
       - description: Filter Payroll (UUID)
         in: query
         name: payroll_id
@@ -5636,6 +5697,41 @@ paths:
       security:
       - BearerAuth: []
       summary: Update Work Log
+      tags:
+      - Work Logs
+  /work-logs/distribute:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Payload Auto Distribute Borongan
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogDistributeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Auto Distribute Work Load per Batch PO
       tags:
       - Work Logs
   /workers:
