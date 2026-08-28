@@ -22,9 +22,10 @@ type PayrollModel struct {
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
 
 	// Relasi (Preload)
-	Creator  *UserModel     `gorm:"foreignKey:CreatedByID"`
-	Expense  *ExpenseModel  `gorm:"foreignKey:ExpenseID"`
-	WorkLogs []WorkLogModel `gorm:"foreignKey:PayrollID"`
+	Creator     *UserModel        `gorm:"foreignKey:CreatedByID"`
+	Expense     *ExpenseModel     `gorm:"foreignKey:ExpenseID"`
+	WorkLogs    []WorkLogModel    `gorm:"foreignKey:PayrollID"`
+	Attendances []AttendanceModel `gorm:"foreignKey:PayrollID"` // 👈 Relasi ke Attendances
 }
 
 func (PayrollModel) TableName() string {
@@ -60,6 +61,14 @@ func (m *PayrollModel) ToDomain() *domain.Payroll {
 			logs = append(logs, *wl.ToDomain())
 		}
 		payroll.WorkLogs = logs
+	}
+
+	if len(m.Attendances) > 0 {
+		var atts []domain.Attendance
+		for _, att := range m.Attendances {
+			atts = append(atts, *att.ToDomain())
+		}
+		payroll.Attendances = atts
 	}
 
 	return payroll

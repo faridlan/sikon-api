@@ -16,17 +16,17 @@ type PayrollRepository struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: ctx, payroll, workLogIDs
-func (_m *PayrollRepository) Create(ctx context.Context, payroll *domain.Payroll, workLogIDs []string) error {
-	ret := _m.Called(ctx, payroll, workLogIDs)
+// Create provides a mock function with given fields: ctx, payroll, workLogIDs, attendanceIDs
+func (_m *PayrollRepository) Create(ctx context.Context, payroll *domain.Payroll, workLogIDs []string, attendanceIDs []string) error {
+	ret := _m.Called(ctx, payroll, workLogIDs, attendanceIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.Payroll, []string) error); ok {
-		r0 = rf(ctx, payroll, workLogIDs)
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.Payroll, []string, []string) error); ok {
+		r0 = rf(ctx, payroll, workLogIDs, attendanceIDs)
 	} else {
 		r0 = ret.Error(0)
 	}

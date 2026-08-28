@@ -7496,10 +7496,18 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "end_date",
-                "start_date",
-                "work_log_ids"
+                "start_date"
             ],
             "properties": {
+                "attendance_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"880e8400-e29b-41d4-a716-446655440000\"]"
+                    ]
+                },
                 "end_date": {
                     "type": "string",
                     "example": "2026-08-20"
@@ -7510,7 +7518,6 @@ const docTemplate = `{
                 },
                 "work_log_ids": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "type": "string"
                     },
@@ -7523,6 +7530,13 @@ const docTemplate = `{
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollResponse": {
             "type": "object",
             "properties": {
+                "attendances": {
+                    "description": "👈 Tambahkan array Attendance Response",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceResponse"
+                    }
+                },
                 "created_at": {
                     "type": "string",
                     "example": "2026-08-20T15:00:00Z"

@@ -1125,6 +1125,12 @@ definitions:
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollCreateRequest:
     properties:
+      attendance_ids:
+        example:
+        - '["880e8400-e29b-41d4-a716-446655440000"]'
+        items:
+          type: string
+        type: array
       end_date:
         example: "2026-08-20"
         type: string
@@ -1136,15 +1142,18 @@ definitions:
         - '["770e8400-e29b-41d4-a716-446655440000"]'
         items:
           type: string
-        minItems: 1
         type: array
     required:
     - end_date
     - start_date
-    - work_log_ids
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.PayrollResponse:
     properties:
+      attendances:
+        description: "\U0001F448 Tambahkan array Attendance Response"
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceResponse'
+        type: array
       created_at:
         example: "2026-08-20T15:00:00Z"
         type: string
