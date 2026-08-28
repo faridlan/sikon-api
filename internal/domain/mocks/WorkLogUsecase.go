@@ -62,6 +62,36 @@ func (_m *WorkLogUsecase) DeleteWorkLog(ctx context.Context, id string) error {
 	return r0
 }
 
+// DistributeWorkLoad provides a mock function with given fields: ctx, input
+func (_m *WorkLogUsecase) DistributeWorkLoad(ctx context.Context, input domain.DistributeWorkLoadInput) ([]domain.WorkLog, error) {
+	ret := _m.Called(ctx, input)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DistributeWorkLoad")
+	}
+
+	var r0 []domain.WorkLog
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.DistributeWorkLoadInput) ([]domain.WorkLog, error)); ok {
+		return rf(ctx, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, domain.DistributeWorkLoadInput) []domain.WorkLog); ok {
+		r0 = rf(ctx, input)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.WorkLog)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, domain.DistributeWorkLoadInput) error); ok {
+		r1 = rf(ctx, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetWorkLog provides a mock function with given fields: ctx, id
 func (_m *WorkLogUsecase) GetWorkLog(ctx context.Context, id string) (*domain.WorkLog, error) {
 	ret := _m.Called(ctx, id)

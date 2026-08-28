@@ -14,11 +14,20 @@ import (
 	"github.com/faridlan/sikon-api/internal/usecase"
 )
 
+func newWorkLogUsecaseForTest(
+	workLogRepo domain.WorkLogRepository,
+	workerRepo domain.WorkerRepository,
+	orderRepo domain.OrderRepository,
+	batchPORepo domain.BatchPORepository,
+) domain.WorkLogUsecase {
+	return usecase.NewWorkLogUsecase(workLogRepo, workerRepo, orderRepo, batchPORepo, time.Second*2)
+}
+
 func TestWorkLogUsecase_CreateWorkLog(t *testing.T) {
 	t.Run("Success - Auto Calculate Total Amount", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		workerID := "worker-uuid-1"
 		mockWorker := &domain.Worker{ID: workerID, Name: "Mang Wahyu"}
@@ -49,7 +58,7 @@ func TestWorkLogUsecase_CreateWorkLog(t *testing.T) {
 	t.Run("Error - Worker Not Found", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		workerID := "invalid-worker"
 		mockWorkerRepo.On("GetByID", mock.Anything, workerID).Return(nil, domain.ErrNotFound).Once()
@@ -71,7 +80,7 @@ func TestWorkLogUsecase_CreateWorkLog(t *testing.T) {
 	t.Run("Error - Bad Param (Invalid Qty Or Rate)", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		input := domain.WorkLogCreateInput{
 			WorkerID:   "worker-uuid-1",
@@ -87,11 +96,74 @@ func TestWorkLogUsecase_CreateWorkLog(t *testing.T) {
 	})
 }
 
+func TestWorkLogUsecase_DistributeWorkLoad(t *testing.T) {
+	t.Run("Success - Distribute Remaining Qty Across Workers", func(t *testing.T) {
+		workLogRepo := new(mocks.WorkLogRepository)
+		workerRepo := new(mocks.WorkerRepository)
+		orderRepo := new(mocks.OrderRepository)
+		batchPORepo := new(mocks.BatchPORepository)
+		uc := newWorkLogUsecaseForTest(workLogRepo, workerRepo, orderRepo, batchPORepo)
+
+		batchPOID := "batch-po-1"
+		workerIDs := []string{"worker-1", "worker-2"}
+		orders := []domain.Order{
+			{ID: "order-1", OrderNumber: "ORD-001", TotalQty: 7},
+			{ID: "order-2", OrderNumber: "ORD-002", TotalQty: 3},
+		}
+		orderRepo.On("GetByBatchPOID", mock.Anything, batchPOID).Return(orders, nil).Once()
+		workLogRepo.On("GetTotalQtyByOrderAndJobType", mock.Anything, "order-1", domain.JobTypeJahit, "").Return(0, nil).Once()
+		workLogRepo.On("GetTotalQtyByOrderAndJobType", mock.Anything, "order-2", domain.JobTypeJahit, "").Return(0, nil).Once()
+		workLogRepo.On("CreateBatch", mock.Anything, mock.MatchedBy(func(logs []domain.WorkLog) bool {
+			if len(logs) != 3 {
+				return false
+			}
+			qtyByWorker := map[string]int{}
+			totalQty := 0
+			for _, log := range logs {
+				if log.BatchPoID == nil || *log.BatchPoID != batchPOID || log.OrderID == nil || log.RatePerQty != 12000 {
+					return false
+				}
+				qtyByWorker[log.WorkerID] += log.Qty
+				totalQty += log.Qty
+			}
+			return totalQty == 10 && qtyByWorker[workerIDs[0]] == 5 && qtyByWorker[workerIDs[1]] == 5
+		})).Return(nil).Once()
+
+		logs, err := uc.DistributeWorkLoad(context.Background(), domain.DistributeWorkLoadInput{
+			BatchPOID:  batchPOID,
+			JobType:    domain.JobTypeJahit,
+			WorkerIDs:  workerIDs,
+			RatePerQty: 12000,
+			WorkDate:   time.Now(),
+		})
+
+		assert.NoError(t, err)
+		assert.Len(t, logs, 3)
+		workLogRepo.AssertExpectations(t)
+		orderRepo.AssertExpectations(t)
+	})
+
+	t.Run("Error - No Orders In Batch PO", func(t *testing.T) {
+		workLogRepo := new(mocks.WorkLogRepository)
+		orderRepo := new(mocks.OrderRepository)
+		uc := newWorkLogUsecaseForTest(workLogRepo, new(mocks.WorkerRepository), orderRepo, new(mocks.BatchPORepository))
+		orderRepo.On("GetByBatchPOID", mock.Anything, "batch-po-1").Return([]domain.Order{}, nil).Once()
+
+		logs, err := uc.DistributeWorkLoad(context.Background(), domain.DistributeWorkLoadInput{
+			BatchPOID: "batch-po-1", JobType: domain.JobTypeJahit, WorkerIDs: []string{"worker-1"}, RatePerQty: 1000,
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, logs)
+		orderRepo.AssertExpectations(t)
+	})
+}
+
 func TestWorkLogUsecase_GetWorkLog(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		mockLog := &domain.WorkLog{ID: "wl-uuid-123", Qty: 10, TotalAmount: 120000}
 		mockWorkLogRepo.On("GetByID", mock.Anything, "wl-uuid-123").Return(mockLog, nil).Once()
@@ -107,7 +179,7 @@ func TestWorkLogUsecase_GetWorkLog(t *testing.T) {
 	t.Run("Error - Empty ID", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		result, err := uc.GetWorkLog(context.Background(), "")
 
@@ -120,7 +192,7 @@ func TestWorkLogUsecase_ListWorkLogs(t *testing.T) {
 	t.Run("Success - Fetch Data With Pagination", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		query := domain.PaginationQuery{Page: 1, Limit: 10}
 		workerID := "worker-uuid-1"
@@ -144,7 +216,7 @@ func TestWorkLogUsecase_ListWorkLogs(t *testing.T) {
 	t.Run("Error - Repository Failed", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		query := domain.PaginationQuery{Page: 1, Limit: 10}
 		filter := domain.WorkLogFilter{}
@@ -165,7 +237,7 @@ func TestWorkLogUsecase_UpdateWorkLog(t *testing.T) {
 	t.Run("Success - Update WorkLog & Recalculate Total Amount", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		logID := "wl-uuid-1"
 		existingLog := &domain.WorkLog{
@@ -200,7 +272,7 @@ func TestWorkLogUsecase_UpdateWorkLog(t *testing.T) {
 	t.Run("Error - Cannot Update Already Paid WorkLog", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		logID := "wl-uuid-paid"
 		payrollID := "payroll-uuid-1"
@@ -225,7 +297,7 @@ func TestWorkLogUsecase_DeleteWorkLog(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		logID := "wl-uuid-1"
 		existingLog := &domain.WorkLog{ID: logID, PayrollID: nil}
@@ -242,7 +314,7 @@ func TestWorkLogUsecase_DeleteWorkLog(t *testing.T) {
 	t.Run("Error - Cannot Delete Already Paid WorkLog", func(t *testing.T) {
 		mockWorkLogRepo := new(mocks.WorkLogRepository)
 		mockWorkerRepo := new(mocks.WorkerRepository)
-		uc := usecase.NewWorkLogUsecase(mockWorkLogRepo, mockWorkerRepo, time.Second*2)
+		uc := newWorkLogUsecaseForTest(mockWorkLogRepo, mockWorkerRepo, new(mocks.OrderRepository), new(mocks.BatchPORepository))
 
 		logID := "wl-uuid-paid"
 		payrollID := "payroll-uuid-1"

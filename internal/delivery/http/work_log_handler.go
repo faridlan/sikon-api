@@ -12,6 +12,7 @@ import (
 
 type WorkLogHandler interface {
 	CreateWorkLog(c *fiber.Ctx) error
+	DistributeWorkLoad(c *fiber.Ctx) error // 👈 Tambah Interface Distribute
 	GetWorkLog(c *fiber.Ctx) error
 	ListWorkLogs(c *fiber.Ctx) error
 	UpdateWorkLog(c *fiber.Ctx) error
@@ -56,6 +57,7 @@ func (h *workLogHandler) CreateWorkLog(c *fiber.Ctx) error {
 	input := domain.WorkLogCreateInput{
 		WorkerID:    req.WorkerID,
 		BatchPoID:   req.BatchPoID,
+		OrderID:     req.OrderID, // 👈 Map OrderID
 		JobType:     domain.JobType(req.JobType),
 		Qty:         req.Qty,
 		RatePerQty:  req.RatePerQty,
@@ -70,6 +72,55 @@ func (h *workLogHandler) CreateWorkLog(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil mencatat hasil kerja borongan", dto.ToWorkLogResponse(log))
+}
+
+// @Summary Auto Distribute Work Load per Batch PO
+// @Tags Work Logs
+// @Accept json
+// @Produce json
+// @Param request body dto.WorkLogDistributeRequest true "Payload Auto Distribute Borongan"
+// @Success 201 {object} utils.SuccessResponse[[]dto.WorkLogResponse]
+// @Failure 400 {object} utils.ErrorResponse "Bad Request"
+// @Failure 401 {object} utils.ErrorResponse "Unauthorized"
+// @Failure 500 {object} utils.ErrorResponse "Internal Server Error"
+// @Security BearerAuth
+// @Router /work-logs/distribute [post]
+func (h *workLogHandler) DistributeWorkLoad(c *fiber.Ctx) error {
+	var req dto.WorkLogDistributeRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, "Gagal memparsing request body")
+	}
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	userID, _ := c.Locals("userID").(string)
+
+	var workDate time.Time
+	if req.WorkDate != "" {
+		parsed, err := time.Parse("2006-01-02", req.WorkDate)
+		if err != nil {
+			return utils.SendError(c, fiber.StatusBadRequest, "Format work_date harus YYYY-MM-DD")
+		}
+		workDate = parsed
+	}
+
+	input := domain.DistributeWorkLoadInput{
+		BatchPOID:   req.BatchPOID,
+		JobType:     domain.JobType(req.JobType),
+		WorkerIDs:   req.WorkerIDs,
+		RatePerQty:  req.RatePerQty,
+		WorkDate:    workDate,
+		Notes:       req.Notes,
+		CreatedByID: userID,
+	}
+
+	logs, err := h.workLogUsecase.DistributeWorkLoad(c.Context(), input)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+
+	return utils.SendSuccess(c, fiber.StatusCreated, "Berhasil mendistribusikan beban borongan secara otomatis", dto.ToWorkLogResponseList(logs))
 }
 
 // @Summary Get Work Log Detail
@@ -104,6 +155,7 @@ func (h *workLogHandler) GetWorkLog(c *fiber.Ctx) error {
 // @Param limit query int false "Limit" default(10)
 // @Param worker_id query string false "Filter Pekerja (UUID)"
 // @Param batch_po_id query string false "Filter Batch PO (UUID)"
+// @Param order_id query string false "Filter Order Konsumen (UUID)"
 // @Param payroll_id query string false "Filter Payroll (UUID)"
 // @Param is_unpaid query boolean false "Filter hanya yang belum digaji (payroll_id null)"
 // @Param job_type query string false "Filter Jenis Pekerjaan (jahit, potong, bordir, finishing)"
@@ -120,12 +172,15 @@ func (h *workLogHandler) ListWorkLogs(c *fiber.Ctx) error {
 		Limit: c.QueryInt("limit", 10),
 	}
 
-	var workerID, batchPoID, payrollID *string
+	var workerID, batchPoID, orderID, payrollID *string
 	if w := c.Query("worker_id"); w != "" {
 		workerID = &w
 	}
 	if b := c.Query("batch_po_id"); b != "" {
 		batchPoID = &b
+	}
+	if o := c.Query("order_id"); o != "" { // 👈 Filter OrderID
+		orderID = &o
 	}
 	if p := c.Query("payroll_id"); p != "" {
 		payrollID = &p
@@ -147,6 +202,7 @@ func (h *workLogHandler) ListWorkLogs(c *fiber.Ctx) error {
 	filter := domain.WorkLogFilter{
 		WorkerID:  workerID,
 		BatchPoID: batchPoID,
+		OrderID:   orderID, // 👈 Send to Filter
 		PayrollID: payrollID,
 		JobType:   domain.JobType(c.Query("job_type")),
 		StartDate: startDate,
@@ -201,6 +257,7 @@ func (h *workLogHandler) UpdateWorkLog(c *fiber.Ctx) error {
 	input := domain.WorkLogUpdateInput{
 		WorkerID:   req.WorkerID,
 		BatchPoID:  req.BatchPoID,
+		OrderID:    req.OrderID, // 👈 Map OrderID
 		JobType:    domain.JobType(req.JobType),
 		Qty:        req.Qty,
 		RatePerQty: req.RatePerQty,

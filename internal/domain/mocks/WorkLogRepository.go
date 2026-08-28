@@ -32,6 +32,24 @@ func (_m *WorkLogRepository) Create(ctx context.Context, log *domain.WorkLog) er
 	return r0
 }
 
+// CreateBatch provides a mock function with given fields: ctx, logs
+func (_m *WorkLogRepository) CreateBatch(ctx context.Context, logs []domain.WorkLog) error {
+	ret := _m.Called(ctx, logs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBatch")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []domain.WorkLog) error); ok {
+		r0 = rf(ctx, logs)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Delete provides a mock function with given fields: ctx, id
 func (_m *WorkLogRepository) Delete(ctx context.Context, id string) error {
 	ret := _m.Called(ctx, id)
@@ -110,6 +128,90 @@ func (_m *WorkLogRepository) GetByID(ctx context.Context, id string) (*domain.Wo
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTotalCostByBatchPO provides a mock function with given fields: ctx, batchPoID
+func (_m *WorkLogRepository) GetTotalCostByBatchPO(ctx context.Context, batchPoID string) (float64, error) {
+	ret := _m.Called(ctx, batchPoID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTotalCostByBatchPO")
+	}
+
+	var r0 float64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (float64, error)); ok {
+		return rf(ctx, batchPoID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) float64); ok {
+		r0 = rf(ctx, batchPoID)
+	} else {
+		r0 = ret.Get(0).(float64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, batchPoID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTotalCostByOrder provides a mock function with given fields: ctx, orderID
+func (_m *WorkLogRepository) GetTotalCostByOrder(ctx context.Context, orderID string) (float64, error) {
+	ret := _m.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTotalCostByOrder")
+	}
+
+	var r0 float64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (float64, error)); ok {
+		return rf(ctx, orderID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) float64); ok {
+		r0 = rf(ctx, orderID)
+	} else {
+		r0 = ret.Get(0).(float64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, orderID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTotalQtyByOrderAndJobType provides a mock function with given fields: ctx, orderID, jobType, excludeLogID
+func (_m *WorkLogRepository) GetTotalQtyByOrderAndJobType(ctx context.Context, orderID string, jobType domain.JobType, excludeLogID string) (int, error) {
+	ret := _m.Called(ctx, orderID, jobType, excludeLogID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTotalQtyByOrderAndJobType")
+	}
+
+	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.JobType, string) (int, error)); ok {
+		return rf(ctx, orderID, jobType, excludeLogID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, domain.JobType, string) int); ok {
+		r0 = rf(ctx, orderID, jobType, excludeLogID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, domain.JobType, string) error); ok {
+		r1 = rf(ctx, orderID, jobType, excludeLogID)
 	} else {
 		r1 = ret.Error(1)
 	}

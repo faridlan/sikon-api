@@ -123,6 +123,36 @@ func (_m *OrderRepository) Fetch(ctx context.Context, filter domain.OrderFilter,
 	return r0, r1, r2
 }
 
+// GetByBatchPOID provides a mock function with given fields: ctx, batchPoID
+func (_m *OrderRepository) GetByBatchPOID(ctx context.Context, batchPoID string) ([]domain.Order, error) {
+	ret := _m.Called(ctx, batchPoID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByBatchPOID")
+	}
+
+	var r0 []domain.Order
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]domain.Order, error)); ok {
+		return rf(ctx, batchPoID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []domain.Order); ok {
+		r0 = rf(ctx, batchPoID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.Order)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, batchPoID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetByID provides a mock function with given fields: ctx, id
 func (_m *OrderRepository) GetByID(ctx context.Context, id string) (*domain.Order, error) {
 	ret := _m.Called(ctx, id)

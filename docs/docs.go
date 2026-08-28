@@ -4837,6 +4837,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Filter Order Konsumen (UUID)",
+                        "name": "order_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Filter Payroll (UUID)",
                         "name": "payroll_id",
                         "in": "query"
@@ -4919,6 +4925,62 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/work-logs/distribute": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Work Logs"
+                ],
+                "summary": "Auto Distribute Work Load per Batch PO",
+                "parameters": [
+                    {
+                        "description": "Payload Auto Distribute Borongan",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogDistributeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse"
                         }
                     },
                     "400": {
@@ -7947,6 +8009,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Tambahan resleting dada"
                 },
+                "order_id": {
+                    "description": "👈 Tambah OrderID",
+                    "type": "string",
+                    "example": "990e8400-e29b-41d4-a716-446655440000"
+                },
                 "qty": {
                     "type": "integer",
                     "example": 5
@@ -7962,6 +8029,49 @@ const docTemplate = `{
                 "worker_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogDistributeRequest": {
+            "type": "object",
+            "required": [
+                "batch_po_id",
+                "job_type",
+                "rate_per_qty",
+                "worker_ids"
+            ],
+            "properties": {
+                "batch_po_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "job_type": {
+                    "type": "string",
+                    "enum": [
+                        "jahit",
+                        "potong",
+                        "bordir",
+                        "finishing"
+                    ],
+                    "example": "jahit"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Pembagian otomatis borongan"
+                },
+                "rate_per_qty": {
+                    "type": "number",
+                    "example": 12000
+                },
+                "work_date": {
+                    "type": "string",
+                    "example": "2026-08-20"
+                },
+                "worker_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -7997,6 +8107,19 @@ const docTemplate = `{
                 "notes": {
                     "type": "string",
                     "example": "Tambahan resleting dada"
+                },
+                "order": {
+                    "description": "👈 Tambah Preload Order Response",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse"
+                        }
+                    ]
+                },
+                "order_id": {
+                    "description": "👈 Tambah OrderID",
+                    "type": "string",
+                    "example": "990e8400-e29b-41d4-a716-446655440000"
                 },
                 "payroll_id": {
                     "type": "string",
@@ -8051,6 +8174,11 @@ const docTemplate = `{
                 "notes": {
                     "type": "string",
                     "example": "Tambahan resleting dada"
+                },
+                "order_id": {
+                    "description": "👈 Tambah OrderID",
+                    "type": "string",
+                    "example": "990e8400-e29b-41d4-a716-446655440000"
                 },
                 "qty": {
                     "type": "integer",
@@ -8551,6 +8679,20 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SalesReportItemResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_WorkLogResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkLogResponse"
                     }
                 },
                 "message": {

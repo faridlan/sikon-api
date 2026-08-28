@@ -93,6 +93,62 @@ func TestCreateWorkLog_Integration(t *testing.T) {
 	})
 }
 
+func TestDistributeWorkLog_Integration(t *testing.T) {
+	app, db := tests.SetupTestApp()
+	tests.ClearTables(db)
+
+	sales := tests.SeedUser(db, "Sales Distribusi", "sales-distribute@example.com", "sales")
+	customer := tests.SeedCustomerWithSales(db, "Customer Distribusi", "081234567890", "Bandung", sales.ID)
+	category := tests.SeedCategory(db, "Kategori Distribusi")
+	product := tests.SeedProduct(db, category.ID, "Produk Distribusi", 100000)
+	worker1 := postgres.WorkerModel{ID: uuid.NewString(), Name: "Worker Satu", Role: "tailor", SalaryType: "piece_rate", Status: "active"}
+	worker2 := postgres.WorkerModel{ID: uuid.NewString(), Name: "Worker Dua", Role: "tailor", SalaryType: "piece_rate", Status: "active"}
+	db.Create(&worker1)
+	db.Create(&worker2)
+	batchPO := postgres.BatchPOModel{ID: uuid.NewString(), Name: "PO DISTRIBUSI", Status: "active", Quota: 10, StartDate: time.Now().AddDate(0, 0, -1), EndDate: time.Now().AddDate(0, 0, 10)}
+	db.Create(&batchPO)
+	order := postgres.OrderModel{
+		ID: uuid.NewString(), OrderNumber: "ORD-DISTRIBUTE-001", BatchPoID: &batchPO.ID,
+		CustomerID: customer.ID, SalesID: sales.ID, TotalAmount: 1000000,
+		OrderStatus: string(domain.OrderStatusProduction), PaymentStatus: string(domain.PaymentStatusPartial),
+	}
+	db.Create(&order)
+	db.Create(&postgres.OrderItemModel{ID: uuid.NewString(), OrderID: order.ID, ProductID: product.ID, Qty: 10, Price: 100000})
+
+	t.Run("Success", func(t *testing.T) {
+		body, _ := json.Marshal(dto.WorkLogDistributeRequest{
+			BatchPOID: batchPO.ID, JobType: "jahit", WorkerIDs: []string{worker1.ID, worker2.ID},
+			RatePerQty: 12000, WorkDate: "2026-08-20", Notes: "Distribusi test",
+		})
+		req := tests.AuthenticatedRequest("POST", "/api/work-logs/distribute", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
+
+		var response utils.SuccessResponse[[]dto.WorkLogResponse]
+		bodyResp, _ := io.ReadAll(resp.Body)
+		_ = json.Unmarshal(bodyResp, &response)
+		assert.Len(t, response.Data, 2)
+		if assert.Len(t, response.Data, 2) {
+			assert.Equal(t, 10, response.Data[0].Qty+response.Data[1].Qty)
+			assert.Equal(t, worker1.ID, response.Data[0].WorkerID)
+			assert.Equal(t, worker2.ID, response.Data[1].WorkerID)
+		}
+	})
+
+	t.Run("Failed_Validation", func(t *testing.T) {
+		body, _ := json.Marshal(dto.WorkLogDistributeRequest{BatchPOID: batchPO.ID, JobType: "jahit", RatePerQty: 12000})
+		req := tests.AuthenticatedRequest("POST", "/api/work-logs/distribute", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	})
+}
+
 func TestGetWorkLog_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)

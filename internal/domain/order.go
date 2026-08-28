@@ -125,6 +125,7 @@ type OrderRepository interface {
 	DeleteItem(ctx context.Context, orderID, itemID string) error
 	GetItemByID(ctx context.Context, orderID, itemID string) (*OrderItem, error)
 	GetByIDForUpdate(ctx context.Context, id string) (*Order, error)
+	GetByBatchPOID(ctx context.Context, batchPoID string) ([]Order, error)
 }
 
 type OrderUsecase interface {
