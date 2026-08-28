@@ -15,6 +15,389 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/attendances": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attendances"
+                ],
+                "summary": "List All Attendances",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Halaman",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Pekerja (UUID)",
+                        "name": "worker_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Payroll (UUID)",
+                        "name": "payroll_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Status Absen (present, half_day, permission, alpha)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter hanya yang belum digaji (payroll_id null)",
+                        "name": "is_unpaid",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Tanggal Awal (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter Tanggal Akhir (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attendances"
+                ],
+                "summary": "Record Attendance Single",
+                "parameters": [
+                    {
+                        "description": "Data Absensi Pekerja",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict - Sudah Absen",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/attendances/batch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attendances"
+                ],
+                "summary": "Record Batch Attendance",
+                "parameters": [
+                    {
+                        "description": "Payload Absensi Masal Harian",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchAttendanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/attendances/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attendances"
+                ],
+                "summary": "Get Attendance Detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Attendance ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attendances"
+                ],
+                "summary": "Update Attendance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Attendance ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data Perubahan Absensi",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Attendances"
+                ],
+                "summary": "Delete Attendance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Attendance ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Autentikasi user dan mendapatkan JWT Token untuk hak akses sistem SIKOn",
@@ -5220,7 +5603,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter Peran (tailor, cutter, finishing, helper)",
+                        "description": "Filter Peran (tailor, cutter, finishing, sales, staff, helper)",
                         "name": "role",
                         "in": "query"
                     },
@@ -5659,6 +6042,128 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceCreateRequest": {
+            "type": "object",
+            "required": [
+                "attendance_date",
+                "status",
+                "worker_id"
+            ],
+            "properties": {
+                "attendance_date": {
+                    "type": "string",
+                    "example": "2026-08-28"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Hadir tepat waktu"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "present",
+                        "half_day",
+                        "permission",
+                        "alpha"
+                    ],
+                    "example": "present"
+                },
+                "work_duration_index": {
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0,
+                    "example": 1
+                },
+                "worker_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceResponse": {
+            "type": "object",
+            "properties": {
+                "attendance_date": {
+                    "type": "string",
+                    "example": "2026-08-28"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-08-28T08:00:00Z"
+                },
+                "created_by": {
+                    "type": "string",
+                    "example": "110e8400-e29b-41d4-a716-446655440000"
+                },
+                "creator": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse"
+                },
+                "daily_rate": {
+                    "type": "number",
+                    "example": 66666.67
+                },
+                "id": {
+                    "type": "string",
+                    "example": "770e8400-e29b-41d4-a716-446655440000"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Hadir tepat waktu"
+                },
+                "payroll_id": {
+                    "type": "string",
+                    "example": "880e8400-e29b-41d4-a716-446655440000"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "present"
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 66666.67
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2026-08-28T08:00:00Z"
+                },
+                "work_duration_index": {
+                    "type": "number",
+                    "example": 1
+                },
+                "worker": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerResponse"
+                },
+                "worker_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "notes": {
+                    "type": "string",
+                    "example": "Izin pulang cepat"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "present",
+                        "half_day",
+                        "permission",
+                        "alpha"
+                    ],
+                    "example": "half_day"
+                },
+                "work_duration_index": {
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0,
+                    "example": 0.5
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.AuthResponseDTO": {
             "type": "object",
             "properties": {
@@ -5754,6 +6259,57 @@ const docTemplate = `{
                 "bank_name": {
                     "type": "string",
                     "example": "Mandiri"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchAttendanceItemRequest": {
+            "type": "object",
+            "required": [
+                "status",
+                "worker_id"
+            ],
+            "properties": {
+                "notes": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "present",
+                        "half_day",
+                        "permission",
+                        "alpha"
+                    ],
+                    "example": "present"
+                },
+                "work_duration_index": {
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0,
+                    "example": 1
+                },
+                "worker_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchAttendanceRequest": {
+            "type": "object",
+            "required": [
+                "attendance_date",
+                "items"
+            ],
+            "properties": {
+                "attendance_date": {
+                    "type": "string",
+                    "example": "2026-08-28"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchAttendanceItemRequest"
+                    }
                 }
             }
         },
@@ -8206,6 +8762,11 @@ const docTemplate = `{
                 "salary_type"
             ],
             "properties": {
+                "daily_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 66666.67
+                },
                 "name": {
                     "type": "string",
                     "example": "Mang Ade"
@@ -8220,6 +8781,8 @@ const docTemplate = `{
                         "tailor",
                         "cutter",
                         "finishing",
+                        "sales",
+                        "staff",
                         "helper"
                     ],
                     "example": "tailor"
@@ -8232,6 +8795,10 @@ const docTemplate = `{
                         "monthly"
                     ],
                     "example": "piece_rate"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "110e8400-e29b-41d4-a716-446655440000"
                 }
             }
         },
@@ -8241,6 +8808,10 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string",
                     "example": "2026-08-20T15:00:00Z"
+                },
+                "daily_rate": {
+                    "type": "number",
+                    "example": 66666.67
                 },
                 "id": {
                     "type": "string",
@@ -8269,12 +8840,24 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2026-08-20T15:00:00Z"
+                },
+                "user": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.UserResponse"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "110e8400-e29b-41d4-a716-446655440000"
                 }
             }
         },
         "github_com_faridlan_sikon-api_internal_delivery_http_dto.WorkerUpdateRequest": {
             "type": "object",
             "properties": {
+                "daily_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 66666.67
+                },
                 "name": {
                     "type": "string",
                     "example": "Mang Ade Supriatna"
@@ -8289,6 +8872,8 @@ const docTemplate = `{
                         "tailor",
                         "cutter",
                         "finishing",
+                        "sales",
+                        "staff",
                         "helper"
                     ],
                     "example": "tailor"
@@ -8309,6 +8894,10 @@ const docTemplate = `{
                         "inactive"
                     ],
                     "example": "active"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "110e8400-e29b-41d4-a716-446655440000"
                 }
             }
         },
@@ -8341,6 +8930,23 @@ const docTemplate = `{
                 "error": {
                     "type": "string",
                     "example": "pesan error"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta"
                 }
             }
         },
@@ -8574,6 +9180,20 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_BankAccountResponse": {
             "type": "object",
             "properties": {
@@ -8705,6 +9325,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AccountingReportResponse"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_AttendanceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.AttendanceResponse"
                 },
                 "message": {
                     "type": "string"

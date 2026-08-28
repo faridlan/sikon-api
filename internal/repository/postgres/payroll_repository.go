@@ -29,7 +29,7 @@ func (r *payrollRepository) Create(ctx context.Context, payroll *domain.Payroll,
 		var totalAmount float64
 		err := tx.Model(&WorkLogModel{}).
 			Where("id IN ? AND payroll_id IS NULL", workLogIDs).
-			Updates(map[string]interface{}{"payroll_id": model.ID}).Error
+			Updates(map[string]any{"payroll_id": model.ID}).Error
 		if err != nil {
 			return TranslateError(err)
 		}

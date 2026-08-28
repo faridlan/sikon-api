@@ -46,10 +46,12 @@ func (h *workerHandler) CreateWorker(c *fiber.Ctx) error {
 	}
 
 	input := domain.WorkerCreateInput{
+		UserID:     req.UserID,
 		Name:       req.Name,
 		Phone:      req.Phone,
 		Role:       domain.WorkerRole(req.Role),
 		SalaryType: domain.WorkerSalaryType(req.SalaryType),
+		DailyRate:  req.DailyRate,
 	}
 
 	worker, err := h.workerUsecase.CreateWorker(c.Context(), input)
@@ -92,7 +94,7 @@ func (h *workerHandler) GetWorker(c *fiber.Ctx) error {
 // @Param page query int false "Halaman" default(1)
 // @Param limit query int false "Limit" default(10)
 // @Param search query string false "Pencarian nama atau nomor telepon"
-// @Param role query string false "Filter Peran (tailor, cutter, finishing, helper)"
+// @Param role query string false "Filter Peran (tailor, cutter, finishing, sales, staff, helper)"
 // @Param salary_type query string false "Filter Tipe Gaji (piece_rate, daily, monthly)"
 // @Param status query string false "Filter Status (active, inactive)"
 // @Success 200 {object} utils.PaginatedResponse[dto.WorkerResponse]
@@ -151,10 +153,12 @@ func (h *workerHandler) UpdateWorker(c *fiber.Ctx) error {
 	}
 
 	input := domain.WorkerUpdateInput{
+		UserID:     req.UserID,
 		Name:       req.Name,
 		Phone:      req.Phone,
 		Role:       domain.WorkerRole(req.Role),
 		SalaryType: domain.WorkerSalaryType(req.SalaryType),
+		DailyRate:  req.DailyRate,
 		Status:     domain.WorkerStatus(req.Status),
 	}
 

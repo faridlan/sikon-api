@@ -117,6 +117,7 @@ func main() {
 	workerRepo := postgres.NewWorkerRepository(db)
 	workLogRepo := postgres.NewWorkLogRepository(db)
 	payrollRepo := postgres.NewPayrollRepository(db)
+	attendanceRepo := postgres.NewAttendanceRepository(db)
 
 	// ==========================================
 	// 2. INISIASI USECASE
@@ -139,6 +140,7 @@ func main() {
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, contextTimeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
+	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, contextTimeout)
 
 	// ==========================================
 	// 3. INISIASI HANDLER
@@ -161,6 +163,7 @@ func main() {
 	workerHandler := myHttp.NewWorkerHandler(workerUsecase)
 	workLogHandler := myHttp.NewWorkLogHandler(workLogUsecase)
 	payrollHandler := myHttp.NewPayrollHandler(payrollUsecase)
+	attendanceHandler := myHttp.NewAttendanceHandler(attendanceUsecase)
 
 	// ==========================================
 	// 4. BUNGKUS HANDLERS
@@ -184,6 +187,7 @@ func main() {
 		WorkerHandler:       workerHandler,
 		WorkLogHandler:      workLogHandler,
 		PayrollHandler:      payrollHandler,
+		AttendanceHandler:   attendanceHandler,
 	}
 
 	// ==========================================

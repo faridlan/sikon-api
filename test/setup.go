@@ -85,6 +85,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.WorkerModel{},
 		&postgres.PayrollModel{},
 		&postgres.WorkLogModel{},
+		&postgres.AttendanceModel{},
 	)
 
 	// Pastikan ada test user yang valid di database untuk endpoint yang menggunakan CreatedBy dari JWT
@@ -120,6 +121,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	workerRepo := postgres.NewWorkerRepository(db)
 	workLogRepo := postgres.NewWorkLogRepository(db)
 	payrollRepo := postgres.NewPayrollRepository(db)
+	attendanceRepo := postgres.NewAttendanceRepository(db)
 
 	// 2. Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtSecret, 24*time.Hour, timeout)
@@ -139,6 +141,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	workerUsecase := usecase.NewWorkerUsecase(workerRepo, timeout)
 	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, orderRepo, batchPORepo, timeout)
 	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, timeout)
+	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, timeout)
 
 	// 3. Setup Fiber Handlers
 	handlers := myHttp.Handlers{
@@ -160,6 +163,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		WorkerHandler:       myHttp.NewWorkerHandler(workerUsecase),
 		WorkLogHandler:      myHttp.NewWorkLogHandler(workLogUsecase),
 		PayrollHandler:      myHttp.NewPayrollHandler(payrollUsecase),
+		AttendanceHandler:   myHttp.NewAttendanceHandler(attendanceUsecase),
 	}
 
 	app := fiber.New()
@@ -232,6 +236,7 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE attendances RESTART IDENTITY CASCADE;")
 
 	// Re-create default test user used by generic AuthenticatedRequest calls.
 	defaultUserID := normalizeTestUserID("test-user")
