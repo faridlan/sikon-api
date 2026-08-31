@@ -117,6 +117,36 @@ func (_m *WorkerRepository) GetByID(ctx context.Context, id string) (*domain.Wor
 	return r0, r1
 }
 
+// GetByUserID provides a mock function with given fields: ctx, userID
+func (_m *WorkerRepository) GetByUserID(ctx context.Context, userID string) (*domain.Worker, error) {
+	ret := _m.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByUserID")
+	}
+
+	var r0 *domain.Worker
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Worker, error)); ok {
+		return rf(ctx, userID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Worker); ok {
+		r0 = rf(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Worker)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Update provides a mock function with given fields: ctx, worker
 func (_m *WorkerRepository) Update(ctx context.Context, worker *domain.Worker) error {
 	ret := _m.Called(ctx, worker)

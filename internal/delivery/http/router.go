@@ -30,6 +30,7 @@ type Handlers struct {
 	WorkerHandler       WorkerHandler
 	WorkLogHandler      WorkLogHandler
 	PayrollHandler      PayrollHandler
+	AttendanceHandler   AttendanceHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers & jwtSecret
@@ -177,6 +178,15 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	workersGroup.Get("/:id", guardFinance, handlers.WorkerHandler.GetWorker)
 	workersGroup.Put("/:id", guardFinance, handlers.WorkerHandler.UpdateWorker)
 	workersGroup.Delete("/:id", guardOwner, handlers.WorkerHandler.DeleteWorker)
+
+	// --- Attendances Routes (Khusus Finance/Accounting & Owner) ---
+	attendancesGroup := api.Group("/attendances")
+	attendancesGroup.Post("/", guardFinance, handlers.AttendanceHandler.RecordAttendance)
+	attendancesGroup.Post("/batch", guardFinance, handlers.AttendanceHandler.RecordBatchAttendance)
+	attendancesGroup.Get("/", guardFinance, handlers.AttendanceHandler.ListAttendances)
+	attendancesGroup.Get("/:id", guardFinance, handlers.AttendanceHandler.GetAttendance)
+	attendancesGroup.Put("/:id", guardFinance, handlers.AttendanceHandler.UpdateAttendance)
+	attendancesGroup.Delete("/:id", guardFinance, handlers.AttendanceHandler.DeleteAttendance)
 
 	// --- Work Logs Routes (Khusus Finance/Accounting & Owner) ---
 	workLogsGroup := api.Group("/work-logs")

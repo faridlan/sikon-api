@@ -31,6 +31,8 @@ func (u *workerUsecase) CreateWorker(c context.Context, input domain.WorkerCreat
 	if input.Role != domain.WorkerRoleTailor &&
 		input.Role != domain.WorkerRoleCutter &&
 		input.Role != domain.WorkerRoleFinishing &&
+		input.Role != domain.WorkerRoleSales &&
+		input.Role != domain.WorkerRoleStaff &&
 		input.Role != domain.WorkerRoleHelper {
 		return nil, domain.NewError(domain.ErrBadParamInput, "Peran pekerja (role) tidak valid")
 	}
@@ -41,11 +43,17 @@ func (u *workerUsecase) CreateWorker(c context.Context, input domain.WorkerCreat
 		return nil, domain.NewError(domain.ErrBadParamInput, "Tipe gaji pekerja (salary_type) tidak valid")
 	}
 
+	if input.SalaryType == domain.WorkerSalaryTypeDaily && input.DailyRate <= 0 {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Tarif gaji harian (daily_rate) harus lebih besar dari 0 untuk pekerja harian")
+	}
+
 	worker := &domain.Worker{
+		UserID:     input.UserID,
 		Name:       input.Name,
 		Phone:      input.Phone,
 		Role:       input.Role,
 		SalaryType: input.SalaryType,
+		DailyRate:  input.DailyRate,
 		Status:     domain.WorkerStatusActive,
 	}
 
@@ -107,6 +115,9 @@ func (u *workerUsecase) UpdateWorker(c context.Context, id string, input domain.
 		return nil, err
 	}
 
+	if input.UserID != nil {
+		existing.UserID = input.UserID
+	}
 	if input.Name != "" {
 		existing.Name = input.Name
 	}
@@ -118,6 +129,9 @@ func (u *workerUsecase) UpdateWorker(c context.Context, id string, input domain.
 	}
 	if input.SalaryType != "" {
 		existing.SalaryType = input.SalaryType
+	}
+	if input.DailyRate >= 0 {
+		existing.DailyRate = input.DailyRate
 	}
 	if input.Status != "" {
 		existing.Status = input.Status

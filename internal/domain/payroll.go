@@ -26,17 +26,19 @@ type Payroll struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
-	Creator  *User
-	Expense  *Expense
-	WorkLogs []WorkLog
+	Creator     *User
+	Expense     *Expense
+	WorkLogs    []WorkLog
+	Attendances []Attendance // 👈 Relasi ke Absensi Harian yang dicairkan
 }
 
 // Input Struct
 type PayrollCreateInput struct {
-	StartDate   time.Time
-	EndDate     time.Time
-	WorkLogIDs  []string // ID work_logs yang akan digabungkan ke rekap gaji ini
-	CreatedByID string
+	StartDate     time.Time
+	EndDate       time.Time
+	WorkLogIDs    []string // ID work_logs borongan
+	AttendanceIDs []string // 👈 ID attendances harian yang digabungkan ke rekap gaji ini
+	CreatedByID   string
 }
 
 type PayrollUpdateStatusInput struct {
@@ -51,7 +53,8 @@ type PayrollFilter struct {
 }
 
 type PayrollRepository interface {
-	Create(ctx context.Context, payroll *Payroll, workLogIDs []string) error
+	// 👈 Tambahkan parameter attendanceIDs pada Create
+	Create(ctx context.Context, payroll *Payroll, workLogIDs []string, attendanceIDs []string) error
 	GetByID(ctx context.Context, id string) (*Payroll, error)
 	Fetch(ctx context.Context, filter PayrollFilter, limit, offset int) ([]Payroll, int64, error)
 	UpdateStatus(ctx context.Context, id string, status PayrollStatus, expenseID *string, paidAt *time.Time) error

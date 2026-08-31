@@ -56,10 +56,11 @@ func (h *payrollHandler) CreatePayroll(c *fiber.Ctx) error {
 	}
 
 	input := domain.PayrollCreateInput{
-		StartDate:   startDate,
-		EndDate:     endDate,
-		WorkLogIDs:  req.WorkLogIDs,
-		CreatedByID: userID,
+		StartDate:     startDate,
+		EndDate:       endDate,
+		WorkLogIDs:    req.WorkLogIDs,
+		AttendanceIDs: req.AttendanceIDs, // 👈 Passing AttendanceIDs ke Usecase
+		CreatedByID:   userID,
 	}
 
 	payroll, err := h.payrollUsecase.CreatePayroll(c.Context(), input)

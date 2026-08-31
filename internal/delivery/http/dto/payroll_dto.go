@@ -8,9 +8,10 @@ import (
 
 // --- REQUEST ---
 type PayrollCreateRequest struct {
-	StartDate  string   `json:"start_date" validate:"required" example:"2026-08-14"`
-	EndDate    string   `json:"end_date" validate:"required" example:"2026-08-20"`
-	WorkLogIDs []string `json:"work_log_ids" validate:"required,min=1,dive,uuid" example:"[\"770e8400-e29b-41d4-a716-446655440000\"]"`
+	StartDate     string   `json:"start_date" validate:"required" example:"2026-08-14"`
+	EndDate       string   `json:"end_date" validate:"required" example:"2026-08-20"`
+	WorkLogIDs    []string `json:"work_log_ids" validate:"omitempty,dive,uuid" example:"[\"770e8400-e29b-41d4-a716-446655440000\"]"`
+	AttendanceIDs []string `json:"attendance_ids" validate:"omitempty,dive,uuid" example:"[\"880e8400-e29b-41d4-a716-446655440000\"]"`
 }
 
 // --- RESPONSE ---
@@ -27,9 +28,10 @@ type PayrollResponse struct {
 	CreatedAt     time.Time  `json:"created_at" example:"2026-08-20T15:00:00Z"`
 	UpdatedAt     time.Time  `json:"updated_at" example:"2026-08-20T15:00:00Z"`
 
-	Creator  *UserResponse     `json:"creator,omitempty"`
-	Expense  *ExpenseResponse  `json:"expense,omitempty"`
-	WorkLogs []WorkLogResponse `json:"work_logs,omitempty"`
+	Creator     *UserResponse        `json:"creator,omitempty"`
+	Expense     *ExpenseResponse     `json:"expense,omitempty"`
+	WorkLogs    []WorkLogResponse    `json:"work_logs,omitempty"`
+	Attendances []AttendanceResponse `json:"attendances,omitempty"` // 👈 Tambahkan array Attendance Response
 }
 
 func ToPayrollResponse(payroll *domain.Payroll) PayrollResponse {
@@ -63,6 +65,10 @@ func ToPayrollResponse(payroll *domain.Payroll) PayrollResponse {
 
 	if len(payroll.WorkLogs) > 0 {
 		resp.WorkLogs = ToWorkLogResponseList(payroll.WorkLogs)
+	}
+
+	if len(payroll.Attendances) > 0 {
+		resp.Attendances = ToAttendanceResponseList(payroll.Attendances)
 	}
 
 	return resp

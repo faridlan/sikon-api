@@ -16,36 +16,58 @@ func NewPayrollRepository(db *gorm.DB) domain.PayrollRepository {
 	return &payrollRepository{db: db}
 }
 
-func (r *payrollRepository) Create(ctx context.Context, payroll *domain.Payroll, workLogIDs []string) error {
+func (r *payrollRepository) Create(ctx context.Context, payroll *domain.Payroll, workLogIDs []string, attendanceIDs []string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		model := FromPayrollDomain(payroll)
 
-		// 1. Create Payroll Record
+		// 1. Create Payroll Record Utama
 		if err := tx.Create(model).Error; err != nil {
 			return TranslateError(err)
 		}
 
-		// 2. Link work_logs ke payroll ini dan hitung total amount
-		var totalAmount float64
-		err := tx.Model(&WorkLogModel{}).
-			Where("id IN ? AND payroll_id IS NULL", workLogIDs).
-			Updates(map[string]interface{}{"payroll_id": model.ID}).Error
-		if err != nil {
-			return TranslateError(err)
+		var totalWorkLogAmount float64
+		var totalAttendanceAmount float64
+
+		// 2. Link work_logs & hitung total nominal borongan
+		if len(workLogIDs) > 0 {
+			err := tx.Model(&WorkLogModel{}).
+				Where("id IN ? AND payroll_id IS NULL", workLogIDs).
+				Updates(map[string]any{"payroll_id": model.ID}).Error
+			if err != nil {
+				return TranslateError(err)
+			}
+
+			tx.Model(&WorkLogModel{}).
+				Where("payroll_id = ?", model.ID).
+				Select("COALESCE(SUM(total_amount), 0)").
+				Scan(&totalWorkLogAmount)
 		}
 
-		tx.Model(&WorkLogModel{}).
-			Where("payroll_id = ?", model.ID).
-			Select("COALESCE(SUM(total_amount), 0)").
-			Scan(&totalAmount)
+		// 3. Link attendances & hitung total nominal harian
+		if len(attendanceIDs) > 0 {
+			err := tx.Model(&AttendanceModel{}).
+				Where("id IN ? AND payroll_id IS NULL", attendanceIDs).
+				Updates(map[string]any{"payroll_id": model.ID}).Error
+			if err != nil {
+				return TranslateError(err)
+			}
+
+			tx.Model(&AttendanceModel{}).
+				Where("payroll_id = ?", model.ID).
+				Select("COALESCE(SUM(total_amount), 0)").
+				Scan(&totalAttendanceAmount)
+		}
+
+		// 4. Hitung Total Akumulasi (Work Logs + Attendances)
+		grandTotal := totalWorkLogAmount + totalAttendanceAmount
 
 		// Update Total Amount Payroll
-		if err := tx.Model(model).Update("total_amount", totalAmount).Error; err != nil {
+		if err := tx.Model(model).Update("total_amount", grandTotal).Error; err != nil {
 			return TranslateError(err)
 		}
 
 		payroll.ID = model.ID
-		payroll.TotalAmount = totalAmount
+		payroll.TotalAmount = grandTotal
 		payroll.CreatedAt = model.CreatedAt
 		payroll.UpdatedAt = model.UpdatedAt
 		return nil
@@ -59,6 +81,7 @@ func (r *payrollRepository) GetByID(ctx context.Context, id string) (*domain.Pay
 		Preload("Expense").
 		Preload("WorkLogs.Worker").
 		Preload("WorkLogs.BatchPO").
+		Preload("Attendances.Worker"). // 👈 Preload Attendances dan Worker-nya
 		Where("id = ?", id).
 		First(&model).Error
 
@@ -138,8 +161,13 @@ func (r *payrollRepository) UpdateStatus(ctx context.Context, id string, status 
 
 func (r *payrollRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Reset payroll_id pada work_logs yang terikat
+		// 1. Reset payroll_id pada work_logs yang terikat
 		if err := tx.Model(&WorkLogModel{}).Where("payroll_id = ?", id).Update("payroll_id", nil).Error; err != nil {
+			return TranslateError(err)
+		}
+
+		// 2. Reset payroll_id pada attendances yang terikat
+		if err := tx.Model(&AttendanceModel{}).Where("payroll_id = ?", id).Update("payroll_id", nil).Error; err != nil {
 			return TranslateError(err)
 		}
 

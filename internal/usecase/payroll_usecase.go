@@ -31,8 +31,9 @@ func (u *payrollUsecase) CreatePayroll(c context.Context, input domain.PayrollCr
 		return nil, domain.NewError(domain.ErrBadParamInput, "Rentang tanggal penggajian tidak valid")
 	}
 
-	if len(input.WorkLogIDs) == 0 {
-		return nil, domain.NewError(domain.ErrBadParamInput, "Pilih minimal 1 catatan borongan (work log) untuk digaji")
+	// 🚨 VALIDASI BARU: Memastikan minimal ada 1 item yang dipilih (boleh borongan ATAU absensi harian)
+	if len(input.WorkLogIDs) == 0 && len(input.AttendanceIDs) == 0 {
+		return nil, domain.NewError(domain.ErrBadParamInput, "Pilih minimal 1 catatan borongan (work log) atau absensi harian (attendance) untuk digaji")
 	}
 
 	now := time.Now()
@@ -46,7 +47,8 @@ func (u *payrollUsecase) CreatePayroll(c context.Context, input domain.PayrollCr
 		CreatedByID:   input.CreatedByID,
 	}
 
-	if err := u.payrollRepo.Create(ctx, payroll, input.WorkLogIDs); err != nil {
+	// 👈 Operkan WorkLogIDs dan AttendanceIDs ke Repository
+	if err := u.payrollRepo.Create(ctx, payroll, input.WorkLogIDs, input.AttendanceIDs); err != nil {
 		return nil, err
 	}
 
