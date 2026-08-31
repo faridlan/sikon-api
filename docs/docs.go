@@ -2449,7 +2449,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Membuat pesanan (order) baru beserta detail produknya. Sistem akan otomatis menghitung Subtotal dan TotalAmount.",
+                "description": "Membuat pesanan (order) baru beserta detail produknya. Sistem akan otomatis menghitung Subtotal, TotalAmount (Grand Total), serta PPN 12% \u0026 PPh 22 jika is_taxable = true.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2568,7 +2568,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Memperbarui data meta pesanan seperti ongkir, kurir, alamat pengiriman, dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan. (Tidak mengubah detail item produk).",
+                "description": "Memperbarui data meta pesanan seperti status perpajakan (PPN/PPh 22), ongkir, kurir, alamat pengiriman, dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan \u0026 kalkulasi pajak pengadaan. (Tidak mengubah detail item produk).",
                 "consumes": [
                     "application/json"
                 ],
@@ -6968,6 +6968,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "333e4567-e89b-12d3-a456-426614174000"
                 },
+                "is_taxable": {
+                    "type": "boolean",
+                    "example": true
+                },
                 "items": {
                     "type": "array",
                     "minItems": 1,
@@ -6995,6 +6999,16 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 0,
                     "example": 50000
+                },
+                "tax_pph22_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 1.5
+                },
+                "tax_ppn_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 12
                 },
                 "terms_conditions": {
                     "type": "string",
@@ -7068,7 +7082,7 @@ const docTemplate = `{
             "properties": {
                 "approved_at": {
                     "type": "string",
-                    "example": "2023-10-01T16:00:00Z"
+                    "example": "2026-08-31T16:00:00Z"
                 },
                 "batch_po": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse"
@@ -7079,11 +7093,11 @@ const docTemplate = `{
                 },
                 "courier_name": {
                     "type": "string",
-                    "example": "JNE Trucking"
+                    "example": "Self Pickup"
                 },
                 "created_at": {
                     "type": "string",
-                    "example": "2023-10-01T15:00:00Z"
+                    "example": "2026-08-31T15:00:00Z"
                 },
                 "customer": {
                     "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CustomerResponse"
@@ -7096,9 +7110,21 @@ const docTemplate = `{
                     "type": "number",
                     "example": 0
                 },
+                "dpp_pph": {
+                    "type": "number",
+                    "example": 5325000
+                },
+                "dpp_ppn": {
+                    "type": "number",
+                    "example": 4885321.1
+                },
                 "id": {
                     "type": "string",
                     "example": "ord-uuid"
+                },
+                "is_taxable": {
+                    "type": "boolean",
+                    "example": true
                 },
                 "items": {
                     "type": "array",
@@ -7106,9 +7132,13 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse"
                     }
                 },
+                "net_received_amount": {
+                    "type": "number",
+                    "example": 5251719.53
+                },
                 "notes": {
                     "type": "string",
-                    "example": "Tolong packing kayu"
+                    "example": "Pengadaan Baju Dinas"
                 },
                 "order_number": {
                     "type": "string",
@@ -7117,6 +7147,10 @@ const docTemplate = `{
                 "order_status": {
                     "type": "string",
                     "example": "pending"
+                },
+                "pagu_amount": {
+                    "type": "number",
+                    "example": 5911238.53
                 },
                 "payment_status": {
                     "type": "string",
@@ -7131,23 +7165,31 @@ const docTemplate = `{
                 },
                 "shipping_address": {
                     "type": "string",
-                    "example": "Jl. Sudirman No. 123, Jakarta"
+                    "example": "Kantor Dinas"
                 },
                 "shipping_cost": {
                     "type": "number",
-                    "example": 50000
+                    "example": 0
                 },
                 "subtotal": {
                     "type": "number",
-                    "example": 3500000
+                    "example": 5325000
                 },
-                "tax_ph": {
+                "tax_pph": {
                     "type": "number",
-                    "example": 0
+                    "example": 73279.82
+                },
+                "tax_pph22_rate": {
+                    "type": "number",
+                    "example": 1.5
                 },
                 "tax_ppn": {
                     "type": "number",
-                    "example": 0
+                    "example": 586238.53
+                },
+                "tax_ppn_rate": {
+                    "type": "number",
+                    "example": 12
                 },
                 "terms_conditions": {
                     "type": "string",
@@ -7155,15 +7197,15 @@ const docTemplate = `{
                 },
                 "total_amount": {
                     "type": "number",
-                    "example": 3550000
+                    "example": 5325000
                 },
                 "total_qty": {
                     "type": "integer",
-                    "example": 100
+                    "example": 15
                 },
                 "updated_at": {
                     "type": "string",
-                    "example": "2023-10-01T15:00:00Z"
+                    "example": "2026-08-31T15:00:00Z"
                 },
                 "valid_until": {
                     "type": "string",
@@ -7197,6 +7239,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "SiCepat Gokil"
                 },
+                "is_taxable": {
+                    "type": "boolean",
+                    "example": true
+                },
                 "notes": {
                     "type": "string",
                     "example": "Tambahan resi otomatis"
@@ -7209,6 +7255,16 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 0,
                     "example": 75000
+                },
+                "tax_pph22_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 1.5
+                },
+                "tax_ppn_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 12
                 },
                 "terms_conditions": {
                     "type": "string",

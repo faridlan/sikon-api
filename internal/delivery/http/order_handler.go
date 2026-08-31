@@ -33,7 +33,7 @@ func NewOrderHandler(ou domain.OrderUsecase) OrderHandler {
 }
 
 // @Summary Create Order
-// @Description Membuat pesanan (order) baru beserta detail produknya. Sistem akan otomatis menghitung Subtotal dan TotalAmount.
+// @Description Membuat pesanan (order) baru beserta detail produknya. Sistem akan otomatis menghitung Subtotal, TotalAmount (Grand Total), serta PPN 12% & PPh 22 jika is_taxable = true.
 // @Tags Orders
 // @Accept json
 // @Produce json
@@ -70,7 +70,10 @@ func (h *orderHandler) CreateOrder(c *fiber.Ctx) error {
 	domainReq := domain.OrderCreateInput{
 		BatchPoID:       req.BatchPoID,
 		CustomerID:      req.CustomerID,
-		SalesID:         salesID, // Memakai salesID yang telah divalidasi/locked
+		SalesID:         salesID,          // Memakai salesID yang telah divalidasi/locked
+		IsTaxable:       req.IsTaxable,    // 👈 Mapping Pajak Instansi
+		TaxPpnRate:      req.TaxPpnRate,   // 👈 Rate PPN
+		TaxPph22Rate:    req.TaxPph22Rate, // 👈 Rate PPh 22
 		ShippingCost:    req.ShippingCost,
 		CourierName:     req.CourierName,
 		ShippingAddress: req.ShippingAddress,
@@ -188,7 +191,7 @@ func (h *orderHandler) ListOrders(c *fiber.Ctx) error {
 }
 
 // @Summary Update Order Data
-// @Description Memperbarui data meta pesanan seperti ongkir, kurir, alamat pengiriman, dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan. (Tidak mengubah detail item produk).
+// @Description Memperbarui data meta pesanan seperti status perpajakan (PPN/PPh 22), ongkir, kurir, alamat pengiriman, dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan & kalkulasi pajak pengadaan. (Tidak mengubah detail item produk).
 // @Tags Orders
 // @Accept json
 // @Produce json
@@ -216,6 +219,9 @@ func (h *orderHandler) UpdateOrder(c *fiber.Ctx) error {
 	}
 
 	domainReq := domain.OrderUpdateInput{
+		IsTaxable:       req.IsTaxable,    // 👈 Mapping Pajak Instansi
+		TaxPpnRate:      req.TaxPpnRate,   // 👈 Rate PPN
+		TaxPph22Rate:    req.TaxPph22Rate, // 👈 Rate PPh 22
 		ShippingCost:    req.ShippingCost,
 		CourierName:     req.CourierName,
 		ShippingAddress: req.ShippingAddress,

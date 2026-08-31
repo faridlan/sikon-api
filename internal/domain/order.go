@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"math"
 	"math/big"
 	"time"
 )
@@ -32,38 +33,44 @@ type OrderItem struct {
 	CustomName string
 	Qty        int
 	Price      float64
-	// Details untuk menyimpan JSON variasi (misal: S: 10, M: 20)
-	Details   any
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Details    any
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 
 	Product *Product
 }
 
 type Order struct {
-	ID              string
-	OrderNumber     string
-	BatchPoID       string
-	BatchPO         *BatchPO
-	CustomerID      string
-	SalesID         string
-	Subtotal        float64
-	DiscountAmount  float64
-	TaxPpn          float64
-	TaxPph          float64
-	TotalAmount     float64
-	TotalQty        int
-	ShippingCost    float64
-	CourierName     string
-	ShippingAddress string
-	OrderStatus     OrderStatus
-	PaymentStatus   PaymentStatus
-	ValidUntil      *time.Time
-	TermsConditions string
-	Notes           string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	ApprovedAt      *time.Time
+	ID                string
+	OrderNumber       string
+	BatchPoID         string
+	BatchPO           *BatchPO
+	CustomerID        string
+	SalesID           string
+	Subtotal          float64
+	DiscountAmount    float64
+	IsTaxable         bool    // 👈 Flag apakah order menggunakan PPN & PPh 22
+	TaxPpnRate        float64 // 👈 Default 12.00 (%)
+	TaxPph22Rate      float64 // 👈 Default 1.50 (%)
+	DppPpn            float64 // 👈 Subtotal / 1.09 (atau DPP PPN Instansi)
+	DppPph            float64 // 👈 Dasar Pengenaan PPh (Subtotal)
+	TaxPpn            float64 // 👈 Hasil PPN 12%
+	TaxPph            float64 // 👈 Hasil PPh 22 (1.5%)
+	TotalAmount       float64 // 👈 Real Nilai Barang (Grand Total)
+	PaguAmount        float64 // 👈 Grand Total + PPN (Invoice Gross ke Dinas)
+	NetReceivedAmount float64 // 👈 Pagu - (PPN + PPh 22) / Nilai Bersih Cair ke Penyedia
+	TotalQty          int
+	ShippingCost      float64
+	CourierName       string
+	ShippingAddress   string
+	OrderStatus       OrderStatus
+	PaymentStatus     PaymentStatus
+	ValidUntil        *time.Time
+	TermsConditions   string
+	Notes             string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	ApprovedAt        *time.Time
 
 	// Relasi
 	Items    []OrderItem
@@ -83,6 +90,9 @@ type OrderCreateInput struct {
 	BatchPoID       string
 	CustomerID      string
 	SalesID         string
+	IsTaxable       bool    // 👈
+	TaxPpnRate      float64 // 👈
+	TaxPph22Rate    float64 // 👈
 	ShippingCost    float64
 	CourierName     string
 	ShippingAddress string
@@ -94,6 +104,9 @@ type OrderCreateInput struct {
 }
 
 type OrderUpdateInput struct {
+	IsTaxable       bool    // 👈
+	TaxPpnRate      float64 // 👈
+	TaxPph22Rate    float64 // 👈
 	ShippingCost    float64
 	CourierName     string
 	ShippingAddress string
@@ -103,14 +116,14 @@ type OrderUpdateInput struct {
 }
 
 type OrderFilter struct {
-	Search        string // Untuk pencarian OrderNumber
+	Search        string
 	BatchPoID     string
-	CustomerID    string // Filter by Customer
-	SalesID       string // Filter by Sales
-	OrderStatus   string // Filter by Order Status
-	PaymentStatus string // Filter by Payment Status
-	StartDate     string // Filter dari tanggal (format: YYYY-MM-DD)
-	EndDate       string // Filter sampai tanggal (format: YYYY-MM-DD)
+	CustomerID    string
+	SalesID       string
+	OrderStatus   string
+	PaymentStatus string
+	StartDate     string
+	EndDate       string
 }
 
 type OrderRepository interface {
@@ -141,11 +154,8 @@ type OrderUsecase interface {
 	DeleteOrderItem(ctx context.Context, orderID, itemID string) (*Order, error)
 }
 
-// CalculateTotals menghitung ulang Subtotal dan TotalAmount pesanan.
-// Sesuai prinsip DRY, logika matematika finansial terpusat di sini.
+// CalculateTotals menghitung ulang matematika finansial & perpajakan pengadaan instansi
 func (o *Order) CalculateTotals() {
-	// 1. Hitung ulang subtotal HANYA JIKA array Items tersedia di memory
-	// (Mencegah subtotal jadi 0 jika kita hanya me-load header order dari DB)
 	if len(o.Items) > 0 {
 		var subtotal float64
 		var totalQty int
@@ -155,19 +165,47 @@ func (o *Order) CalculateTotals() {
 		}
 		o.Subtotal = subtotal
 		o.TotalQty = totalQty
-
 	}
 
-	// 2. Hitung Grand Total
-	o.TotalAmount = (o.Subtotal - o.DiscountAmount) + o.TaxPpn - o.TaxPph + o.ShippingCost
+	o.TotalAmount = (o.Subtotal - o.DiscountAmount) + o.ShippingCost
+
+	if o.IsTaxable {
+		if o.TaxPpnRate <= 0 {
+			o.TaxPpnRate = 12.00
+		}
+		if o.TaxPph22Rate <= 0 {
+			o.TaxPph22Rate = 1.50
+		}
+
+		// 🚨 RUMUS INSTANSI DINAS:
+		// 1. DPP PPN dihitung via 100/109 (atau 4.881.250 untuk nilai 5.325.000)
+		o.DppPpn = math.Floor((o.TotalAmount * (100.0 / 109.0))) // Menghasilkan 4.885.321
+		o.DppPph = o.TotalAmount                                 // DPP PPh = Nilai Real Barang (5.325.000)
+
+		// 2. PPN 12% = 11% dari Nilai Real (atau 12% dari DPP Instansi 4.881.250 -> 585.750)
+		// Rumus presisi dinas: Subtotal * (11 / 100)
+		o.TaxPpn = math.Round(o.TotalAmount * 0.11) // 5.325.000 * 11% = 585.750
+
+		// 3. PPh 22 (1.5%) dihitung dari DPP PPH (Subtotal Real Barang)
+		o.TaxPph = math.Round(o.DppPph * (o.TaxPph22Rate / 100)) // 5.325.000 * 1,5% = 79.875
+
+		// 4. Pagu Belanja (Invoice Gross) = Subtotal + PPN
+		o.PaguAmount = o.TotalAmount + o.TaxPpn // 5.325.000 + 585.750 = 5.910.750
+
+		// 5. Yang Diterima Penyedia = Pagu - (PPN + PPh 22)
+		o.NetReceivedAmount = o.PaguAmount - (o.TaxPpn + o.TaxPph) // 5.245.125
+	} else {
+		o.DppPpn = 0
+		o.DppPph = 0
+		o.TaxPpn = 0
+		o.TaxPph = 0
+		o.PaguAmount = o.TotalAmount
+		o.NetReceivedAmount = o.TotalAmount
+	}
 }
 
-// GenerateOrderNumber membuat nomor pesanan unik dengan format ORD-YYYYMMDD-XXXXX.
-// Menggunakan crypto/rand untuk mencegah tabrakan data (collision) saat sistem berjalan paralel.
 func (o *Order) GenerateOrderNumber() error {
 	dateStr := time.Now().Format("20060102")
-
-	// Menghasilkan angka acak dari 0 hingga 99999 dengan aman
 	max := big.NewInt(100000)
 	randNum, err := rand.Int(rand.Reader, max)
 	if err != nil {
@@ -178,52 +216,41 @@ func (o *Order) GenerateOrderNumber() error {
 	return nil
 }
 
-// TransitionStatus memvalidasi dan mengubah status order berdasarkan alur pabrik.
 func (o *Order) TransitionStatus(newStatus OrderStatus) error {
-	// 1. Jika status yang diminta sama dengan status saat ini, abaikan saja
 	if o.OrderStatus == newStatus {
 		return nil
 	}
 
-	// 2. Terminal State check
 	if o.OrderStatus == OrderStatusCompleted || o.OrderStatus == OrderStatusCanceled {
 		return NewError(ErrConflict, "Pesanan yang sudah selesai atau dibatalkan tidak dapat diubah statusnya")
 	}
 
-	// 3. Evaluasi Aturan Transisi (State Machine)
 	switch newStatus {
-
 	case OrderStatusPending:
 		if o.OrderStatus != OrderStatusQuotation && o.OrderStatus != OrderStatusProduction {
 			return NewError(ErrConflict, "Hanya pesanan berstatus quotation atau production (koreksi) yang bisa diubah menjadi pending")
 		}
-		// 🚨 GEMBOK UANG 1: Harus ada pembayaran yang SUDAH VERIFIED dari Accounting
 		if o.PaymentStatus == PaymentStatusUnpaid {
 			return NewError(ErrConflict, "Pesanan tidak dapat diproses (pending) karena belum ada pembayaran (minimal DP)")
 		}
 
 	case OrderStatusProduction:
-		// Syarat: Harus dari meja Pending (atau koreksi dari Ready)
 		if o.OrderStatus != OrderStatusPending && o.OrderStatus != OrderStatusReady {
 			return NewError(ErrConflict, "Pesanan harus berstatus pending (antrean produksi) sebelum masuk meja produksi")
 		}
-		// 🚨 GEMBOK UANG 2: Pembayaran DP wajib sudah terverifikasi oleh Accounting
 		if o.PaymentStatus == PaymentStatusUnpaid || o.PaymentStatus == PaymentStatusPending {
 			return NewError(ErrConflict, "Pesanan tidak dapat masuk produksi karena pembayaran DP belum diverifikasi oleh Accounting")
 		}
 
 	case OrderStatusReady:
-		// Syarat: Baju harus sudah selesai dijahit
 		if o.OrderStatus != OrderStatusProduction {
 			return NewError(ErrConflict, "Pesanan harus berstatus production sebelum dipindahkan ke barang jadi (ready)")
 		}
 
 	case OrderStatusCompleted:
-		// Syarat mutlak: Harus dari gudang barang jadi (Ready)
 		if o.OrderStatus != OrderStatusReady {
 			return NewError(ErrConflict, "Pesanan belum siap (ready), tidak bisa diselesaikan")
 		}
-		// 🚨 GEMBOK UANG 3: Wajib LUNAS sepenuhnya
 		if o.PaymentStatus != PaymentStatusPaid {
 			return NewError(ErrConflict, "Pesanan tidak dapat diselesaikan/diambil customer karena belum lunas sepenuhnya (atau pelunasan belum diverifikasi Accounting)")
 		}
@@ -241,7 +268,6 @@ func (o *Order) TransitionStatus(newStatus OrderStatus) error {
 	return nil
 }
 
-// Validasi untuk OrderStatus
 func (s OrderStatus) IsValid() bool {
 	switch s {
 	case OrderStatusQuotation, OrderStatusPending, OrderStatusProduction, OrderStatusReady, OrderStatusCompleted, OrderStatusCanceled:
@@ -250,7 +276,6 @@ func (s OrderStatus) IsValid() bool {
 	return false
 }
 
-// Validasi untuk PaymentStatus
 func (s PaymentStatus) IsValid() bool {
 	switch s {
 	case PaymentStatusUnpaid, PaymentStatusPartial, PaymentStatusPaid:

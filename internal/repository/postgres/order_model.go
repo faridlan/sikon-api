@@ -21,7 +21,6 @@ type OrderItemModel struct {
 	UpdatedAt  time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
 
-	// Relasi
 	Product *ProductModel `gorm:"foreignKey:ProductID"`
 }
 
@@ -30,31 +29,37 @@ func (OrderItemModel) TableName() string {
 }
 
 type OrderModel struct {
-	ID              string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderNumber     string         `gorm:"type:varchar(100);unique;not null"`
-	BatchPoID       *string        `gorm:"type:uuid;index"`
-	CustomerID      string         `gorm:"type:uuid;not null"`
-	SalesID         string         `gorm:"type:uuid;not null"`
-	Subtotal        float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	DiscountAmount  float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	TaxPpn          float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	TaxPph          float64        `gorm:"type:decimal(15,2);not null;default:0"` // Kolom Baru
-	TotalAmount     float64        `gorm:"type:decimal(15,2);not null"`
-	TotalQty        int            `gorm:"->;column:total_qty"`
-	ShippingCost    float64        `gorm:"type:decimal(12,2);not null"`
-	CourierName     string         `gorm:"type:varchar(100)"`
-	ShippingAddress string         `gorm:"type:text"`
-	OrderStatus     string         `gorm:"type:varchar(50);not null"`
-	PaymentStatus   string         `gorm:"type:varchar(50);not null"`
-	ValidUntil      *time.Time     `gorm:"type:date"`
-	TermsConditions string         `gorm:"type:text"`
-	Notes           string         `gorm:"type:text"`
-	CreatedAt       time.Time      `gorm:"autoCreateTime"`
-	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
-	DeletedAt       gorm.DeletedAt `gorm:"index"`
-	ApprovedAt      *time.Time     `gorm:"column:approved_at"`
+	ID                string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderNumber       string         `gorm:"type:varchar(100);unique;not null"`
+	BatchPoID         *string        `gorm:"type:uuid;index"`
+	CustomerID        string         `gorm:"type:uuid;not null"`
+	SalesID           string         `gorm:"type:uuid;not null"`
+	Subtotal          float64        `gorm:"type:decimal(15,2);not null;default:0"`
+	DiscountAmount    float64        `gorm:"type:decimal(15,2);not null;default:0"`
+	IsTaxable         bool           `gorm:"type:boolean;not null;default:false"`      // 👈
+	TaxPpnRate        float64        `gorm:"type:decimal(5,2);not null;default:12.00"` // 👈
+	TaxPph22Rate      float64        `gorm:"type:decimal(5,2);not null;default:1.50"`  // 👈
+	DppPpn            float64        `gorm:"type:decimal(15,2);not null;default:0"`    // 👈
+	DppPph            float64        `gorm:"type:decimal(15,2);not null;default:0"`    // 👈
+	TaxPpn            float64        `gorm:"type:decimal(15,2);not null;default:0"`
+	TaxPph            float64        `gorm:"type:decimal(15,2);not null;default:0"`
+	TotalAmount       float64        `gorm:"type:decimal(15,2);not null"`
+	PaguAmount        float64        `gorm:"type:decimal(15,2);not null;default:0"` // 👈
+	NetReceivedAmount float64        `gorm:"type:decimal(15,2);not null;default:0"` // 👈
+	TotalQty          int            `gorm:"->;column:total_qty"`
+	ShippingCost      float64        `gorm:"type:decimal(12,2);not null"`
+	CourierName       string         `gorm:"type:varchar(100)"`
+	ShippingAddress   string         `gorm:"type:text"`
+	OrderStatus       string         `gorm:"type:varchar(50);not null"`
+	PaymentStatus     string         `gorm:"type:varchar(50);not null"`
+	ValidUntil        *time.Time     `gorm:"type:date"`
+	TermsConditions   string         `gorm:"type:text"`
+	Notes             string         `gorm:"type:text"`
+	CreatedAt         time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt         time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt         gorm.DeletedAt `gorm:"index"`
+	ApprovedAt        *time.Time     `gorm:"column:approved_at"`
 
-	// Relasi
 	Items    []OrderItemModel `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Customer *CustomerModel   `gorm:"foreignKey:CustomerID"`
 	Sales    *UserModel       `gorm:"foreignKey:SalesID"`
@@ -65,9 +70,7 @@ func (OrderModel) TableName() string {
 	return "orders"
 }
 
-// --- Mapper Order Item ---
 func (m *OrderItemModel) ToDomain() domain.OrderItem {
-
 	var detailsAny any
 	if len(m.Details) > 0 {
 		_ = json.Unmarshal(m.Details, &detailsAny)
@@ -86,14 +89,12 @@ func (m *OrderItemModel) ToDomain() domain.OrderItem {
 	}
 
 	if m.Product != nil {
-		productDomain := m.Product.ToDomain()
-		item.Product = productDomain
+		item.Product = m.Product.ToDomain()
 	}
 
 	return item
 }
 
-// --- Mapper Order Utama ---
 func (m *OrderModel) ToDomain() *domain.Order {
 	batchPoID := ""
 	if m.BatchPoID != nil {
@@ -101,45 +102,48 @@ func (m *OrderModel) ToDomain() *domain.Order {
 	}
 
 	order := &domain.Order{
-		ID:              m.ID,
-		OrderNumber:     m.OrderNumber,
-		BatchPoID:       batchPoID,
-		CustomerID:      m.CustomerID,
-		SalesID:         m.SalesID,
-		Subtotal:        m.Subtotal,       // Mapping Baru
-		DiscountAmount:  m.DiscountAmount, // Mapping Baru
-		TaxPpn:          m.TaxPpn,         // Mapping Baru
-		TaxPph:          m.TaxPph,         // Mapping Baru
-		TotalAmount:     m.TotalAmount,
-		TotalQty:        m.TotalQty, // Mapping Baru
-		ShippingCost:    m.ShippingCost,
-		CourierName:     m.CourierName,
-		ShippingAddress: m.ShippingAddress,
-		OrderStatus:     domain.OrderStatus(m.OrderStatus),
-		PaymentStatus:   domain.PaymentStatus(m.PaymentStatus),
-		ValidUntil:      m.ValidUntil,
-		TermsConditions: m.TermsConditions,
-		Notes:           m.Notes,
-		CreatedAt:       m.CreatedAt,
-		UpdatedAt:       m.UpdatedAt,
-		ApprovedAt:      m.ApprovedAt,
+		ID:                m.ID,
+		OrderNumber:       m.OrderNumber,
+		BatchPoID:         batchPoID,
+		CustomerID:        m.CustomerID,
+		SalesID:           m.SalesID,
+		Subtotal:          m.Subtotal,
+		DiscountAmount:    m.DiscountAmount,
+		IsTaxable:         m.IsTaxable,
+		TaxPpnRate:        m.TaxPpnRate,
+		TaxPph22Rate:      m.TaxPph22Rate,
+		DppPpn:            m.DppPpn,
+		DppPph:            m.DppPph,
+		TaxPpn:            m.TaxPpn,
+		TaxPph:            m.TaxPph,
+		TotalAmount:       m.TotalAmount,
+		PaguAmount:        m.PaguAmount,
+		NetReceivedAmount: m.NetReceivedAmount,
+		TotalQty:          m.TotalQty,
+		ShippingCost:      m.ShippingCost,
+		CourierName:       m.CourierName,
+		ShippingAddress:   m.ShippingAddress,
+		OrderStatus:       domain.OrderStatus(m.OrderStatus),
+		PaymentStatus:     domain.PaymentStatus(m.PaymentStatus),
+		ValidUntil:        m.ValidUntil,
+		TermsConditions:   m.TermsConditions,
+		Notes:             m.Notes,
+		CreatedAt:         m.CreatedAt,
+		UpdatedAt:         m.UpdatedAt,
+		ApprovedAt:        m.ApprovedAt,
 	}
 
-	// Map relasi Items
 	if len(m.Items) > 0 {
 		for _, item := range m.Items {
 			order.Items = append(order.Items, item.ToDomain())
 		}
 	}
-	// Map Customer
 	if m.Customer != nil {
 		order.Customer = m.Customer.ToDomain()
 	}
-	// Map Sales
 	if m.Sales != nil {
 		order.Sales = m.Sales.ToDomain()
 	}
-	// Map BatchPO
 	if m.BatchPO != nil {
 		order.BatchPO = m.BatchPO.ToDomain()
 	}
@@ -154,30 +158,36 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 	}
 
 	model := &OrderModel{
-		ID:              d.ID,
-		OrderNumber:     d.OrderNumber,
-		BatchPoID:       batchPoID,
-		CustomerID:      d.CustomerID,
-		SalesID:         d.SalesID,
-		Subtotal:        d.Subtotal,       // Mapping Baru
-		DiscountAmount:  d.DiscountAmount, // Mapping Baru
-		TaxPpn:          d.TaxPpn,         // Mapping Baru
-		TaxPph:          d.TaxPph,         // Mapping Baru
-		TotalAmount:     d.TotalAmount,
-		ShippingCost:    d.ShippingCost,
-		CourierName:     d.CourierName,
-		ShippingAddress: d.ShippingAddress,
-		OrderStatus:     string(d.OrderStatus),
-		PaymentStatus:   string(d.PaymentStatus),
-		ValidUntil:      d.ValidUntil,
-		TermsConditions: d.TermsConditions,
-		Notes:           d.Notes,
-		CreatedAt:       d.CreatedAt,
-		UpdatedAt:       d.UpdatedAt,
-		ApprovedAt:      d.ApprovedAt,
+		ID:                d.ID,
+		OrderNumber:       d.OrderNumber,
+		BatchPoID:         batchPoID,
+		CustomerID:        d.CustomerID,
+		SalesID:           d.SalesID,
+		Subtotal:          d.Subtotal,
+		DiscountAmount:    d.DiscountAmount,
+		IsTaxable:         d.IsTaxable,
+		TaxPpnRate:        d.TaxPpnRate,
+		TaxPph22Rate:      d.TaxPph22Rate,
+		DppPpn:            d.DppPpn,
+		DppPph:            d.DppPph,
+		TaxPpn:            d.TaxPpn,
+		TaxPph:            d.TaxPph,
+		TotalAmount:       d.TotalAmount,
+		PaguAmount:        d.PaguAmount,
+		NetReceivedAmount: d.NetReceivedAmount,
+		ShippingCost:      d.ShippingCost,
+		CourierName:       d.CourierName,
+		ShippingAddress:   d.ShippingAddress,
+		OrderStatus:       string(d.OrderStatus),
+		PaymentStatus:     string(d.PaymentStatus),
+		ValidUntil:        d.ValidUntil,
+		TermsConditions:   d.TermsConditions,
+		Notes:             d.Notes,
+		CreatedAt:         d.CreatedAt,
+		UpdatedAt:         d.UpdatedAt,
+		ApprovedAt:        d.ApprovedAt,
 	}
 
-	// Mapping detail items
 	if len(d.Items) > 0 {
 		for _, item := range d.Items {
 			var detailsJSON datatypes.JSON
@@ -195,7 +205,7 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 				CustomName: item.CustomName,
 				Qty:        item.Qty,
 				Price:      item.Price,
-				Details:    detailsJSON, // Konversi map biasa ke JSONB
+				Details:    detailsJSON,
 				CreatedAt:  item.CreatedAt,
 				UpdatedAt:  item.UpdatedAt,
 			})
