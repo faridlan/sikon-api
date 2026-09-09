@@ -22,6 +22,9 @@ type OrderCreateRequest struct {
 	BatchPoID       string             `json:"batch_po_id" validate:"required,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
 	CustomerID      string             `json:"customer_id" validate:"required,uuid" example:"333e4567-e89b-12d3-a456-426614174000"`
 	SalesID         string             `json:"sales_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	IsTaxable       bool               `json:"is_taxable" example:"true"`
+	TaxPpnRate      float64            `json:"tax_ppn_rate" validate:"gte=0" example:"12.00"`
+	TaxPph22Rate    float64            `json:"tax_pph22_rate" validate:"gte=0" example:"1.50"`
 	ShippingCost    float64            `json:"shipping_cost" validate:"omitempty,gte=0" example:"50000"`
 	CourierName     string             `json:"courier_name" validate:"omitempty" example:"JNE Trucking"`
 	ShippingAddress string             `json:"shipping_address" validate:"omitempty" example:"Jl. Sudirman No. 123, Jakarta"`
@@ -33,6 +36,9 @@ type OrderCreateRequest struct {
 }
 
 type OrderUpdateRequest struct {
+	IsTaxable       bool       `json:"is_taxable" example:"true"`
+	TaxPpnRate      float64    `json:"tax_ppn_rate" validate:"gte=0" example:"12.00"`
+	TaxPph22Rate    float64    `json:"tax_pph22_rate" validate:"gte=0" example:"1.50"`
 	ShippingCost    float64    `json:"shipping_cost" validate:"omitempty,gte=0" example:"75000"`
 	CourierName     string     `json:"courier_name" validate:"omitempty" example:"SiCepat Gokil"`
 	ShippingAddress string     `json:"shipping_address" validate:"omitempty" example:"Jl. Sudirman No. 123, Jakarta Selatan"`
@@ -61,28 +67,35 @@ type OrderItemResponse struct {
 }
 
 type OrderResponse struct {
-	ID              string     `json:"id" example:"ord-uuid"`
-	OrderNumber     string     `json:"order_number" example:"ORD-20231001-1234"`
-	BatchPoID       string     `json:"batch_po_id" example:"123e4567-e89b-12d3-a456-426614174000"`
-	CustomerID      string     `json:"customer_id" example:"333e4567-e89b-12d3-a456-426614174000"`
-	SalesID         string     `json:"sales_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Subtotal        float64    `json:"subtotal" example:"3500000"`
-	DiscountAmount  float64    `json:"discount_amount" example:"0"`
-	TaxPpn          float64    `json:"tax_ppn" example:"0"`
-	TaxPph          float64    `json:"tax_ph" example:"0"`
-	TotalAmount     float64    `json:"total_amount" example:"3550000"`
-	TotalQty        int        `json:"total_qty" example:"100"`
-	ShippingCost    float64    `json:"shipping_cost" example:"50000"`
-	CourierName     string     `json:"courier_name" example:"JNE Trucking"`
-	ShippingAddress string     `json:"shipping_address" example:"Jl. Sudirman No. 123, Jakarta"`
-	OrderStatus     string     `json:"order_status" example:"pending"`
-	PaymentStatus   string     `json:"payment_status" example:"unpaid"`
-	ValidUntil      *time.Time `json:"valid_until,omitempty" example:"2026-06-15T00:00:00Z"`
-	TermsConditions string     `json:"terms_conditions,omitempty" example:"DP Minimal 50%"`
-	Notes           string     `json:"notes" example:"Tolong packing kayu"`
-	CreatedAt       time.Time  `json:"created_at" example:"2023-10-01T15:00:00Z"`
-	UpdatedAt       time.Time  `json:"updated_at" example:"2023-10-01T15:00:00Z"`
-	ApprovedAt      *time.Time `json:"approved_at,omitempty" example:"2023-10-01T16:00:00Z"`
+	ID                string     `json:"id" example:"ord-uuid"`
+	OrderNumber       string     `json:"order_number" example:"ORD-20231001-1234"`
+	BatchPoID         string     `json:"batch_po_id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	CustomerID        string     `json:"customer_id" example:"333e4567-e89b-12d3-a456-426614174000"`
+	SalesID           string     `json:"sales_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Subtotal          float64    `json:"subtotal" example:"5325000"`
+	DiscountAmount    float64    `json:"discount_amount" example:"0"`
+	IsTaxable         bool       `json:"is_taxable" example:"true"`
+	TaxPpnRate        float64    `json:"tax_ppn_rate" example:"12.00"`
+	TaxPph22Rate      float64    `json:"tax_pph22_rate" example:"1.50"`
+	DppPpn            float64    `json:"dpp_ppn" example:"4885321.10"`
+	DppPph            float64    `json:"dpp_pph" example:"5325000"`
+	TaxPpn            float64    `json:"tax_ppn" example:"586238.53"`
+	TaxPph            float64    `json:"tax_pph" example:"73279.82"`
+	TotalAmount       float64    `json:"total_amount" example:"5325000"`
+	PaguAmount        float64    `json:"pagu_amount" example:"5911238.53"`
+	NetReceivedAmount float64    `json:"net_received_amount" example:"5251719.53"`
+	TotalQty          int        `json:"total_qty" example:"15"`
+	ShippingCost      float64    `json:"shipping_cost" example:"0"`
+	CourierName       string     `json:"courier_name" example:"Self Pickup"`
+	ShippingAddress   string     `json:"shipping_address" example:"Kantor Dinas"`
+	OrderStatus       string     `json:"order_status" example:"pending"`
+	PaymentStatus     string     `json:"payment_status" example:"unpaid"`
+	ValidUntil        *time.Time `json:"valid_until,omitempty" example:"2026-06-15T00:00:00Z"`
+	TermsConditions   string     `json:"terms_conditions,omitempty" example:"DP Minimal 50%"`
+	Notes             string     `json:"notes" example:"Pengadaan Baju Dinas"`
+	CreatedAt         time.Time  `json:"created_at" example:"2026-08-31T15:00:00Z"`
+	UpdatedAt         time.Time  `json:"updated_at" example:"2026-08-31T15:00:00Z"`
+	ApprovedAt        *time.Time `json:"approved_at,omitempty" example:"2026-08-31T16:00:00Z"`
 
 	Items    []OrderItemResponse `json:"items,omitempty"`
 	Customer *CustomerResponse   `json:"customer,omitempty"`
@@ -97,28 +110,35 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 	}
 
 	resp := OrderResponse{
-		ID:              o.ID,
-		OrderNumber:     o.OrderNumber,
-		BatchPoID:       o.BatchPoID,
-		CustomerID:      o.CustomerID,
-		SalesID:         o.SalesID,
-		Subtotal:        o.Subtotal,
-		DiscountAmount:  o.DiscountAmount,
-		TaxPpn:          o.TaxPpn,
-		TaxPph:          o.TaxPph,
-		TotalAmount:     o.TotalAmount,
-		TotalQty:        o.TotalQty,
-		ShippingCost:    o.ShippingCost,
-		CourierName:     o.CourierName,
-		ShippingAddress: o.ShippingAddress,
-		OrderStatus:     string(o.OrderStatus),
-		PaymentStatus:   string(o.PaymentStatus),
-		ValidUntil:      o.ValidUntil,
-		TermsConditions: o.TermsConditions,
-		Notes:           o.Notes,
-		CreatedAt:       o.CreatedAt,
-		UpdatedAt:       o.UpdatedAt,
-		ApprovedAt:      o.ApprovedAt,
+		ID:                o.ID,
+		OrderNumber:       o.OrderNumber,
+		BatchPoID:         o.BatchPoID,
+		CustomerID:        o.CustomerID,
+		SalesID:           o.SalesID,
+		Subtotal:          o.Subtotal,
+		DiscountAmount:    o.DiscountAmount,
+		IsTaxable:         o.IsTaxable,
+		TaxPpnRate:        o.TaxPpnRate,
+		TaxPph22Rate:      o.TaxPph22Rate,
+		DppPpn:            o.DppPpn,
+		DppPph:            o.DppPph,
+		TaxPpn:            o.TaxPpn,
+		TaxPph:            o.TaxPph,
+		TotalAmount:       o.TotalAmount,
+		PaguAmount:        o.PaguAmount,
+		NetReceivedAmount: o.NetReceivedAmount,
+		TotalQty:          o.TotalQty,
+		ShippingCost:      o.ShippingCost,
+		CourierName:       o.CourierName,
+		ShippingAddress:   o.ShippingAddress,
+		OrderStatus:       string(o.OrderStatus),
+		PaymentStatus:     string(o.PaymentStatus),
+		ValidUntil:        o.ValidUntil,
+		TermsConditions:   o.TermsConditions,
+		Notes:             o.Notes,
+		CreatedAt:         o.CreatedAt,
+		UpdatedAt:         o.UpdatedAt,
+		ApprovedAt:        o.ApprovedAt,
 	}
 
 	if len(o.Items) > 0 {

@@ -742,6 +742,9 @@ definitions:
       customer_id:
         example: 333e4567-e89b-12d3-a456-426614174000
         type: string
+      is_taxable:
+        example: true
+        type: boolean
       items:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemRequest'
@@ -761,6 +764,14 @@ definitions:
         type: string
       shipping_cost:
         example: 50000
+        minimum: 0
+        type: number
+      tax_pph22_rate:
+        example: 1.5
+        minimum: 0
+        type: number
+      tax_ppn_rate:
+        example: 12
         minimum: 0
         type: number
       terms_conditions:
@@ -821,7 +832,7 @@ definitions:
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderResponse:
     properties:
       approved_at:
-        example: "2023-10-01T16:00:00Z"
+        example: "2026-08-31T16:00:00Z"
         type: string
       batch_po:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.BatchPOResponse'
@@ -829,10 +840,10 @@ definitions:
         example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       courier_name:
-        example: JNE Trucking
+        example: Self Pickup
         type: string
       created_at:
-        example: "2023-10-01T15:00:00Z"
+        example: "2026-08-31T15:00:00Z"
         type: string
       customer:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.CustomerResponse'
@@ -842,15 +853,27 @@ definitions:
       discount_amount:
         example: 0
         type: number
+      dpp_pph:
+        example: 5325000
+        type: number
+      dpp_ppn:
+        example: 4.8853211e+06
+        type: number
       id:
         example: ord-uuid
         type: string
+      is_taxable:
+        example: true
+        type: boolean
       items:
         items:
           $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderItemResponse'
         type: array
+      net_received_amount:
+        example: 5.25171953e+06
+        type: number
       notes:
-        example: Tolong packing kayu
+        example: Pengadaan Baju Dinas
         type: string
       order_number:
         example: ORD-20231001-1234
@@ -858,6 +881,9 @@ definitions:
       order_status:
         example: pending
         type: string
+      pagu_amount:
+        example: 5.91123853e+06
+        type: number
       payment_status:
         example: unpaid
         type: string
@@ -867,31 +893,37 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       shipping_address:
-        example: Jl. Sudirman No. 123, Jakarta
+        example: Kantor Dinas
         type: string
       shipping_cost:
-        example: 50000
+        example: 0
         type: number
       subtotal:
-        example: 3500000
+        example: 5325000
         type: number
-      tax_ph:
-        example: 0
+      tax_pph:
+        example: 73279.82
+        type: number
+      tax_pph22_rate:
+        example: 1.5
         type: number
       tax_ppn:
-        example: 0
+        example: 586238.53
+        type: number
+      tax_ppn_rate:
+        example: 12
         type: number
       terms_conditions:
         example: DP Minimal 50%
         type: string
       total_amount:
-        example: 3550000
+        example: 5325000
         type: number
       total_qty:
-        example: 100
+        example: 15
         type: integer
       updated_at:
-        example: "2023-10-01T15:00:00Z"
+        example: "2026-08-31T15:00:00Z"
         type: string
       valid_until:
         example: "2026-06-15T00:00:00Z"
@@ -916,6 +948,9 @@ definitions:
       courier_name:
         example: SiCepat Gokil
         type: string
+      is_taxable:
+        example: true
+        type: boolean
       notes:
         example: Tambahan resi otomatis
         type: string
@@ -924,6 +959,14 @@ definitions:
         type: string
       shipping_cost:
         example: 75000
+        minimum: 0
+        type: number
+      tax_pph22_rate:
+        example: 1.5
+        minimum: 0
+        type: number
+      tax_ppn_rate:
+        example: 12
         minimum: 0
         type: number
       terms_conditions:
@@ -4141,7 +4184,8 @@ paths:
       consumes:
       - application/json
       description: Membuat pesanan (order) baru beserta detail produknya. Sistem akan
-        otomatis menghitung Subtotal dan TotalAmount.
+        otomatis menghitung Subtotal, TotalAmount (Grand Total), serta PPN 12% & PPh
+        22 jika is_taxable = true.
       parameters:
       - description: Data Pesanan Baru
         in: body
@@ -4255,9 +4299,10 @@ paths:
     put:
       consumes:
       - application/json
-      description: Memperbarui data meta pesanan seperti ongkir, kurir, alamat pengiriman,
-        dan catatan. Endpoint ini akan otomatis menghitung ulang Grand Total pesanan.
-        (Tidak mengubah detail item produk).
+      description: Memperbarui data meta pesanan seperti status perpajakan (PPN/PPh
+        22), ongkir, kurir, alamat pengiriman, dan catatan. Endpoint ini akan otomatis
+        menghitung ulang Grand Total pesanan & kalkulasi pajak pengadaan. (Tidak mengubah
+        detail item produk).
       parameters:
       - description: Order ID (UUID)
         in: path

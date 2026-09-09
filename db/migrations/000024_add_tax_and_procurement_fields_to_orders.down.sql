@@ -1,0 +1,8 @@
+ALTER TABLE orders
+DROP COLUMN IF EXISTS net_received_amount,
+DROP COLUMN IF EXISTS pagu_amount,
+DROP COLUMN IF EXISTS dpp_pph,
+DROP COLUMN IF EXISTS dpp_ppn,
+DROP COLUMN IF EXISTS tax_pph22_rate,
+DROP COLUMN IF EXISTS tax_ppn_rate,
+DROP COLUMN IF EXISTS is_taxable;
