@@ -59,6 +59,8 @@ type OrderModel struct {
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt         gorm.DeletedAt `gorm:"index"`
 	ApprovedAt        *time.Time     `gorm:"column:approved_at"`
+	HPPMaterialCost   float64        `gorm:"type:decimal(15,2);not null;default:0"`
+	HPPCalculatedAt   *time.Time     `gorm:"column:hpp_calculated_at"`
 
 	Items    []OrderItemModel `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Customer *CustomerModel   `gorm:"foreignKey:CustomerID"`
@@ -131,6 +133,8 @@ func (m *OrderModel) ToDomain() *domain.Order {
 		CreatedAt:         m.CreatedAt,
 		UpdatedAt:         m.UpdatedAt,
 		ApprovedAt:        m.ApprovedAt,
+		HPPMaterialCost:   m.HPPMaterialCost,
+		HPPCalculatedAt:   m.HPPCalculatedAt,
 	}
 
 	if len(m.Items) > 0 {
@@ -186,6 +190,8 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 		CreatedAt:         d.CreatedAt,
 		UpdatedAt:         d.UpdatedAt,
 		ApprovedAt:        d.ApprovedAt,
+		HPPMaterialCost:   d.HPPMaterialCost,
+		HPPCalculatedAt:   d.HPPCalculatedAt,
 	}
 
 	if len(d.Items) > 0 {

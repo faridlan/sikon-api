@@ -319,3 +319,26 @@ func SeedExpense(db *gorm.DB, categoryID, createdByID string, batchPoID *string,
 	db.Create(&expense)
 	return expense
 }
+
+func SeedMaterial(db *gorm.DB, name, unit string, unitPrice float64, category string) postgres.MaterialModel {
+	material := postgres.MaterialModel{
+		ID:        uuid.New().String(),
+		Name:      name,
+		Unit:      unit,
+		UnitPrice: unitPrice,
+		Category:  category,
+	}
+	db.Create(&material)
+	return material
+}
+
+func SeedProductMaterial(db *gorm.DB, productID, materialID string, qtyPerUnit float64) postgres.ProductMaterialModel {
+	pm := postgres.ProductMaterialModel{
+		ID:         uuid.New().String(),
+		ProductID:  productID,
+		MaterialID: materialID,
+		QtyPerUnit: qtyPerUnit,
+	}
+	db.Create(&pm)
+	return pm
+}

@@ -12,26 +12,41 @@ import (
 )
 
 type orderUsecase struct {
-	orderRepo      domain.OrderRepository
-	customerRepo   domain.CustomerRepository
-	userRepo       domain.UserRepository // Untuk memvalidasi Sales
-	productRepo    domain.ProductRepository
-	batchPoRepo    domain.BatchPORepository
-	paymentRepo    domain.PaymentRepository
-	txManager      domain.TransactionManager
-	contextTimeout time.Duration
+	orderRepo              domain.OrderRepository
+	customerRepo           domain.CustomerRepository
+	userRepo               domain.UserRepository
+	productRepo            domain.ProductRepository
+	batchPoRepo            domain.BatchPORepository
+	paymentRepo            domain.PaymentRepository
+	productMaterialUsecase domain.ProductMaterialUsecase // BARU
+	workLogRepo            domain.WorkLogRepository      // BARU
+	txManager              domain.TransactionManager
+	contextTimeout         time.Duration
 }
 
-func NewOrderUsecase(or domain.OrderRepository, cr domain.CustomerRepository, ur domain.UserRepository, pr domain.ProductRepository, bpr domain.BatchPORepository, payRepo domain.PaymentRepository, txManager domain.TransactionManager, timeout time.Duration) domain.OrderUsecase {
+func NewOrderUsecase(
+	or domain.OrderRepository,
+	cr domain.CustomerRepository,
+	ur domain.UserRepository,
+	pr domain.ProductRepository,
+	bpr domain.BatchPORepository,
+	payRepo domain.PaymentRepository,
+	txManager domain.TransactionManager,
+	pmUsecase domain.ProductMaterialUsecase, // BARU
+	workLogRepo domain.WorkLogRepository, // BARU
+	timeout time.Duration,
+) domain.OrderUsecase {
 	return &orderUsecase{
-		orderRepo:      or,
-		customerRepo:   cr,
-		userRepo:       ur,
-		productRepo:    pr,
-		batchPoRepo:    bpr,
-		paymentRepo:    payRepo,
-		txManager:      txManager,
-		contextTimeout: timeout,
+		orderRepo:              or,
+		customerRepo:           cr,
+		userRepo:               ur,
+		productRepo:            pr,
+		batchPoRepo:            bpr,
+		paymentRepo:            payRepo,
+		productMaterialUsecase: pmUsecase,
+		workLogRepo:            workLogRepo,
+		txManager:              txManager,
+		contextTimeout:         timeout,
 	}
 }
 
@@ -268,10 +283,30 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 			now := time.Now()
 			order.ApprovedAt = &now
 
+			// Cari PO yang aktif hari ini
 			activePO, err := u.batchPoRepo.GetActivePOByDate(txCtx, now)
 			if err == nil && activePO != nil {
 				order.BatchPoID = activePO.ID
 			}
+
+			// 🚨 BEKUKAN HPP MATERIAL DI SINI
+			// GetByIDForUpdate() sengaja tidak preload Items (biar locking ringan),
+			// jadi ambil Items-nya lewat query terpisah di dalam transaksi yang sama.
+			fullOrder, err := u.orderRepo.GetByID(txCtx, id)
+			if err != nil {
+				return err
+			}
+
+			var materialCost float64
+			for _, item := range fullOrder.Items {
+				cost, err := u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
+				if err != nil {
+					return err
+				}
+				materialCost += cost
+			}
+			order.HPPMaterialCost = materialCost
+			order.HPPCalculatedAt = &now
 		}
 
 		if err := u.orderRepo.Update(txCtx, order); err != nil {
@@ -460,4 +495,32 @@ func (u *orderUsecase) DeleteOrderItem(c context.Context, orderID, itemID string
 	}
 
 	return updatedOrder, nil
+}
+
+// GetOrderHPP mengembalikan breakdown HPP: Material (snapshot beku dari saat approve)
+// digabung dengan Tenaga Kerja (live, dihitung dari Work Log aktual saat ini).
+func (u *orderUsecase) GetOrderHPP(c context.Context, id string) (*domain.OrderHPPBreakdown, error) {
+	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
+	defer cancel()
+
+	order, err := u.orderRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NewError(domain.ErrNotFound, "Order tidak ditemukan")
+		}
+		return nil, err
+	}
+
+	laborCost, err := u.workLogRepo.GetTotalCostByOrder(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.OrderHPPBreakdown{
+		OrderID:              order.ID,
+		MaterialCost:         order.HPPMaterialCost,
+		MaterialCalculatedAt: order.HPPCalculatedAt,
+		LaborCost:            laborCost,
+		TotalCost:            order.HPPMaterialCost + laborCost,
+	}, nil
 }

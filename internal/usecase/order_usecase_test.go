@@ -14,7 +14,7 @@ import (
 	"github.com/faridlan/sikon-api/internal/usecase"
 )
 
-func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks.UserRepository, *mocks.ProductRepository, *mocks.BatchPORepository, *mocks.PaymentRepository, *mocks.TransactionManager, domain.OrderUsecase) {
+func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks.UserRepository, *mocks.ProductRepository, *mocks.BatchPORepository, *mocks.PaymentRepository, *mocks.TransactionManager, *mocks.ProductMaterialUsecase, *mocks.WorkLogRepository, domain.OrderUsecase) {
 	mockOrderRepo := new(mocks.OrderRepository)
 	mockCustomerRepo := new(mocks.CustomerRepository)
 	mockUserRepo := new(mocks.UserRepository)
@@ -22,10 +22,11 @@ func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks
 	mockBatchPORepo := new(mocks.BatchPORepository)
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	uc := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
-
-	return mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, uc
+	uc := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
+	return mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, uc
 }
 
 func TestOrderUsecase_CreateOrder(t *testing.T) {
@@ -47,7 +48,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 
 	t.Run("Success - Create with Array Details (Produk Setelan)", func(t *testing.T) {
 		// 🚨 Pastikan setupOrderTest me-return mockBatchPoRepo
-		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		// Kita copy baseInput agar tidak merusak test lain
 		input := baseInput
@@ -121,7 +122,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 	})
 
 	t.Run("Error - Batch PO Closed (Ditolak Satpam)", func(t *testing.T) {
-		_, mockCustomerRepo, mockUserRepo, _, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		_, mockCustomerRepo, mockUserRepo, _, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		input := baseInput
 
@@ -144,7 +145,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 	})
 
 	t.Run("Error - Customer Not Found", func(t *testing.T) {
-		_, mockCustomerRepo, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		_, mockCustomerRepo, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		input := baseInput
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(nil, domain.ErrNotFound).Once()
@@ -162,7 +163,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_GetOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 
 	t.Run("Success", func(t *testing.T) {
@@ -189,7 +190,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
 
 	t.Run("Success - Auto Set Active Batch PO When Filter Empty", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, _, _, uc := setupOrderTest()
 
 		// Filter dari FE tanpa batch_po_id
 		inputFilter := domain.OrderFilter{
@@ -223,7 +224,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	})
 
 	t.Run("Success - Explicit Batch PO 'all' (Skip Active PO Lookup)", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, _, _, uc := setupOrderTest()
 
 		// Filter dari FE mengirim batch_po_id = "all"
 		explicitFilter := domain.OrderFilter{
@@ -246,7 +247,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	})
 
 	t.Run("Error_From_Repository", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, _, _, uc := setupOrderTest()
 
 		filter := domain.OrderFilter{
 			BatchPoID: "po-123", // Menggunakan PO ID eksplisit
@@ -268,7 +269,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	})
 }
 func TestOrderUsecase_UpdateOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 	validUntilUpdate := time.Now().AddDate(0, 0, 14)
 
@@ -310,7 +311,7 @@ func TestOrderUsecase_UpdateOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_DeleteOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 	existingOrder := &domain.Order{ID: mockID, ShippingCost: 0}
 
@@ -327,7 +328,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 
 	t.Run("Success - Quotation to Pending", func(t *testing.T) {
 		// Pastikan mockBatchPoRepo ditangkap di sini
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -362,7 +363,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Success - Manual Approve (Quotation to Pending) & Auto Re-allocate", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -398,7 +399,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Error - Quotation to Pending but Unpaid", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -420,7 +421,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Success - Pending to Production", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -446,7 +447,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Success - Ready to Completed", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -472,7 +473,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Error - Order Not Found", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -491,7 +492,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 func TestOrderUsecase_UpdatePaymentStatus(t *testing.T) {
 	// Asumsi Anda memiliki fungsi setupOrderTest() untuk inisialisasi mock repo & usecase
 	// mockOrderRepo, _, _, uc := setupOrderTest()
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "order-123"
 
 	t.Run("Success", func(t *testing.T) {
@@ -543,8 +544,10 @@ func TestAddOrderItem(t *testing.T) {
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
 	mockBatchPORepo := new(mocks.BatchPORepository)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
 
 	orderID := "order-123"
 	productID := "prod-123"
@@ -639,8 +642,10 @@ func TestUpdateOrderItem(t *testing.T) {
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
 	mockBatchPORepo := new(mocks.BatchPORepository)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
 
 	orderID := "order-123"
 	itemID := "item-123"
@@ -719,8 +724,10 @@ func TestDeleteOrderItem(t *testing.T) {
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
 	mockBatchPORepo := new(mocks.BatchPORepository)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
 
 	orderID := "order-123"
 	itemID := "item-123"

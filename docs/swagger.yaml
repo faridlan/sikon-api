@@ -731,6 +731,61 @@ definitions:
     - email
     - password
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialCreateRequest:
+    properties:
+      category:
+        example: kain
+        type: string
+      name:
+        example: Kain Ripstop
+        type: string
+      unit:
+        example: meter
+        type: string
+      unit_price:
+        example: 25000
+        type: number
+    required:
+    - name
+    - unit
+    - unit_price
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialResponse:
+    properties:
+      category:
+        example: kain
+        type: string
+      created_at:
+        example: "2026-09-09T10:00:00Z"
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      name:
+        example: Kain Ripstop
+        type: string
+      unit:
+        example: meter
+        type: string
+      unit_price:
+        example: 25000
+        type: number
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialUpdateRequest:
+    properties:
+      category:
+        example: kain
+        type: string
+      name:
+        example: Kain Ripstop
+        type: string
+      unit:
+        example: meter
+        type: string
+      unit_price:
+        example: 27000
+        type: number
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.OrderCreateRequest:
     properties:
       batch_po_id:
@@ -1354,6 +1409,32 @@ definitions:
       is_primary:
         type: boolean
     type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductMaterialItemRequest:
+    properties:
+      material_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      qty_per_unit:
+        example: 1.2
+        type: number
+    required:
+    - material_id
+    - qty_per_unit
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductMaterialResponse:
+    properties:
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174001
+        type: string
+      material:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialResponse'
+      material_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      qty_per_unit:
+        example: 1.2
+        type: number
+    type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductModelRequest:
     properties:
       description:
@@ -1660,6 +1741,15 @@ definitions:
         type: integer
       total_revenue:
         type: number
+    type: object
+  github_com_faridlan_sikon-api_internal_delivery_http_dto.SetProductMaterialsRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductMaterialItemRequest'
+        type: array
+    required:
+    - items
     type: object
   github_com_faridlan_sikon-api_internal_delivery_http_dto.SpecTemplateColorRequest:
     properties:
@@ -2250,6 +2340,17 @@ definitions:
       meta:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MaterialResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialResponse'
+        type: array
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_domain.PaginationMeta'
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_OrderResponse
   : properties:
       data:
@@ -2389,6 +2490,15 @@ definitions:
       message:
         type: string
     type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductMaterialResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ProductMaterialResponse'
+        type: array
+      message:
+        type: string
+    type: object
   ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_PublicSalesResponse
   : properties:
       data:
@@ -2515,6 +2625,13 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.ExpenseResponse'
+      message:
+        type: string
+    type: object
+  ? github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MaterialResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialResponse'
       message:
         type: string
     type: object
@@ -4111,6 +4228,147 @@ paths:
       summary: Create Expense Category
       tags:
       - Expense Categories
+  /materials:
+    get:
+      parameters:
+      - default: 1
+        description: Halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.PaginatedResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MaterialResponse'
+      security:
+      - BearerAuth: []
+      summary: List All Materials
+      tags:
+      - Materials
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data Material Baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MaterialResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Material
+      tags:
+      - Materials
+  /materials/{id}:
+    delete:
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_utils_EmptyObj'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Material
+      tags:
+      - Materials
+    get:
+      parameters:
+      - description: Material ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MaterialResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Material Detail
+      tags:
+      - Materials
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Material ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Material yang diubah
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.MaterialUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-github_com_faridlan_sikon-api_internal_delivery_http_dto_MaterialResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Material
+      tags:
+      - Materials
   /orders:
     get:
       description: Mengambil daftar seluruh pesanan dengan fitur pagination dan multiple
@@ -5280,6 +5538,59 @@ paths:
       summary: Update Product
       tags:
       - Products
+  /products/{product_id}/materials:
+    get:
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: product_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductMaterialResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Product Materials (Resep Produk)
+      tags:
+      - Materials
+    put:
+      consumes:
+      - application/json
+      description: Menyimpan seluruh resep bahan untuk sebuah produk (replace-all,
+        bukan tambah satu-satu)
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: product_id
+        required: true
+        type: string
+      - description: Daftar resep bahan
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_faridlan_sikon-api_internal_delivery_http_dto.SetProductMaterialsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.SuccessResponse-array_github_com_faridlan_sikon-api_internal_delivery_http_dto_ProductMaterialResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_faridlan_sikon-api_internal_utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Set Product Materials (Resep Produk)
+      tags:
+      - Materials
   /products/slug/{slug}:
     get:
       description: Mengambil detail data produk berdasarkan Slug URL

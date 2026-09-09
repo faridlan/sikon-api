@@ -1,0 +1,2 @@
+ALTER TABLE orders ADD COLUMN hpp_material_cost NUMERIC(15,2) NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN hpp_calculated_at TIMESTAMP;

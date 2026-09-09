@@ -71,6 +71,8 @@ type Order struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	ApprovedAt        *time.Time
+	HPPMaterialCost   float64
+	HPPCalculatedAt   *time.Time
 
 	// Relasi
 	Items    []OrderItem
@@ -126,6 +128,14 @@ type OrderFilter struct {
 	EndDate       string
 }
 
+type OrderHPPBreakdown struct {
+	OrderID              string
+	MaterialCost         float64
+	MaterialCalculatedAt *time.Time
+	LaborCost            float64
+	TotalCost            float64
+}
+
 type OrderRepository interface {
 	Create(ctx context.Context, order *Order) error
 	GetByID(ctx context.Context, id string) (*Order, error)
@@ -152,6 +162,7 @@ type OrderUsecase interface {
 	AddOrderItem(ctx context.Context, orderID string, input OrderItemInput) (*Order, error)
 	UpdateOrderItem(ctx context.Context, orderID, itemID string, input OrderItemInput) (*Order, error)
 	DeleteOrderItem(ctx context.Context, orderID, itemID string) (*Order, error)
+	GetOrderHPP(ctx context.Context, id string) (*OrderHPPBreakdown, error)
 }
 
 // CalculateTotals menghitung ulang matematika finansial & perpajakan pengadaan instansi

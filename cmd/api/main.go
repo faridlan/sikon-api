@@ -118,6 +118,8 @@ func main() {
 	workLogRepo := postgres.NewWorkLogRepository(db)
 	payrollRepo := postgres.NewPayrollRepository(db)
 	attendanceRepo := postgres.NewAttendanceRepository(db)
+	materialRepo := postgres.NewMaterialRepository(db)
+	productMaterialRepo := postgres.NewProductMaterialRepository(db)
 
 	// ==========================================
 	// 2. INISIASI USECASE
@@ -137,11 +139,12 @@ func main() {
 	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, orderRepo, batchPORepo, contextTimeout)
 	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, contextTimeout)
 
-	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, contextTimeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, contextTimeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
 	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, contextTimeout)
-
+	materialUsecase := usecase.NewMaterialUsecase(materialRepo, contextTimeout)
+	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, txManager, contextTimeout)
+	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, productMaterialUsecase, workLogRepo, contextTimeout)
 	// ==========================================
 	// 3. INISIASI HANDLER
 	// ==========================================
@@ -164,7 +167,7 @@ func main() {
 	workLogHandler := myHttp.NewWorkLogHandler(workLogUsecase)
 	payrollHandler := myHttp.NewPayrollHandler(payrollUsecase)
 	attendanceHandler := myHttp.NewAttendanceHandler(attendanceUsecase)
-
+	materialHandler := myHttp.NewMaterialHandler(materialUsecase, productMaterialUsecase)
 	// ==========================================
 	// 4. BUNGKUS HANDLERS
 	// ==========================================
@@ -188,6 +191,7 @@ func main() {
 		WorkLogHandler:      workLogHandler,
 		PayrollHandler:      payrollHandler,
 		AttendanceHandler:   attendanceHandler,
+		MaterialHandler:     materialHandler,
 	}
 
 	// ==========================================

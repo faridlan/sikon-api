@@ -95,12 +95,22 @@ type OrderResponse struct {
 	Notes             string     `json:"notes" example:"Pengadaan Baju Dinas"`
 	CreatedAt         time.Time  `json:"created_at" example:"2026-08-31T15:00:00Z"`
 	UpdatedAt         time.Time  `json:"updated_at" example:"2026-08-31T15:00:00Z"`
-	ApprovedAt        *time.Time `json:"approved_at,omitempty" example:"2026-08-31T16:00:00Z"`
+	ApprovedAt        *time.Time `json:"approved_at,omitempty" example:"2023-10-01T16:00:00Z"`
+	HPPMaterialCost   float64    `json:"hpp_material_cost,omitempty" example:"600000"`
+	HPPCalculatedAt   *time.Time `json:"hpp_calculated_at,omitempty"`
 
 	Items    []OrderItemResponse `json:"items,omitempty"`
 	Customer *CustomerResponse   `json:"customer,omitempty"`
 	Sales    *UserResponse       `json:"sales,omitempty"`
 	BatchPO  *BatchPOResponse    `json:"batch_po,omitempty"`
+}
+
+type OrderHPPResponse struct {
+	OrderID              string     `json:"order_id" example:"ord-uuid"`
+	MaterialCost         float64    `json:"material_cost" example:"600000"`
+	MaterialCalculatedAt *time.Time `json:"material_calculated_at,omitempty"`
+	LaborCost            float64    `json:"labor_cost" example:"350000"`
+	TotalCost            float64    `json:"total_cost" example:"950000"`
 }
 
 func ToOrderResponse(o *domain.Order) OrderResponse {
@@ -139,6 +149,8 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 		CreatedAt:         o.CreatedAt,
 		UpdatedAt:         o.UpdatedAt,
 		ApprovedAt:        o.ApprovedAt,
+		HPPMaterialCost:   o.HPPMaterialCost,
+		HPPCalculatedAt:   o.HPPCalculatedAt,
 	}
 
 	if len(o.Items) > 0 {
@@ -187,4 +199,14 @@ func ToOrderResponseList(orders []domain.Order) []OrderResponse {
 		return []OrderResponse{}
 	}
 	return responses
+}
+
+func ToOrderHPPResponse(h *domain.OrderHPPBreakdown) OrderHPPResponse {
+	return OrderHPPResponse{
+		OrderID:              h.OrderID,
+		MaterialCost:         h.MaterialCost,
+		MaterialCalculatedAt: h.MaterialCalculatedAt,
+		LaborCost:            h.LaborCost,
+		TotalCost:            h.TotalCost,
+	}
 }
