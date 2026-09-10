@@ -86,6 +86,8 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.PayrollModel{},
 		&postgres.WorkLogModel{},
 		&postgres.AttendanceModel{},
+		&postgres.MaterialModel{},
+		&postgres.ProductMaterialModel{},
 	)
 
 	// Pastikan ada test user yang valid di database untuk endpoint yang menggunakan CreatedBy dari JWT
@@ -122,6 +124,8 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	workLogRepo := postgres.NewWorkLogRepository(db)
 	payrollRepo := postgres.NewPayrollRepository(db)
 	attendanceRepo := postgres.NewAttendanceRepository(db)
+	materialRepo := postgres.NewMaterialRepository(db)
+	productMaterialRepo := postgres.NewProductMaterialRepository(db)
 
 	// 2. Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtSecret, 24*time.Hour, timeout)
@@ -130,7 +134,6 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
-	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, timeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, timeout)
@@ -142,6 +145,9 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, orderRepo, batchPORepo, timeout)
 	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, timeout)
 	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, timeout)
+	materialUsecase := usecase.NewMaterialUsecase(materialRepo, timeout)
+	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, txManager, timeout)
+	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, productMaterialUsecase, workLogRepo, timeout)
 
 	// 3. Setup Fiber Handlers
 	handlers := myHttp.Handlers{
@@ -164,6 +170,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		WorkLogHandler:      myHttp.NewWorkLogHandler(workLogUsecase),
 		PayrollHandler:      myHttp.NewPayrollHandler(payrollUsecase),
 		AttendanceHandler:   myHttp.NewAttendanceHandler(attendanceUsecase),
+		MaterialHandler:     myHttp.NewMaterialHandler(materialUsecase, productMaterialUsecase),
 	}
 
 	app := fiber.New()
@@ -237,6 +244,8 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE attendances RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE materials RESTART IDENTITY CASCADE;")
+	db.Exec("TRUNCATE TABLE product_materials RESTART IDENTITY CASCADE;")
 
 	// Re-create default test user used by generic AuthenticatedRequest calls.
 	defaultUserID := normalizeTestUserID("test-user")

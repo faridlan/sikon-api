@@ -20,6 +20,8 @@ type OrderHandler interface {
 	AddOrderItem(c *fiber.Ctx) error
 	UpdateOrderItem(c *fiber.Ctx) error
 	DeleteOrderItem(c *fiber.Ctx) error
+
+	GetOrderHPP(c *fiber.Ctx) error
 }
 
 type orderHandler struct {
@@ -450,4 +452,26 @@ func (h *orderHandler) DeleteOrderItem(c *fiber.Ctx) error {
 	}
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menghapus item pesanan", dto.ToOrderResponse(order))
+}
+
+// @Summary Get Order HPP Breakdown
+// @Description Menampilkan rincian HPP Order: Material (snapshot saat disetujui) + Tenaga Kerja (live dari Work Log)
+// @Tags Orders
+// @Produce json
+// @Param id path string true "Order ID (UUID)"
+// @Success 200 {object} utils.SuccessResponse[dto.OrderHPPResponse]
+// @Failure 404 {object} utils.ErrorResponse "Not Found"
+// @Security BearerAuth
+// @Router /orders/{id}/hpp [get]
+func (h *orderHandler) GetOrderHPP(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := utils.ValidateUUID(id, "id"); err != nil {
+		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	breakdown, err := h.orderUsecase.GetOrderHPP(c.Context(), id)
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil rincian HPP order", dto.ToOrderHPPResponse(breakdown))
 }

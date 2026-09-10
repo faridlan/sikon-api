@@ -1,4 +1,4 @@
-﻿package http
+package http
 
 import (
 	"bytes"
@@ -110,7 +110,8 @@ func (h *seederHandler) uploadLocalFile(ctx context.Context, localFilePath strin
 // @Router /seeder/clear [post]
 func (h *seederHandler) Clear(c *fiber.Ctx) error {
 
-	// Hapus Relasi Produk
+	// Hapus Relasi Produk & Resep BOM
+	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductMaterialModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.ProductModelViewModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.DesignerModel{})
 	h.db.Unscoped().Where("1=1").Delete(&postgresRepo.WholesalePriceModel{})
@@ -132,6 +133,7 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Cust%").Delete(&postgresRepo.CustomerModel{}) // 👈 Hapus Customer DULU
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Prod%").Delete(&postgresRepo.ProductModel{})
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Cat%").Delete(&postgresRepo.CategoryModel{})
+	h.db.Unscoped().Where("name LIKE ?", "Dummy Mat%").Delete(&postgresRepo.MaterialModel{})
 	h.db.Unscoped().Where("email LIKE ?", "%_dummy@sikon.com").Delete(&postgresRepo.UserModel{}) // 👈 Hapus User SETELAH Customer
 	h.db.Unscoped().Where("account_number = ?", "999888777").Delete(&postgresRepo.BankAccountModel{})
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Spec%").Delete(&postgresRepo.SpecTemplateModel{})
@@ -323,6 +325,88 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	h.db.Create(&specAmerican)
 	h.db.Create(&specNagata)
 	h.db.Create(&specLacoste)
+
+	// --- 2b. SETUP MASTER MATERIAL (BOM BAHAN BAKU HPP) ---
+	matRipstopID := uuid.NewString()
+	matRipstop := postgresRepo.MaterialModel{
+		ID:        matRipstopID,
+		Name:      "Dummy Mat Kain Ripstop Cotton",
+		Unit:      "meter",
+		UnitPrice: 25000,
+		Category:  "kain",
+	}
+
+	matAmericanID := uuid.NewString()
+	matAmerican := postgresRepo.MaterialModel{
+		ID:        matAmericanID,
+		Name:      "Dummy Mat Kain American Drill",
+		Unit:      "meter",
+		UnitPrice: 28000,
+		Category:  "kain",
+	}
+
+	matNagataID := uuid.NewString()
+	matNagata := postgresRepo.MaterialModel{
+		ID:        matNagataID,
+		Name:      "Dummy Mat Kain Nagata Drill",
+		Unit:      "meter",
+		UnitPrice: 35000,
+		Category:  "kain",
+	}
+
+	matLacosteID := uuid.NewString()
+	matLacoste := postgresRepo.MaterialModel{
+		ID:        matLacosteID,
+		Name:      "Dummy Mat Kain Lacoste CVC",
+		Unit:      "meter",
+		UnitPrice: 30000,
+		Category:  "kain",
+	}
+
+	matKancingID := uuid.NewString()
+	matKancing := postgresRepo.MaterialModel{
+		ID:        matKancingID,
+		Name:      "Dummy Mat Kancing Kemeja & Polo",
+		Unit:      "pcs",
+		UnitPrice: 1000,
+		Category:  "aksesoris",
+	}
+
+	matBenangID := uuid.NewString()
+	matBenang := postgresRepo.MaterialModel{
+		ID:        matBenangID,
+		Name:      "Dummy Mat Benang Jahit Premium",
+		Unit:      "roll",
+		UnitPrice: 2500,
+		Category:  "aksesoris",
+	}
+
+	matResletingID := uuid.NewString()
+	matResleting := postgresRepo.MaterialModel{
+		ID:        matResletingID,
+		Name:      "Dummy Mat Resleting Taktikal",
+		Unit:      "pcs",
+		UnitPrice: 5000,
+		Category:  "aksesoris",
+	}
+
+	matPolybagID := uuid.NewString()
+	matPolybag := postgresRepo.MaterialModel{
+		ID:        matPolybagID,
+		Name:      "Dummy Mat Polybag Packaging",
+		Unit:      "pcs",
+		UnitPrice: 500,
+		Category:  "packaging",
+	}
+
+	h.db.Create(&matRipstop)
+	h.db.Create(&matAmerican)
+	h.db.Create(&matNagata)
+	h.db.Create(&matLacoste)
+	h.db.Create(&matKancing)
+	h.db.Create(&matBenang)
+	h.db.Create(&matResleting)
+	h.db.Create(&matPolybag)
 
 	// --- 3. SETUP 4 KATEGORI ---
 	catKemeja := postgresRepo.CategoryModel{ID: uuid.NewString(), Name: "Dummy Cat Kemeja"}
@@ -542,6 +626,51 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	h.db.Create(&prodKemeja2)
 	products := []postgresRepo.ProductModel{prodRompi, prodCelana, prodPolo, prodKemeja1, prodKemeja2}
 
+	// Setup Resep BOM per Produk (Product Materials)
+	productBOMs := []postgresRepo.ProductMaterialModel{
+		// Kemeja 1 (Ripstop) -> 1.5m Ripstop (37.5k) + 7 Kancing (7k) + 1 Benang (2.5k) + 1 Polybag (0.5k) = 47.5k
+		{ID: uuid.NewString(), ProductID: prodKemeja1ID, MaterialID: matRipstopID, QtyPerUnit: 1.5},
+		{ID: uuid.NewString(), ProductID: prodKemeja1ID, MaterialID: matKancingID, QtyPerUnit: 7},
+		{ID: uuid.NewString(), ProductID: prodKemeja1ID, MaterialID: matBenangID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodKemeja1ID, MaterialID: matPolybagID, QtyPerUnit: 1},
+
+		// Kemeja 2 (American Drill) -> 1.5m American (42k) + 7 Kancing (7k) + 1 Benang (2.5k) + 1 Polybag (0.5k) = 52k
+		{ID: uuid.NewString(), ProductID: prodKemeja2ID, MaterialID: matAmericanID, QtyPerUnit: 1.5},
+		{ID: uuid.NewString(), ProductID: prodKemeja2ID, MaterialID: matKancingID, QtyPerUnit: 7},
+		{ID: uuid.NewString(), ProductID: prodKemeja2ID, MaterialID: matBenangID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodKemeja2ID, MaterialID: matPolybagID, QtyPerUnit: 1},
+
+		// Rompi (Ripstop) -> 1.2m Ripstop (30k) + 1 Resleting (5k) + 1 Benang (2.5k) + 1 Polybag (0.5k) = 38k
+		{ID: uuid.NewString(), ProductID: prodRompiID, MaterialID: matRipstopID, QtyPerUnit: 1.2},
+		{ID: uuid.NewString(), ProductID: prodRompiID, MaterialID: matResletingID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodRompiID, MaterialID: matBenangID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodRompiID, MaterialID: matPolybagID, QtyPerUnit: 1},
+
+		// Celana (Nagata Drill) -> 1.5m Nagata (52.5k) + 1 Resleting (5k) + 1 Kancing (1k) + 1 Benang (2.5k) + 1 Polybag (0.5k) = 61.5k
+		{ID: uuid.NewString(), ProductID: prodCelanaID, MaterialID: matNagataID, QtyPerUnit: 1.5},
+		{ID: uuid.NewString(), ProductID: prodCelanaID, MaterialID: matResletingID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodCelanaID, MaterialID: matKancingID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodCelanaID, MaterialID: matBenangID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodCelanaID, MaterialID: matPolybagID, QtyPerUnit: 1},
+
+		// Polo (Lacoste CVC) -> 1.2m Lacoste (36k) + 3 Kancing (3k) + 1 Benang (2.5k) + 1 Polybag (0.5k) = 42k
+		{ID: uuid.NewString(), ProductID: prodPoloID, MaterialID: matLacosteID, QtyPerUnit: 1.2},
+		{ID: uuid.NewString(), ProductID: prodPoloID, MaterialID: matKancingID, QtyPerUnit: 3},
+		{ID: uuid.NewString(), ProductID: prodPoloID, MaterialID: matBenangID, QtyPerUnit: 1},
+		{ID: uuid.NewString(), ProductID: prodPoloID, MaterialID: matPolybagID, QtyPerUnit: 1},
+	}
+	for _, pb := range productBOMs {
+		h.db.Create(&pb)
+	}
+
+	productBOMCost := map[string]float64{
+		prodKemeja1ID: 47500,
+		prodKemeja2ID: 52000,
+		prodRompiID:   38000,
+		prodCelanaID:  61500,
+		prodPoloID:    42000,
+	}
+
 	// --- 6. SETUP CUSTOMERS ---
 	var customers []postgresRepo.CustomerModel
 	customerNames := []string{"Dummy Cust PT A", "Dummy Cust PT B", "Dummy Cust Personal C", "Dummy Cust CV D", "Dummy Cust Personal E", "Dummy Cust CV F"}
@@ -573,7 +702,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		h.db.Create(&ec)
 	}
 
-	// --- 8. SETUP BATCH PO ---
+	// --- 8. SETUP BATCH PO SEPTEMBER ---
 	poSchedules := []struct {
 		Name   string
 		Month  int
@@ -582,8 +711,9 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		End    string
 		Status string
 	}{
-		{"PO 1 AGUSTUS 2026", 8, 2026, "2026-08-01", "2026-08-07", string(domain.BatchPOStatusClosed)},
-		{"PO 2 AGUSTUS 2026", 8, 2026, "2026-08-08", "2026-08-15", string(domain.BatchPOStatusActive)},
+		{"PO September 1", 9, 2026, "2026-08-29", "2026-09-05", string(domain.BatchPOStatusClosed)},
+		{"PO September 2", 9, 2026, "2026-09-05", "2026-09-12", string(domain.BatchPOStatusClosed)},
+		{"PO September 3", 9, 2026, "2026-09-12", "2026-09-19", string(domain.BatchPOStatusActive)},
 	}
 
 	var batchPOs []postgresRepo.BatchPOModel
@@ -610,7 +740,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	workers := []postgresRepo.WorkerModel{
 		{ID: uuid.NewString(), Name: "Mang Ade (Penjahit)", Phone: "081299990001", Role: string(domain.WorkerRoleTailor), SalaryType: string(domain.WorkerSalaryTypePieceRate), Status: string(domain.WorkerStatusActive)},
 		{ID: uuid.NewString(), Name: "Mang Wahyu (Pemotong)", Phone: "081299990002", Role: string(domain.WorkerRoleCutter), SalaryType: string(domain.WorkerSalaryTypePieceRate), Status: string(domain.WorkerStatusActive)},
-		{ID: uuid.NewString(), Name: "Kang Agus (Finishing)", Phone: "081299990003", Role: string(domain.WorkerRoleFinishing), SalaryType: string(domain.WorkerSalaryTypeDaily), Status: string(domain.WorkerStatusActive)},
+		{ID: uuid.NewString(), Name: "Kang Agus (Finishing)", Phone: "081299990003", Role: string(domain.WorkerRoleFinishing), SalaryType: string(domain.WorkerSalaryTypePieceRate), Status: string(domain.WorkerStatusActive)},
 	}
 
 	for _, w := range workers {
@@ -618,190 +748,521 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 	}
 
 	// --- 10. LOOPING TRANSAKSI HARIAN & WORK LOGS ---
-	startDate, _ := time.Parse("2006-01-02", "2026-08-01")
-	endDate, _ := time.Parse("2006-01-02", "2026-08-12")
+	po1Start, _ := time.Parse("2006-01-02", "2026-08-29")
+	po2Start, _ := time.Parse("2006-01-02", "2026-09-05")
+	po3Start, _ := time.Parse("2006-01-02", "2026-09-12")
+	po3End, _ := time.Parse("2006-01-02", "2026-09-19")
+	startDate := po1Start
+	endDate := po3End
+
 	orderCounter := 1
-	expenseCounter := 0
-	var generatedWorkLogIDs []string
+	var po1WorkLogIDs, po2WorkLogIDs, po3WorkLogIDs []string
 
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
-		var activePoID *string
-		for _, po := range batchPOs {
-			if (d.Equal(po.StartDate) || d.After(po.StartDate)) && (d.Before(po.EndDate) || d.Equal(po.EndDate)) {
-				poID := po.ID
-				activePoID = &poID
-				break
-			}
+		var currentPO postgresRepo.BatchPOModel
+		var currentPOIndex int
+		if d.Before(po2Start) {
+			currentPO = batchPOs[0]
+			currentPOIndex = 0
+		} else if d.Before(po3Start) {
+			currentPO = batchPOs[1]
+			currentPOIndex = 1
+		} else {
+			currentPO = batchPOs[2]
+			currentPOIndex = 2
 		}
-		if activePoID == nil {
-			continue
-		}
+		poID := currentPO.ID
+		activePoID := &poID
 
 		numOrders := rand.Intn(3) + 1
 		for i := 0; i < numOrders; i++ {
 			cust := customers[rand.Intn(len(customers))]
 			prod := products[rand.Intn(len(products))]
-			qty := rand.Intn(10) + 1
+			qty := rand.Intn(15) + 5
 			totalAmount := float64(qty) * prod.BasePrice
-			payTypeRand := rand.Intn(3)
+
+			var orderStatus string
 			var paymentStatus string
-			var paidAmount float64
-			switch payTypeRand {
-			case 0:
-				paymentStatus = string(domain.PaymentStatusPaid)
-				paidAmount = totalAmount
-			case 1:
+			var isCompleted bool
+
+			if currentPO.Status == string(domain.BatchPOStatusClosed) {
+				// Aturan Closed PO:
+				// Ada yang completed (Lunas 100%), sisanya ready (Partial DP 50%), TIDAK ADA yang unpaid
+				if (orderCounter % 2) == 0 {
+					orderStatus = string(domain.OrderStatusCompleted)
+					paymentStatus = string(domain.PaymentStatusPaid)
+					isCompleted = true
+				} else {
+					orderStatus = string(domain.OrderStatusReady)
+					paymentStatus = string(domain.PaymentStatusPartial)
+					isCompleted = false
+				}
+			} else {
+				// Aturan Active PO 3:
+				// Semuanya sudah DP (Partial 50%) tapi statusnya production
+				orderStatus = string(domain.OrderStatusProduction)
 				paymentStatus = string(domain.PaymentStatusPartial)
-				paidAmount = totalAmount / 2
-			case 2:
-				paymentStatus = string(domain.PaymentStatusUnpaid)
-				paidAmount = 0
-			}
-			statusOptions := []string{
-				string(domain.OrderStatusQuotation),
-				string(domain.OrderStatusProduction),
-				string(domain.OrderStatusReady),
-				string(domain.OrderStatusCompleted),
+				isCompleted = false
 			}
 
-			orderStatus := statusOptions[rand.Intn(len(statusOptions))]
-			var approvedTimePtr *time.Time
-			createdAt := d.Add(8 * time.Hour)
-			if orderStatus == string(domain.OrderStatusQuotation) {
-				paymentStatus = string(domain.PaymentStatusUnpaid)
-				paidAmount = 0
-				approvedTimePtr = nil
-			} else {
-				appTime := d.Add(10 * time.Hour)
-				approvedTimePtr = &appTime
-			}
+			createdAt := d.Add(time.Duration(rand.Intn(4)+8) * time.Hour)
+			appTime := createdAt.Add(2 * time.Hour)
+			approvedTimePtr := &appTime
+
+			// Hitung Snapshot HPP Material dari Resep BOM x Qty
+			unitBOMCost := productBOMCost[prod.ID]
+			hppMaterialCost := float64(qty) * unitBOMCost
 
 			orderID := uuid.NewString()
-
 			order := postgresRepo.OrderModel{
-				ID:            orderID,
-				OrderNumber:   fmt.Sprintf("SEED-ORD-%04d", orderCounter),
-				BatchPoID:     activePoID,
-				CustomerID:    cust.ID,
-				SalesID:       *cust.SalesID,
-				Subtotal:      totalAmount,
-				TotalAmount:   totalAmount,
-				OrderStatus:   orderStatus,
-				PaymentStatus: paymentStatus,
-				CreatedAt:     createdAt,
-				ApprovedAt:    approvedTimePtr,
+				ID:              orderID,
+				OrderNumber:     fmt.Sprintf("SEED-ORD-%04d", orderCounter),
+				BatchPoID:       activePoID,
+				CustomerID:      cust.ID,
+				SalesID:         *cust.SalesID,
+				Subtotal:        totalAmount,
+				TotalAmount:     totalAmount,
+				OrderStatus:     orderStatus,
+				PaymentStatus:   paymentStatus,
+				CreatedAt:       createdAt,
+				ApprovedAt:      approvedTimePtr,
+				HPPMaterialCost: hppMaterialCost,
+				HPPCalculatedAt: approvedTimePtr,
 			}
 			h.db.Create(&order)
 
+			// Order Item
 			orderItem := postgresRepo.OrderItemModel{
-				ID:        uuid.NewString(),
-				OrderID:   orderID,
-				ProductID: prod.ID,
-				Qty:       qty,
-				Price:     prod.BasePrice,
+				ID:         uuid.NewString(),
+				OrderID:    orderID,
+				ProductID:  prod.ID,
+				CustomName: fmt.Sprintf("%s (%s)", prod.Name, cust.Name),
+				Qty:        qty,
+				Price:      prod.BasePrice,
 			}
 			h.db.Create(&orderItem)
 
-			if paidAmount > 0 && approvedTimePtr != nil {
-				payTime := approvedTimePtr.Add(2 * time.Hour)
-				verifierID := *cust.SalesID
-				payment := postgresRepo.PaymentModel{
+			// Pembayaran Terverifikasi
+			verifierID := *cust.SalesID
+			payTimeDP := appTime.Add(1 * time.Hour)
+
+			if isCompleted {
+				// 1. Pembayaran DP (50%)
+				dpPayment := postgresRepo.PaymentModel{
 					ID:              uuid.NewString(),
 					OrderID:         orderID,
 					BankAccountID:   bankAccount.ID,
-					Amount:          paidAmount,
-					PaymentType:     "dp",
+					Amount:          totalAmount * 0.5,
+					PaymentType:     string(domain.PaymentTypeDP),
 					Status:          string(domain.PaymentVerificationVerified),
 					VerifiedByID:    &verifierID,
-					VerifiedAt:      &payTime,
-					PaymentDate:     payTime,
-					ReferenceNumber: fmt.Sprintf("SEED-PAY-%04d", orderCounter),
+					VerifiedAt:      &payTimeDP,
+					PaymentDate:     payTimeDP,
+					ReferenceNumber: fmt.Sprintf("SEED-PAY-DP-%04d", orderCounter),
 				}
-				h.db.Create(&payment)
-			}
-			orderCounter++
-		}
+				h.db.Create(&dpPayment)
 
-		// Generate Catatan Kerja Borongan (WorkLog) Harian
-		tailorWorker := workers[0]
-		workLogQty := rand.Intn(20) + 5
-		ratePerQty := 12000.0
-		workLogID := uuid.NewString()
-		workLog := postgresRepo.WorkLogModel{
-			ID:          workLogID,
-			WorkerID:    tailorWorker.ID,
-			BatchPoID:   activePoID,
-			JobType:     string(domain.JobTypeJahit),
-			Qty:         workLogQty,
-			RatePerQty:  ratePerQty,
-			TotalAmount: float64(workLogQty) * ratePerQty,
-			WorkDate:    d,
-			Notes:       "Setor jahitan kemeja taktikal",
-			CreatedByID: ownerID, // 👈 Gunakan ownerID di sini!
-		}
-		h.db.Create(&workLog)
-		generatedWorkLogIDs = append(generatedWorkLogIDs, workLogID)
-
-		if rand.Intn(100) < 60 {
-			expCat := expenseCats[rand.Intn(len(expenseCats))]
-			var poIDPtr *string
-			var expAmount float64
-			if expCat.Type == string(domain.ExpenseTypeHPP) {
-				poIDPtr = activePoID
-				expAmount = float64(rand.Intn(3000)*1000 + 500000)
+				// 2. Pembayaran Pelunasan (50%)
+				payTimeSettlement := payTimeDP.Add(48 * time.Hour)
+				settlePayment := postgresRepo.PaymentModel{
+					ID:              uuid.NewString(),
+					OrderID:         orderID,
+					BankAccountID:   bankAccount.ID,
+					Amount:          totalAmount * 0.5,
+					PaymentType:     string(domain.PaymentTypeSettlement),
+					Status:          string(domain.PaymentVerificationVerified),
+					VerifiedByID:    &verifierID,
+					VerifiedAt:      &payTimeSettlement,
+					PaymentDate:     payTimeSettlement,
+					ReferenceNumber: fmt.Sprintf("SEED-PAY-SETTLE-%04d", orderCounter),
+				}
+				h.db.Create(&settlePayment)
 			} else {
-				poIDPtr = nil
-				expAmount = float64(rand.Intn(200)*1000 + 50000)
+				// Pembayaran DP 50% (untuk Ready & Production)
+				dpPayment := postgresRepo.PaymentModel{
+					ID:              uuid.NewString(),
+					OrderID:         orderID,
+					BankAccountID:   bankAccount.ID,
+					Amount:          totalAmount * 0.5,
+					PaymentType:     string(domain.PaymentTypeDP),
+					Status:          string(domain.PaymentVerificationVerified),
+					VerifiedByID:    &verifierID,
+					VerifiedAt:      &payTimeDP,
+					PaymentDate:     payTimeDP,
+					ReferenceNumber: fmt.Sprintf("SEED-PAY-DP-%04d", orderCounter),
+				}
+				h.db.Create(&dpPayment)
 			}
 
-			expense := postgresRepo.ExpenseModel{
-				ID:                uuid.NewString(),
-				ExpenseCategoryID: expCat.ID,
-				BatchPoID:         poIDPtr,
-				Title:             fmt.Sprintf("Pengeluaran Dummy - %s", expCat.Name),
-				Amount:            expAmount,
-				ExpenseDate:       d.Add(14 * time.Hour),
-				Notes:             "Dibuat otomatis oleh Seeder SIKOn",
-				CreatedByID:       activeSalesIDs[rand.Intn(len(activeSalesIDs))],
+			// Catatan Kerja Borongan (WorkLog)
+			// PO Closed yang ready/completed otomatis sudah dipotong dan dijahit
+			if orderStatus == string(domain.OrderStatusReady) || orderStatus == string(domain.OrderStatusCompleted) {
+				// WorkLog Potong (Mang Wahyu)
+				wlPotongID := uuid.NewString()
+				ratePotong := 4000.0
+				wlPotong := postgresRepo.WorkLogModel{
+					ID:          wlPotongID,
+					WorkerID:    workers[1].ID, // Mang Wahyu
+					BatchPoID:   activePoID,
+					OrderID:     &orderID,
+					JobType:     string(domain.JobTypePotong),
+					Qty:         qty,
+					RatePerQty:  ratePotong,
+					TotalAmount: float64(qty) * ratePotong,
+					WorkDate:    d,
+					Notes:       fmt.Sprintf("Potong pola kain %s (Order #%s)", prod.Name, order.OrderNumber),
+					CreatedByID: ownerID,
+				}
+				h.db.Create(&wlPotong)
+
+				// WorkLog Jahit (Mang Ade)
+				wlJahitID := uuid.NewString()
+				rateJahit := 12000.0
+				wlJahit := postgresRepo.WorkLogModel{
+					ID:          wlJahitID,
+					WorkerID:    workers[0].ID, // Mang Ade
+					BatchPoID:   activePoID,
+					OrderID:     &orderID,
+					JobType:     string(domain.JobTypeJahit),
+					Qty:         qty,
+					RatePerQty:  rateJahit,
+					TotalAmount: float64(qty) * rateJahit,
+					WorkDate:    d.AddDate(0, 0, 1),
+					Notes:       fmt.Sprintf("Jahit rakit %s (Order #%s)", prod.Name, order.OrderNumber),
+					CreatedByID: ownerID,
+				}
+				h.db.Create(&wlJahit)
+
+				if currentPOIndex == 0 {
+					po1WorkLogIDs = append(po1WorkLogIDs, wlPotongID, wlJahitID)
+				} else {
+					po2WorkLogIDs = append(po2WorkLogIDs, wlPotongID, wlJahitID)
+				}
+
+				// WorkLog Finishing (Kang Agus) jika order completed
+				if orderStatus == string(domain.OrderStatusCompleted) {
+					wlFinishID := uuid.NewString()
+					rateFinish := 3000.0
+					wlFinish := postgresRepo.WorkLogModel{
+						ID:          wlFinishID,
+						WorkerID:    workers[2].ID, // Kang Agus
+						BatchPoID:   activePoID,
+						OrderID:     &orderID,
+						JobType:     string(domain.JobTypeFinishing),
+						Qty:         qty,
+						RatePerQty:  rateFinish,
+						TotalAmount: float64(qty) * rateFinish,
+						WorkDate:    d.AddDate(0, 0, 2),
+						Notes:       fmt.Sprintf("Finishing & packing %s (Order #%s)", prod.Name, order.OrderNumber),
+						CreatedByID: ownerID,
+					}
+					h.db.Create(&wlFinish)
+
+					if currentPOIndex == 0 {
+						po1WorkLogIDs = append(po1WorkLogIDs, wlFinishID)
+					} else {
+						po2WorkLogIDs = append(po2WorkLogIDs, wlFinishID)
+					}
+				}
+			} else if orderStatus == string(domain.OrderStatusProduction) {
+				// Untuk PO 3 yang sedang berjalan (Production):
+				// Sudah dipotong, dan sebagian sudah mulai dijahit
+				wlPotongID := uuid.NewString()
+				ratePotong := 4000.0
+				wlPotong := postgresRepo.WorkLogModel{
+					ID:          wlPotongID,
+					WorkerID:    workers[1].ID, // Mang Wahyu
+					BatchPoID:   activePoID,
+					OrderID:     &orderID,
+					JobType:     string(domain.JobTypePotong),
+					Qty:         qty,
+					RatePerQty:  ratePotong,
+					TotalAmount: float64(qty) * ratePotong,
+					WorkDate:    d,
+					Notes:       fmt.Sprintf("Potong pola kain %s (Order #%s)", prod.Name, order.OrderNumber),
+					CreatedByID: ownerID,
+				}
+				h.db.Create(&wlPotong)
+				po3WorkLogIDs = append(po3WorkLogIDs, wlPotongID)
+
+				if (orderCounter % 2) == 0 {
+					wlJahitID := uuid.NewString()
+					rateJahit := 12000.0
+					wlJahit := postgresRepo.WorkLogModel{
+						ID:          wlJahitID,
+						WorkerID:    workers[0].ID, // Mang Ade
+						BatchPoID:   activePoID,
+						OrderID:     &orderID,
+						JobType:     string(domain.JobTypeJahit),
+						Qty:         qty,
+						RatePerQty:  rateJahit,
+						TotalAmount: float64(qty) * rateJahit,
+						WorkDate:    d,
+						Notes:       fmt.Sprintf("Jahit proses berjalan %s (Order #%s)", prod.Name, order.OrderNumber),
+						CreatedByID: ownerID,
+					}
+					h.db.Create(&wlJahit)
+					po3WorkLogIDs = append(po3WorkLogIDs, wlJahitID)
+				}
 			}
-			h.db.Create(&expense)
-			expenseCounter++
+
+			orderCounter++
 		}
 	}
 
 	// --- 11. SETUP DUMMY PAYROLL (REKAP GAJI MINGGUAN) ---
-	if len(generatedWorkLogIDs) > 0 {
-		payrollID := uuid.NewString()
-		payrollStart, _ := time.Parse("2006-01-02", "2026-08-01")
-		payrollEnd, _ := time.Parse("2006-01-02", "2026-08-07")
-
-		var totalPayrollAmount float64
-		h.db.Model(&postgresRepo.WorkLogModel{}).
-			Where("id IN ?", generatedWorkLogIDs[:len(generatedWorkLogIDs)/2]).
-			Select("COALESCE(SUM(total_amount), 0)").
-			Scan(&totalPayrollAmount)
-
-		payroll := postgresRepo.PayrollModel{
-			ID:            payrollID,
-			PayrollNumber: "PAY-202608-001",
-			StartDate:     payrollStart,
-			EndDate:       payrollEnd,
-			TotalAmount:   totalPayrollAmount,
-			Status:        string(domain.PayrollStatusDraft),
-			CreatedByID:   ownerID, // 👈 Gunakan ownerID di sini!
+	var expCMTCat postgresRepo.ExpenseCategoryModel
+	for _, ec := range expenseCats {
+		if ec.Name == "Dummy Cat Exp - Ongkos Jahit (CMT)" {
+			expCMTCat = ec
+			break
 		}
-		h.db.Create(&payroll)
-
-		// Linking WorkLogs ke Payroll
-		h.db.Model(&postgresRepo.WorkLogModel{}).
-			Where("id IN ?", generatedWorkLogIDs[:len(generatedWorkLogIDs)/2]).
-			Update("payroll_id", payrollID)
 	}
 
-	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder lengkap dengan Upload Gambar Produk, Spec Templates Kain, Canvas Mockup, & Master Workers/Payroll!", fiber.Map{
+	expenseCounter := 0
+
+	// 11a. Payroll PO September 1 (Closed -> Paid)
+	if len(po1WorkLogIDs) > 0 {
+		payrollID1 := uuid.NewString()
+		p1Start, _ := time.Parse("2006-01-02", "2026-08-29")
+		p1End, _ := time.Parse("2006-01-02", "2026-09-05")
+
+		var totalAmount1 float64
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", po1WorkLogIDs).
+			Select("COALESCE(SUM(total_amount), 0)").
+			Scan(&totalAmount1)
+
+		expID1 := uuid.NewString()
+		paidAt1 := p1End.Add(17 * time.Hour)
+		expense1 := postgresRepo.ExpenseModel{
+			ID:                expID1,
+			ExpenseCategoryID: expCMTCat.ID,
+			BatchPoID:         &batchPOs[0].ID,
+			Title:             "Pembayaran Rekap Gaji PAY-202609-001 (PO September 1)",
+			Amount:            totalAmount1,
+			ExpenseDate:       paidAt1,
+			Notes:             "Otomatis dibuat dari modul Payroll PO September 1",
+			CreatedByID:       ownerID,
+		}
+		h.db.Create(&expense1)
+		expenseCounter++
+
+		payroll1 := postgresRepo.PayrollModel{
+			ID:            payrollID1,
+			PayrollNumber: "PAY-202609-001",
+			StartDate:     p1Start,
+			EndDate:       p1End,
+			TotalAmount:   totalAmount1,
+			Status:        string(domain.PayrollStatusPaid),
+			ExpenseID:     &expID1,
+			PaidAt:        &paidAt1,
+			CreatedByID:   ownerID,
+		}
+		h.db.Create(&payroll1)
+
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", po1WorkLogIDs).
+			Update("payroll_id", payrollID1)
+	}
+
+	// 11b. Payroll PO September 2 (Closed -> Paid)
+	if len(po2WorkLogIDs) > 0 {
+		payrollID2 := uuid.NewString()
+		p2Start, _ := time.Parse("2006-01-02", "2026-09-05")
+		p2End, _ := time.Parse("2006-01-02", "2026-09-12")
+
+		var totalAmount2 float64
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", po2WorkLogIDs).
+			Select("COALESCE(SUM(total_amount), 0)").
+			Scan(&totalAmount2)
+
+		expID2 := uuid.NewString()
+		paidAt2 := p2End.Add(17 * time.Hour)
+		expense2 := postgresRepo.ExpenseModel{
+			ID:                expID2,
+			ExpenseCategoryID: expCMTCat.ID,
+			BatchPoID:         &batchPOs[1].ID,
+			Title:             "Pembayaran Rekap Gaji PAY-202609-002 (PO September 2)",
+			Amount:            totalAmount2,
+			ExpenseDate:       paidAt2,
+			Notes:             "Otomatis dibuat dari modul Payroll PO September 2",
+			CreatedByID:       ownerID,
+		}
+		h.db.Create(&expense2)
+		expenseCounter++
+
+		payroll2 := postgresRepo.PayrollModel{
+			ID:            payrollID2,
+			PayrollNumber: "PAY-202609-002",
+			StartDate:     p2Start,
+			EndDate:       p2End,
+			TotalAmount:   totalAmount2,
+			Status:        string(domain.PayrollStatusPaid),
+			ExpenseID:     &expID2,
+			PaidAt:        &paidAt2,
+			CreatedByID:   ownerID,
+		}
+		h.db.Create(&payroll2)
+
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", po2WorkLogIDs).
+			Update("payroll_id", payrollID2)
+	}
+
+	// 11c. Payroll PO September 3 (Active -> Draft)
+	if len(po3WorkLogIDs) > 0 {
+		payrollID3 := uuid.NewString()
+		p3Start, _ := time.Parse("2006-01-02", "2026-09-12")
+		p3End, _ := time.Parse("2006-01-02", "2026-09-19")
+
+		var totalAmount3 float64
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", po3WorkLogIDs).
+			Select("COALESCE(SUM(total_amount), 0)").
+			Scan(&totalAmount3)
+
+		payroll3 := postgresRepo.PayrollModel{
+			ID:            payrollID3,
+			PayrollNumber: "PAY-202609-003",
+			StartDate:     p3Start,
+			EndDate:       p3End,
+			TotalAmount:   totalAmount3,
+			Status:        string(domain.PayrollStatusDraft),
+			CreatedByID:   ownerID,
+		}
+		h.db.Create(&payroll3)
+
+		h.db.Model(&postgresRepo.WorkLogModel{}).
+			Where("id IN ?", po3WorkLogIDs).
+			Update("payroll_id", payrollID3)
+	}
+
+	// --- 12. SETUP PENGELUARAN (EXPENSES) HPP TIAP PO & OPEX ---
+	var expKainCat, expListrikCat, expInternetCat, expAdsCat postgresRepo.ExpenseCategoryModel
+	for _, ec := range expenseCats {
+		switch ec.Name {
+		case "Dummy Cat Exp - Belanja Kain & Benang":
+			expKainCat = ec
+		case "Dummy Cat Exp - Operasional Listrik":
+			expListrikCat = ec
+		case "Dummy Cat Exp - Internet & Hosting":
+			expInternetCat = ec
+		case "Dummy Cat Exp - Biaya Iklan Meta Ads":
+			expAdsCat = ec
+		}
+	}
+
+	fixedExpenses := []postgresRepo.ExpenseModel{
+		// HPP Belanja Material PO September 1
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expKainCat.ID,
+			BatchPoID:         &batchPOs[0].ID,
+			Title:             "Belanja Kain Ripstop & Aksesoris PO September 1",
+			Amount:            4500000,
+			ExpenseDate:       po1Start.Add(24 * time.Hour),
+			Notes:             "Bahan baku utama untuk PO September 1",
+			CreatedByID:       ownerID,
+		},
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expKainCat.ID,
+			BatchPoID:         &batchPOs[0].ID,
+			Title:             "Belanja Kancing & Benang PO September 1",
+			Amount:            850000,
+			ExpenseDate:       po1Start.Add(48 * time.Hour),
+			Notes:             "Aksesoris pelengkap PO September 1",
+			CreatedByID:       ownerID,
+		},
+		// HPP Belanja Material PO September 2
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expKainCat.ID,
+			BatchPoID:         &batchPOs[1].ID,
+			Title:             "Belanja Kain American Drill & Nagata PO September 2",
+			Amount:            5200000,
+			ExpenseDate:       po2Start.Add(24 * time.Hour),
+			Notes:             "Bahan baku utama untuk PO September 2",
+			CreatedByID:       ownerID,
+		},
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expKainCat.ID,
+			BatchPoID:         &batchPOs[1].ID,
+			Title:             "Belanja Resleting & Polybag PO September 2",
+			Amount:            950000,
+			ExpenseDate:       po2Start.Add(48 * time.Hour),
+			Notes:             "Aksesoris pelengkap PO September 2",
+			CreatedByID:       ownerID,
+		},
+		// HPP Belanja Material PO September 3
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expKainCat.ID,
+			BatchPoID:         &batchPOs[2].ID,
+			Title:             "Belanja Kain Lacoste CVC & Ripstop PO September 3",
+			Amount:            4800000,
+			ExpenseDate:       po3Start.Add(24 * time.Hour),
+			Notes:             "Bahan baku utama untuk PO September 3",
+			CreatedByID:       ownerID,
+		},
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expKainCat.ID,
+			BatchPoID:         &batchPOs[2].ID,
+			Title:             "Belanja Benang & Kancing PO September 3",
+			Amount:            750000,
+			ExpenseDate:       po3Start.Add(48 * time.Hour),
+			Notes:             "Aksesoris pelengkap PO September 3",
+			CreatedByID:       ownerID,
+		},
+
+		// OPEX Bulanan
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expListrikCat.ID,
+			BatchPoID:         nil,
+			Title:             "Tagihan Listrik Workshop Mesin Jahit Agustus/September",
+			Amount:            850000,
+			ExpenseDate:       po2Start,
+			Notes:             "Listrik operasional workshop bulanan",
+			CreatedByID:       ownerID,
+		},
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expInternetCat.ID,
+			BatchPoID:         nil,
+			Title:             "Langganan Internet Kantor & Hosting Server",
+			Amount:            650000,
+			ExpenseDate:       po2Start.Add(72 * time.Hour),
+			Notes:             "Internet & server SIKOn",
+			CreatedByID:       ownerID,
+		},
+		{
+			ID:                uuid.NewString(),
+			ExpenseCategoryID: expAdsCat.ID,
+			BatchPoID:         nil,
+			Title:             "Biaya Campaign Iklan Meta Ads (FB & IG)",
+			Amount:            1500000,
+			ExpenseDate:       po3Start,
+			Notes:             "Promosi kemeja & rompi online",
+			CreatedByID:       ownerID,
+		},
+	}
+
+	for _, fe := range fixedExpenses {
+		h.db.Create(&fe)
+		expenseCounter++
+	}
+
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menyuntikkan data Seeder lengkap dengan Upload Gambar Produk, Spec Templates Kain, Master Material & BOM HPP, Canvas Mockup, & Master Workers/Payroll!", fiber.Map{
 		"total_orders_generated":    orderCounter - 1,
 		"total_expenses_generated":  expenseCounter,
 		"total_workers_generated":   len(workers),
-		"total_work_logs_generated": len(generatedWorkLogIDs),
+		"total_work_logs_generated": len(po1WorkLogIDs) + len(po2WorkLogIDs) + len(po3WorkLogIDs),
+		"total_materials_generated": 8,
+		"total_boms_generated":      len(productBOMs),
 	})
 }

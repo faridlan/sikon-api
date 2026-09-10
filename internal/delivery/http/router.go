@@ -31,6 +31,7 @@ type Handlers struct {
 	WorkLogHandler      WorkLogHandler
 	PayrollHandler      PayrollHandler
 	AttendanceHandler   AttendanceHandler
+	MaterialHandler     MaterialHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers & jwtSecret
@@ -110,6 +111,8 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	products.Post("/", guardOwner, handlers.ProductHandler.CreateProduct)
 	products.Put("/:id", guardOwner, handlers.ProductHandler.UpdateProduct)
 	products.Delete("/:id", guardOwner, handlers.ProductHandler.DeleteProduct)
+	products.Get("/:id/materials", handlers.MaterialHandler.GetProductMaterials)
+	products.Put("/:id/materials", guardFinance, handlers.MaterialHandler.SetProductMaterials)
 
 	// --- Customers Routes (Internal: Accounting & Sales) ---
 	customers := protected.Group("/customers")
@@ -143,6 +146,8 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	orders.Post("/:id/items", guardInternal, handlers.OrderHandler.AddOrderItem)
 	orders.Put("/:id/items/:itemId", guardInternal, handlers.OrderHandler.UpdateOrderItem)
 	orders.Delete("/:id/items/:itemId", guardInternal, handlers.OrderHandler.DeleteOrderItem)
+
+	orders.Get("/:id/hpp", guardFinance, handlers.OrderHandler.GetOrderHPP)
 
 	// --- Payments Routes (Sales Create DP, Accounting Verify) ---
 	payments := protected.Group("/payments")
@@ -230,6 +235,17 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	reports.Get("/receivables", guardFinance, handlers.ReportHandler.GetReceivablesReport)
 	reports.Get("/daily", guardFinance, handlers.ReportHandler.GetDailyReport)
 	reports.Get("/tax-annual", guardFinance, handlers.ReportHandler.GetTaxAnnualReport)
+
+	// --- Materials Routes ---
+	materials := protected.Group("/materials")
+	materials.Post("/", guardFinance, handlers.MaterialHandler.CreateMaterial)
+	materials.Get("/", handlers.MaterialHandler.ListMaterials)
+	materials.Get("/:id", handlers.MaterialHandler.GetMaterial)
+	materials.Put("/:id", guardFinance, handlers.MaterialHandler.UpdateMaterial)
+	materials.Delete("/:id", guardOwner, handlers.MaterialHandler.DeleteMaterial)
+
+	// --- Product Materials (Resep/BOM) Routes ---
+	// Nested di bawah /products/:product_id/materials
 
 	// --- Uploads & Seeder Routes ---
 	uploads := protected.Group("/uploads")

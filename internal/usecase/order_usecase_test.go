@@ -14,7 +14,7 @@ import (
 	"github.com/faridlan/sikon-api/internal/usecase"
 )
 
-func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks.UserRepository, *mocks.ProductRepository, *mocks.BatchPORepository, *mocks.PaymentRepository, *mocks.TransactionManager, domain.OrderUsecase) {
+func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks.UserRepository, *mocks.ProductRepository, *mocks.BatchPORepository, *mocks.PaymentRepository, *mocks.TransactionManager, *mocks.ProductMaterialUsecase, *mocks.WorkLogRepository, domain.OrderUsecase) {
 	mockOrderRepo := new(mocks.OrderRepository)
 	mockCustomerRepo := new(mocks.CustomerRepository)
 	mockUserRepo := new(mocks.UserRepository)
@@ -22,10 +22,12 @@ func setupOrderTest() (*mocks.OrderRepository, *mocks.CustomerRepository, *mocks
 	mockBatchPORepo := new(mocks.BatchPORepository)
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	uc := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
+	uc := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
 
-	return mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, uc
+	return mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, uc
 }
 
 func TestOrderUsecase_CreateOrder(t *testing.T) {
@@ -47,7 +49,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 
 	t.Run("Success - Create with Array Details (Produk Setelan)", func(t *testing.T) {
 		// 🚨 Pastikan setupOrderTest me-return mockBatchPoRepo
-		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		// Kita copy baseInput agar tidak merusak test lain
 		input := baseInput
@@ -121,7 +123,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 	})
 
 	t.Run("Error - Batch PO Closed (Ditolak Satpam)", func(t *testing.T) {
-		_, mockCustomerRepo, mockUserRepo, _, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		_, mockCustomerRepo, mockUserRepo, _, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		input := baseInput
 
@@ -144,7 +146,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 	})
 
 	t.Run("Error - Customer Not Found", func(t *testing.T) {
-		_, mockCustomerRepo, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		_, mockCustomerRepo, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		input := baseInput
 		mockCustomerRepo.On("GetByID", mock.Anything, input.CustomerID).Return(nil, domain.ErrNotFound).Once()
@@ -162,7 +164,7 @@ func TestOrderUsecase_CreateOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_GetOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 
 	t.Run("Success", func(t *testing.T) {
@@ -189,7 +191,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	query := domain.PaginationQuery{Page: 1, Limit: 10}
 
 	t.Run("Success - Auto Set Active Batch PO When Filter Empty", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, _, _, uc := setupOrderTest()
 
 		// Filter dari FE tanpa batch_po_id
 		inputFilter := domain.OrderFilter{
@@ -223,7 +225,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	})
 
 	t.Run("Success - Explicit Batch PO 'all' (Skip Active PO Lookup)", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, _, _, uc := setupOrderTest()
 
 		// Filter dari FE mengirim batch_po_id = "all"
 		explicitFilter := domain.OrderFilter{
@@ -246,7 +248,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	})
 
 	t.Run("Error_From_Repository", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, _, _, _, uc := setupOrderTest()
 
 		filter := domain.OrderFilter{
 			BatchPoID: "po-123", // Menggunakan PO ID eksplisit
@@ -268,7 +270,7 @@ func TestOrderUsecase_ListOrders(t *testing.T) {
 	})
 }
 func TestOrderUsecase_UpdateOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 	validUntilUpdate := time.Now().AddDate(0, 0, 14)
 
@@ -310,7 +312,7 @@ func TestOrderUsecase_UpdateOrder(t *testing.T) {
 }
 
 func TestOrderUsecase_DeleteOrder(t *testing.T) {
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "ord-123"
 	existingOrder := &domain.Order{ID: mockID, ShippingCost: 0}
 
@@ -327,7 +329,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 
 	t.Run("Success - Quotation to Pending", func(t *testing.T) {
 		// Pastikan mockBatchPoRepo ditangkap di sini
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -347,11 +349,17 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		activePO := &domain.BatchPO{ID: "po-baru-agustus"}
 		mockBatchPoRepo.On("GetActivePOByDate", mock.Anything, mock.Anything).Return(activePO, nil).Once()
 
-		// Update ekspektasi: BatchPoID dan ApprovedAt ikut ter-update
+		// 🆕 BARU: Fetch ulang Order dengan Items untuk hitung HPP Material (GetByIDForUpdate sengaja tidak preload Items)
+		// Items kosong di sini -> HPPMaterialCost hasilnya 0, productMaterialUsecase tidak perlu di-mock sama sekali
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(&domain.Order{ID: mockID, Items: []domain.OrderItem{}}, nil).Once()
+
+		// Update ekspektasi: BatchPoID, ApprovedAt, dan HPP snapshot ikut ter-update
 		mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			return o.OrderStatus == domain.OrderStatusPending &&
 				o.BatchPoID == "po-baru-agustus" &&
-				o.ApprovedAt != nil
+				o.ApprovedAt != nil &&
+				o.HPPMaterialCost == 0 && // tidak ada item -> HPP 0
+				o.HPPCalculatedAt != nil
 		})).Return(nil).Once()
 
 		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
@@ -362,7 +370,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Success - Manual Approve (Quotation to Pending) & Auto Re-allocate", func(t *testing.T) {
-		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -382,11 +390,15 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		activePO := &domain.BatchPO{ID: "po-baru-agustus"}
 		mockBatchPoRepo.On("GetActivePOByDate", mock.Anything, mock.Anything).Return(activePO, nil).Once()
 
+		// 🆕 BARU: fetch ulang Order dengan Items untuk hitung HPP Material
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(&domain.Order{ID: mockID, Items: []domain.OrderItem{}}, nil).Once()
+
 		mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
 			// Ekspektasikan order berubah menjadi Pending dan BatchPoID ter-update
 			return o.OrderStatus == domain.OrderStatusPending &&
 				o.BatchPoID == "po-baru-agustus" &&
-				o.ApprovedAt != nil
+				o.ApprovedAt != nil &&
+				o.HPPCalculatedAt != nil
 		})).Return(nil).Once()
 
 		// 🚨 Panggil dengan target status Pending, sesuai aturan Satpam
@@ -398,7 +410,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Error - Quotation to Pending but Unpaid", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -420,7 +432,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Success - Pending to Production", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -446,7 +458,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Success - Ready to Completed", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -472,7 +484,7 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 	})
 
 	t.Run("Error - Order Not Found", func(t *testing.T) {
-		mockOrderRepo, _, _, _, _, _, mockTxManager, uc := setupOrderTest()
+		mockOrderRepo, _, _, _, _, _, mockTxManager, _, _, uc := setupOrderTest()
 
 		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
 			Return(func(ctx context.Context, fn func(context.Context) error) error {
@@ -486,12 +498,163 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 		assert.Error(t, err)
 		mockOrderRepo.AssertNotCalled(t, "Update")
 	})
+
+	t.Run("Success - Approve Membekukan HPP Material Dari 2 Item", func(t *testing.T) {
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, mockProductMaterialUsecase, _, uc := setupOrderTest()
+
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
+			Return(func(ctx context.Context, fn func(context.Context) error) error {
+				return fn(ctx)
+			}).Once()
+
+		mockOrder := &domain.Order{
+			ID:            mockID,
+			OrderStatus:   domain.OrderStatusQuotation,
+			PaymentStatus: domain.PaymentStatusPartial,
+		}
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
+
+		// Tidak ada Batch PO aktif hari ini -> BatchPoID order tidak berubah, tapi approve tetap jalan
+		mockBatchPoRepo.On("GetActivePOByDate", mock.Anything, mock.Anything).Return(nil, domain.ErrNotFound).Once()
+
+		// Order ini punya 2 item -> CalculateMaterialCost dipanggil 2x, masing-masing produk beda
+		orderWithItems := &domain.Order{
+			ID: mockID,
+			Items: []domain.OrderItem{
+				{ProductID: "prod-kaos-polo", Qty: 20},
+				{ProductID: "prod-kemeja-pdh", Qty: 10},
+			},
+		}
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(orderWithItems, nil).Once()
+
+		mockProductMaterialUsecase.On("CalculateMaterialCost", mock.Anything, "prod-kaos-polo", 20).Return(float64(600000), nil).Once()
+		mockProductMaterialUsecase.On("CalculateMaterialCost", mock.Anything, "prod-kemeja-pdh", 10).Return(float64(450000), nil).Once()
+
+		// Total HPP Material harus 600.000 + 450.000 = 1.050.000, dan HPPCalculatedAt terisi
+		mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
+			return o.OrderStatus == domain.OrderStatusPending &&
+				o.HPPMaterialCost == 1050000 &&
+				o.HPPCalculatedAt != nil
+		})).Return(nil).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
+
+		assert.NoError(t, err)
+		mockOrderRepo.AssertExpectations(t)
+		mockProductMaterialUsecase.AssertExpectations(t)
+	})
+
+	t.Run("Error - CalculateMaterialCost Gagal Membatalkan Seluruh Approve", func(t *testing.T) {
+		// Kalau hitung HPP gagal (misal resep produk korup), approve HARUS gagal juga -
+		// jangan sampai Order pindah ke Pending dengan HPP yang salah/kosong diam-diam.
+		mockOrderRepo, _, _, _, mockBatchPoRepo, _, mockTxManager, mockProductMaterialUsecase, _, uc := setupOrderTest()
+
+		mockTxManager.On("RunInTransaction", mock.Anything, mock.Anything).
+			Return(func(ctx context.Context, fn func(context.Context) error) error {
+				return fn(ctx)
+			}).Once()
+
+		mockOrder := &domain.Order{
+			ID:            mockID,
+			OrderStatus:   domain.OrderStatusQuotation,
+			PaymentStatus: domain.PaymentStatusPartial,
+		}
+		mockOrderRepo.On("GetByIDForUpdate", mock.Anything, mockID).Return(mockOrder, nil).Once()
+		mockBatchPoRepo.On("GetActivePOByDate", mock.Anything, mock.Anything).Return(nil, domain.ErrNotFound).Once()
+
+		orderWithItems := &domain.Order{
+			ID:    mockID,
+			Items: []domain.OrderItem{{ProductID: "prod-rusak", Qty: 5}},
+		}
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(orderWithItems, nil).Once()
+
+		expectedErr := errors.New("resep produk tidak ditemukan")
+		mockProductMaterialUsecase.On("CalculateMaterialCost", mock.Anything, "prod-rusak", 5).Return(float64(0), expectedErr).Once()
+
+		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
+
+		assert.Error(t, err)
+		mockOrderRepo.AssertNotCalled(t, "Update") // Order TIDAK BOLEH ke-update kalau HPP gagal dihitung
+		mockProductMaterialUsecase.AssertExpectations(t)
+	})
+}
+
+func TestOrderUsecase_GetOrderHPP(t *testing.T) {
+	mockID := "ord-123"
+
+	t.Run("Success - Gabungkan Material Beku dan Tenaga Kerja Live", func(t *testing.T) {
+		mockOrderRepo, _, _, _, _, _, _, _, mockWorkLogRepo, uc := setupOrderTest()
+
+		approvedAt := time.Now().Add(-24 * time.Hour)
+		existingOrder := &domain.Order{
+			ID:              mockID,
+			HPPMaterialCost: 1050000, // sudah dibekukan saat approve
+			HPPCalculatedAt: &approvedAt,
+		}
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(existingOrder, nil).Once()
+		mockWorkLogRepo.On("GetTotalCostByOrder", mock.Anything, mockID).Return(float64(350000), nil).Once()
+
+		result, err := uc.GetOrderHPP(context.Background(), mockID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, mockID, result.OrderID)
+		assert.Equal(t, float64(1050000), result.MaterialCost)
+		assert.Equal(t, float64(350000), result.LaborCost)
+		assert.Equal(t, float64(1400000), result.TotalCost) // 1.050.000 + 350.000
+		mockOrderRepo.AssertExpectations(t)
+		mockWorkLogRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Order Belum Pernah Disetujui, HPP Material Masih 0", func(t *testing.T) {
+		mockOrderRepo, _, _, _, _, _, _, _, mockWorkLogRepo, uc := setupOrderTest()
+
+		existingOrder := &domain.Order{ID: mockID} // Masih Quotation, HPPMaterialCost belum pernah diisi
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(existingOrder, nil).Once()
+		mockWorkLogRepo.On("GetTotalCostByOrder", mock.Anything, mockID).Return(float64(0), nil).Once()
+
+		result, err := uc.GetOrderHPP(context.Background(), mockID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, float64(0), result.MaterialCost)
+		assert.Nil(t, result.MaterialCalculatedAt)
+		assert.Equal(t, float64(0), result.TotalCost)
+	})
+
+	t.Run("Failed - Order Tidak Ditemukan", func(t *testing.T) {
+		mockOrderRepo, _, _, _, _, _, _, _, mockWorkLogRepo, uc := setupOrderTest()
+
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(nil, domain.ErrNotFound).Once()
+
+		result, err := uc.GetOrderHPP(context.Background(), mockID)
+
+		assert.ErrorIs(t, err, domain.ErrNotFound)
+		assert.Nil(t, result)
+		mockWorkLogRepo.AssertNotCalled(t, "GetTotalCostByOrder")
+	})
+
+	t.Run("Failed - WorkLogRepo Error", func(t *testing.T) {
+		mockOrderRepo, _, _, _, _, _, _, _, mockWorkLogRepo, uc := setupOrderTest()
+
+		existingOrder := &domain.Order{ID: mockID, HPPMaterialCost: 500000}
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(existingOrder, nil).Once()
+
+		expectedErr := errors.New("db error")
+		mockWorkLogRepo.On("GetTotalCostByOrder", mock.Anything, mockID).Return(float64(0), expectedErr).Once()
+
+		result, err := uc.GetOrderHPP(context.Background(), mockID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockOrderRepo.AssertExpectations(t)
+		mockWorkLogRepo.AssertExpectations(t)
+	})
 }
 
 func TestOrderUsecase_UpdatePaymentStatus(t *testing.T) {
 	// Asumsi Anda memiliki fungsi setupOrderTest() untuk inisialisasi mock repo & usecase
-	// mockOrderRepo, _, _, uc := setupOrderTest()
-	mockOrderRepo, _, _, _, _, _, _, uc := setupOrderTest()
+	// mockOrderRepo, _, _, _, _, uc := setupOrderTest()
+	mockOrderRepo, _, _, _, _, _, _, _, _, uc := setupOrderTest()
 	mockID := "order-123"
 
 	t.Run("Success", func(t *testing.T) {
@@ -543,8 +706,10 @@ func TestAddOrderItem(t *testing.T) {
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
 	mockBatchPORepo := new(mocks.BatchPORepository)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
 
 	orderID := "order-123"
 	productID := "prod-123"
@@ -639,8 +804,10 @@ func TestUpdateOrderItem(t *testing.T) {
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
 	mockBatchPORepo := new(mocks.BatchPORepository)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
 
 	orderID := "order-123"
 	itemID := "item-123"
@@ -691,7 +858,7 @@ func TestUpdateOrderItem(t *testing.T) {
 
 		// Skenario Partial: Customer sudah DP 40.000 (Tagihan 100.000)
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return([]domain.Payment{
-			{Amount: 40000},
+			{Amount: 40000, Status: domain.PaymentVerificationVerified},
 		}, nil).Once()
 
 		mockOrderRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Order")).Return(nil).Once()
@@ -719,8 +886,10 @@ func TestDeleteOrderItem(t *testing.T) {
 	mockPaymentRepo := new(mocks.PaymentRepository)
 	mockTxManager := new(mocks.TransactionManager)
 	mockBatchPORepo := new(mocks.BatchPORepository)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
+	mockWorkLogRepo := new(mocks.WorkLogRepository)
 
-	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, time.Second*2)
+	u := usecase.NewOrderUsecase(mockOrderRepo, mockCustomerRepo, mockUserRepo, mockProductRepo, mockBatchPORepo, mockPaymentRepo, mockTxManager, mockProductMaterialUsecase, mockWorkLogRepo, time.Second*2)
 
 	orderID := "order-123"
 	itemID := "item-123"
@@ -758,7 +927,7 @@ func TestDeleteOrderItem(t *testing.T) {
 
 		// Skenario Paid: Customer sebelumnya udah bayar 15000. Maka status harus lunas otomatis.
 		mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return([]domain.Payment{
-			{Amount: 15000},
+			{Amount: 15000, Status: domain.PaymentVerificationVerified},
 		}, nil).Once()
 
 		// 3. Update order header (Dijalankan di DALAM transaksi)
