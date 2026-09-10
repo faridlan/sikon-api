@@ -16,6 +16,7 @@ type BatchPOHandler interface {
 	UpdateBatchPO(c *fiber.Ctx) error
 	UpdateStatus(c *fiber.Ctx) error
 	DeleteBatchPO(c *fiber.Ctx) error
+	GetSuggestedOpenDate(c *fiber.Ctx) error
 }
 
 type batchPoHandler struct {
@@ -50,6 +51,8 @@ func (h *batchPoHandler) CreateBatchPO(c *fiber.Ctx) error {
 		Name:        req.Name,
 		TargetMonth: req.TargetMonth, // <-- Meneruskan TargetMonth dari JSON
 		TargetYear:  req.TargetYear,  // <-- Meneruskan TargetYear dari JSON
+		OpenDate:    req.OpenDate,    // BARU
+		CloseDate:   req.CloseDate,   // BARU
 		StartDate:   req.StartDate,
 		EndDate:     req.EndDate,
 		Quota:       req.Quota,
@@ -156,6 +159,8 @@ func (h *batchPoHandler) UpdateBatchPO(c *fiber.Ctx) error {
 		Name:        req.Name,
 		TargetMonth: req.TargetMonth, // <-- Meneruskan TargetMonth dari JSON
 		TargetYear:  req.TargetYear,  // <-- Meneruskan TargetYear dari JSON
+		OpenDate:    req.OpenDate,    // BARU
+		CloseDate:   req.CloseDate,   // BARU
 		StartDate:   req.StartDate,
 		EndDate:     req.EndDate,
 		Quota:       req.Quota,
@@ -222,4 +227,19 @@ func (h *batchPoHandler) DeleteBatchPO(c *fiber.Ctx) error {
 		return utils.HandleDomainError(c, err)
 	}
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil menghapus Batch PO", nil)
+}
+
+// @Summary Get Suggested Open Date untuk PO Baru
+// @Description Prefill open_date = close_date dari PO terakhir yang ada (aturan: buka PO baru = tutup PO sebelumnya)
+// @Tags BatchPOs
+// @Produce json
+// @Success 200 {object} utils.SuccessResponse[dto.BatchPOSuggestedOpenDateResponse]
+// @Security BearerAuth
+// @Router /batch-pos/suggested-open-date [get]
+func (h *batchPoHandler) GetSuggestedOpenDate(c *fiber.Ctx) error {
+	openDate, err := h.batchPoUsecase.GetSuggestedOpenDate(c.Context())
+	if err != nil {
+		return utils.HandleDomainError(c, err)
+	}
+	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil mengambil saran open_date", dto.BatchPOSuggestedOpenDateResponse{OpenDate: openDate})
 }

@@ -1,0 +1,2 @@
+ALTER TABLE batch_pos ADD COLUMN open_date TIMESTAMP;
+ALTER TABLE batch_pos ADD COLUMN close_date TIMESTAMP;
