@@ -55,6 +55,10 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 			return p.Name == input.Name && p.CategoryID == input.CategoryID && p.Slug == "kemeja-taktikal-premium-7200"
 		})).Return(nil).Once()
 
+		// Reload after create — usecase memanggil GetByID setelah Create untuk preload relasi
+		mockProductRepo.On("GetByID", mock.Anything, mock.AnythingOfType("string")).
+			Return(&domain.Product{ID: "", Name: input.Name, CategoryID: input.CategoryID, Slug: "kemeja-taktikal-premium-7200"}, nil).Once()
+
 		result, err := uc.CreateProduct(context.Background(), input)
 
 		assert.NoError(t, err)
@@ -107,6 +111,16 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 		mockProductRepo.On("Create", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
 			return len(p.Fabrics) == 1 && len(p.Wholesale) == 1 && p.DesignModel != nil
 		})).Return(nil).Once()
+
+		// Reload after create
+		mockProductRepo.On("GetByID", mock.Anything, mock.AnythingOfType("string")).
+			Return(&domain.Product{
+				Name:        inputFull.Name,
+				CategoryID:  inputFull.CategoryID,
+				Fabrics:     []domain.ProductFabric{{Name: "Ripstop Cotton", IsDefault: true}},
+				Wholesale:   []domain.WholesalePrice{{MinQty: 6, UnitPrice: 175000}},
+				DesignModel: &domain.ProductModel{Name: "Series 1 — Long Sleeve"},
+			}, nil).Once()
 
 		result, err := uc.CreateProduct(context.Background(), inputFull)
 

@@ -10,18 +10,22 @@ import (
 )
 
 type OrderItemModel struct {
-	ID         string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	OrderID    string         `gorm:"type:uuid;not null"`
-	ProductID  string         `gorm:"type:uuid;not null"`
-	CustomName string         `gorm:"type:varchar(255)"`
-	Qty        int            `gorm:"not null"`
-	Price      float64        `gorm:"type:decimal(12,2);not null"`
-	Details    datatypes.JSON `gorm:"type:jsonb"`
-	CreatedAt  time.Time      `gorm:"autoCreateTime"`
-	UpdatedAt  time.Time      `gorm:"autoUpdateTime"`
-	DeletedAt  gorm.DeletedAt `gorm:"index"`
+	ID            string            `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OrderID       string            `gorm:"type:uuid;not null"`
+	ProductID     string            `gorm:"type:uuid;not null"`
+	FabricID      *string           `gorm:"type:uuid;index"`
+	FabricColorID *string           `gorm:"type:uuid;index"`
+	CustomName    string            `gorm:"type:varchar(255)"`
+	Qty           int               `gorm:"not null"`
+	Price         float64           `gorm:"type:decimal(12,2);not null"`
+	Details       datatypes.JSON    `gorm:"type:jsonb"`
+	CreatedAt     time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt     time.Time         `gorm:"autoUpdateTime"`
+	DeletedAt     gorm.DeletedAt    `gorm:"index"`
 
-	Product *ProductModel `gorm:"foreignKey:ProductID"`
+	Product     *ProductModel     `gorm:"foreignKey:ProductID"`
+	Fabric      *MaterialModel    `gorm:"foreignKey:FabricID"`
+	FabricColor *FabricColorModel `gorm:"foreignKey:FabricColorID"`
 }
 
 func (OrderItemModel) TableName() string {
@@ -79,19 +83,28 @@ func (m *OrderItemModel) ToDomain() domain.OrderItem {
 	}
 
 	item := domain.OrderItem{
-		ID:         m.ID,
-		OrderID:    m.OrderID,
-		ProductID:  m.ProductID,
-		CustomName: m.CustomName,
-		Qty:        m.Qty,
-		Price:      m.Price,
-		Details:    detailsAny,
-		CreatedAt:  m.CreatedAt,
-		UpdatedAt:  m.UpdatedAt,
+		ID:            m.ID,
+		OrderID:       m.OrderID,
+		ProductID:     m.ProductID,
+		FabricID:      m.FabricID,
+		FabricColorID: m.FabricColorID,
+		CustomName:    m.CustomName,
+		Qty:           m.Qty,
+		Price:         m.Price,
+		Details:       detailsAny,
+		CreatedAt:     m.CreatedAt,
+		UpdatedAt:     m.UpdatedAt,
 	}
 
 	if m.Product != nil {
 		item.Product = m.Product.ToDomain()
+	}
+	if m.Fabric != nil {
+		item.Fabric = m.Fabric.ToDomain()
+	}
+	if m.FabricColor != nil {
+		fc := m.FabricColor.ToDomain()
+		item.FabricColor = &fc
 	}
 
 	return item
@@ -205,15 +218,17 @@ func FromOrderDomain(d *domain.Order) *OrderModel {
 			}
 
 			model.Items = append(model.Items, OrderItemModel{
-				ID:         item.ID,
-				OrderID:    item.OrderID,
-				ProductID:  item.ProductID,
-				CustomName: item.CustomName,
-				Qty:        item.Qty,
-				Price:      item.Price,
-				Details:    detailsJSON,
-				CreatedAt:  item.CreatedAt,
-				UpdatedAt:  item.UpdatedAt,
+				ID:            item.ID,
+				OrderID:       item.OrderID,
+				ProductID:     item.ProductID,
+				FabricID:      item.FabricID,
+				FabricColorID: item.FabricColorID,
+				CustomName:    item.CustomName,
+				Qty:           item.Qty,
+				Price:         item.Price,
+				Details:       detailsJSON,
+				CreatedAt:     item.CreatedAt,
+				UpdatedAt:     item.UpdatedAt,
 			})
 		}
 	}

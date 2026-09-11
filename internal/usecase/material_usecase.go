@@ -38,11 +38,27 @@ func (u *materialUsecase) CreateMaterial(c context.Context, input domain.Materia
 		return nil, domain.NewError(domain.ErrBadParamInput, "Harga satuan harus lebih besar dari 0")
 	}
 
+	var colors []domain.FabricColor
+	if len(input.Colors) > 0 {
+		colors = make([]domain.FabricColor, len(input.Colors))
+		for i, c := range input.Colors {
+			colors[i] = domain.FabricColor{
+				Name:    c.Name,
+				HexCode: c.HexCode,
+			}
+		}
+	}
+
 	material := &domain.Material{
-		Name:      input.Name,
-		Unit:      input.Unit,
-		UnitPrice: input.UnitPrice,
-		Category:  input.Category,
+		Name:            input.Name,
+		Unit:            input.Unit,
+		UnitPrice:       input.UnitPrice,
+		Category:        input.Category,
+		Description:     input.Description,
+		Composition:     input.Composition,
+		CareInstruction: input.CareInstruction,
+		GSMInfo:         input.GSMInfo,
+		Colors:          colors,
 	}
 
 	if err := u.materialRepo.Create(ctx, material); err != nil {
@@ -111,6 +127,28 @@ func (u *materialUsecase) UpdateMaterial(c context.Context, id string, input dom
 	if input.Category != "" {
 		existing.Category = input.Category
 	}
+	if input.Description != "" {
+		existing.Description = input.Description
+	}
+	if input.Composition != "" {
+		existing.Composition = input.Composition
+	}
+	if input.CareInstruction != "" {
+		existing.CareInstruction = input.CareInstruction
+	}
+	if input.GSMInfo != "" {
+		existing.GSMInfo = input.GSMInfo
+	}
+	if len(input.Colors) > 0 {
+		var colors []domain.FabricColor
+		for _, c := range input.Colors {
+			colors = append(colors, domain.FabricColor{
+				Name:    c.Name,
+				HexCode: c.HexCode,
+			})
+		}
+		existing.Colors = colors
+	}
 
 	if err := u.materialRepo.Update(ctx, existing); err != nil {
 		return nil, err
@@ -136,6 +174,7 @@ func (u *materialUsecase) DeleteMaterial(c context.Context, id string) error {
 type productMaterialUsecase struct {
 	productMaterialRepo domain.ProductMaterialRepository
 	productRepo         domain.ProductRepository
+	materialRepo        domain.MaterialRepository
 	txManager           domain.TransactionManager
 	contextTimeout      time.Duration
 }
@@ -143,12 +182,14 @@ type productMaterialUsecase struct {
 func NewProductMaterialUsecase(
 	pmRepo domain.ProductMaterialRepository,
 	productRepo domain.ProductRepository,
+	materialRepo domain.MaterialRepository,
 	txManager domain.TransactionManager,
 	timeout time.Duration,
 ) domain.ProductMaterialUsecase {
 	return &productMaterialUsecase{
 		productMaterialRepo: pmRepo,
 		productRepo:         productRepo,
+		materialRepo:        materialRepo,
 		txManager:           txManager,
 		contextTimeout:      timeout,
 	}
@@ -203,9 +244,9 @@ func (u *productMaterialUsecase) GetProductMaterials(c context.Context, productI
 	return u.productMaterialRepo.FetchByProduct(ctx, productID)
 }
 
-// CalculateMaterialCost: qty pesanan dikali seluruh resep produk ini.
-// Ini fungsi yang nanti dipanggil order_usecase.go saat membuat/approve Order.
-func (u *productMaterialUsecase) CalculateMaterialCost(c context.Context, productID string, qty int) (float64, error) {
+// CalculateMaterialCost: qty pesanan dikali seluruh resep produk ini,
+// ditambah biaya kain dinamis jika fabricID diteruskan.
+func (u *productMaterialUsecase) CalculateMaterialCost(c context.Context, productID string, qty int, fabricID ...string) (float64, error) {
 	ctx, cancel := context.WithTimeout(c, u.contextTimeout)
 	defer cancel()
 
@@ -217,16 +258,63 @@ func (u *productMaterialUsecase) CalculateMaterialCost(c context.Context, produc
 	slog.Info("[HPP] FetchByProduct hasil", "product_id", productID, "jumlah_baris_resep", len(items))
 
 	var total float64
+	var fabricAlreadyInBOM bool
+	chosenFabricID := ""
+	if len(fabricID) > 0 && fabricID[0] != "" {
+		chosenFabricID = fabricID[0]
+	}
+
 	for _, item := range items {
 		if item.Material == nil {
 			slog.Warn("[HPP] Material NIL pada baris resep — kemungkinan data material terhapus", "material_id", item.MaterialID)
 			continue
+		}
+		if chosenFabricID != "" && item.MaterialID == chosenFabricID {
+			fabricAlreadyInBOM = true
 		}
 		sub := item.QtyPerUnit * item.Material.UnitPrice * float64(qty)
 		slog.Info("[HPP] baris resep", "material", item.Material.Name, "qty_per_unit", item.QtyPerUnit, "unit_price", item.Material.UnitPrice, "qty_order", qty, "subtotal", sub)
 		total += sub
 	}
 
-	slog.Info("[HPP] CalculateMaterialCost selesai", "product_id", productID, "qty", qty, "total", total)
+	// Jika ada fabricID yang dipilih dan belum ada di BOM produk
+	if chosenFabricID != "" && !fabricAlreadyInBOM {
+		consumption := 1.5 // default 1.5 meter per unit
+		var unitPrice float64
+
+		if u.productRepo != nil {
+			product, err := u.productRepo.GetByID(ctx, productID)
+			if err == nil && product != nil {
+				for _, pf := range product.Fabrics {
+					if (pf.FabricID != nil && *pf.FabricID == chosenFabricID) || pf.ID == chosenFabricID {
+						if pf.QtyPerUnit > 0 {
+							consumption = pf.QtyPerUnit
+						}
+						if pf.Fabric != nil && pf.Fabric.UnitPrice > 0 {
+							unitPrice = pf.Fabric.UnitPrice
+						}
+						break
+					}
+				}
+			}
+		}
+
+		if unitPrice == 0 && u.materialRepo != nil {
+			mat, err := u.materialRepo.GetByID(ctx, chosenFabricID)
+			if err == nil && mat != nil {
+				unitPrice = mat.UnitPrice
+			}
+		}
+
+		if unitPrice > 0 {
+			fabricCost := consumption * unitPrice * float64(qty)
+			slog.Info("[HPP] Biaya kain dinamis dihitung", "fabric_id", chosenFabricID, "consumption_meter", consumption, "unit_price", unitPrice, "subtotal", fabricCost)
+			total += fabricCost
+		} else {
+			slog.Warn("[HPP] Unit price kain tidak ditemukan atau 0", "fabric_id", chosenFabricID)
+		}
+	}
+
+	slog.Info("[HPP] CalculateMaterialCost selesai", "product_id", productID, "qty", qty, "fabric_id", chosenFabricID, "total", total)
 	return total, nil
 }

@@ -10,6 +10,7 @@ type FabricColorModel struct {
 	ID             string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	FabricID       *string   `gorm:"type:uuid;index"`
 	SpecTemplateID *string   `gorm:"type:uuid;index"`
+	MaterialID     *string   `gorm:"type:uuid;index"`
 	Name           string    `gorm:"type:varchar(100);not null"`
 	HexCode        string    `gorm:"type:varchar(20);not null"`
 	CreatedAt      time.Time `gorm:"autoCreateTime"`
@@ -29,6 +30,7 @@ func (m *FabricColorModel) ToDomain() domain.FabricColor {
 		ID:             m.ID,
 		FabricID:       fabricID,
 		SpecTemplateID: m.SpecTemplateID,
+		MaterialID:     m.MaterialID,
 		Name:           m.Name,
 		HexCode:        m.HexCode,
 		CreatedAt:      m.CreatedAt,
@@ -38,6 +40,8 @@ func (m *FabricColorModel) ToDomain() domain.FabricColor {
 type ProductFabricModel struct {
 	ID              string             `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	ProductID       string             `gorm:"type:uuid;not null"`
+	FabricID        *string            `gorm:"type:uuid;index"`
+	QtyPerUnit      float64            `gorm:"type:numeric(15,4);default:1.5000"`
 	SpecTemplateID  *string            `gorm:"type:uuid;index"`
 	Name            string             `gorm:"type:varchar(255)"`
 	Description     string             `gorm:"type:text"`
@@ -51,6 +55,7 @@ type ProductFabricModel struct {
 	Colors          []FabricColorModel `gorm:"foreignKey:FabricID;constraint:OnDelete:CASCADE;"`
 
 	// Relasi GORM
+	Fabric       *MaterialModel     `gorm:"foreignKey:FabricID"`
 	SpecTemplate *SpecTemplateModel `gorm:"foreignKey:SpecTemplateID"`
 }
 
@@ -62,6 +67,8 @@ func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
 	fabric := domain.ProductFabric{
 		ID:              m.ID,
 		ProductID:       m.ProductID,
+		FabricID:        m.FabricID,
+		QtyPerUnit:      m.QtyPerUnit,
 		SpecTemplateID:  m.SpecTemplateID,
 		Name:            m.Name,
 		Description:     m.Description,
@@ -74,7 +81,24 @@ func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
 		UpdatedAt:       m.UpdatedAt,
 	}
 
-	// Jika nama/deskripsi/komposisi/instruksi kosong di level ProductFabric, gunakan fallback dari SpecTemplate
+	// 1. Fallback & data dari Master Material (kain)
+	if m.Fabric != nil {
+		fabric.Fabric = m.Fabric.ToDomain()
+		if fabric.Name == "" {
+			fabric.Name = m.Fabric.Name
+		}
+		if fabric.Description == "" {
+			fabric.Description = m.Fabric.Description
+		}
+		if fabric.Composition == "" {
+			fabric.Composition = m.Fabric.Composition
+		}
+		if fabric.CareInstruction == "" {
+			fabric.CareInstruction = m.Fabric.CareInstruction
+		}
+	}
+
+	// 2. Jika nama/deskripsi/komposisi/instruksi masih kosong di level ProductFabric, gunakan fallback dari SpecTemplate
 	if m.SpecTemplate != nil {
 		fabric.SpecTemplate = m.SpecTemplate.ToDomain()
 		if fabric.Name == "" {
@@ -98,7 +122,14 @@ func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
 			colors = append(colors, c.ToDomain())
 		}
 		fabric.Colors = colors
-		// 2. Fallback: Warna dari Master SpecTemplate jika ProductFabric tidak memiliki warna override
+		// 2. Fallback: Warna dari Master Material (kain) jika ada
+	} else if m.Fabric != nil && len(m.Fabric.Colors) > 0 {
+		var colors []domain.FabricColor
+		for _, c := range m.Fabric.Colors {
+			colors = append(colors, c.ToDomain())
+		}
+		fabric.Colors = colors
+		// 3. Fallback: Warna dari Master SpecTemplate jika ProductFabric tidak memiliki warna override
 	} else if m.SpecTemplate != nil && len(m.SpecTemplate.Colors) > 0 {
 		var colors []domain.FabricColor
 		for _, c := range m.SpecTemplate.Colors {

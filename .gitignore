@@ -38,3 +38,5 @@ assets
 
 # Ignore Local Database Backups & Logs
 backups/
+
+plan.md

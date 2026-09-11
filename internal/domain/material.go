@@ -10,27 +10,42 @@ import (
 // ==========================================
 
 type Material struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Unit      string    `json:"unit"`
-	UnitPrice float64   `json:"unit_price"`
-	Category  string    `json:"category"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID              string        `json:"id"`
+	Name            string        `json:"name"`
+	Unit            string        `json:"unit"`
+	UnitPrice       float64       `json:"unit_price"`
+	Category        string        `json:"category"`
+	Description     string        `json:"description,omitempty"`
+	Composition     string        `json:"composition,omitempty"`
+	CareInstruction string        `json:"care_instruction,omitempty"`
+	GSMInfo         string        `json:"gsm_info,omitempty"`
+	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
+	Colors          []FabricColor `json:"colors,omitempty"`
 }
 
 type MaterialCreateInput struct {
-	Name      string
-	Unit      string
-	UnitPrice float64
-	Category  string
+	Name            string
+	Unit            string
+	UnitPrice       float64
+	Category        string
+	Description     string
+	Composition     string
+	CareInstruction string
+	GSMInfo         string
+	Colors          []FabricColorInput
 }
 
 type MaterialUpdateInput struct {
-	Name      string
-	Unit      string
-	UnitPrice float64
-	Category  string
+	Name            string
+	Unit            string
+	UnitPrice       float64
+	Category        string
+	Description     string
+	Composition     string
+	CareInstruction string
+	GSMInfo         string
+	Colors          []FabricColorInput
 }
 
 type MaterialRepository interface {
@@ -87,7 +102,7 @@ type ProductMaterialUsecase interface {
 	SetProductMaterials(ctx context.Context, input SetProductMaterialsInput) ([]ProductMaterial, error)
 	GetProductMaterials(ctx context.Context, productID string) ([]ProductMaterial, error)
 
-	// CalculateMaterialCost = qty order dikali seluruh resep produk ini.
+	// CalculateMaterialCost = qty order dikali seluruh resep produk ini (atau dinamis dari fabricID terpilih).
 	// Dipakai nanti oleh order_usecase.go saat menghitung HPP.
-	CalculateMaterialCost(ctx context.Context, productID string, qty int) (float64, error)
+	CalculateMaterialCost(ctx context.Context, productID string, qty int, fabricID ...string) (float64, error)
 }

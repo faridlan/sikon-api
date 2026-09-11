@@ -53,6 +53,8 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Order
 		Preload("Sales").
 		Preload("BatchPO").
 		Preload("Items.Product"). // Preload produk di setiap item untuk detail yang lengkap
+		Preload("Items.Fabric").
+		Preload("Items.FabricColor").
 		Where("id = ?", id).
 		First(&model).Error
 
@@ -179,15 +181,18 @@ func (r *orderRepository) UpdateStatus(ctx context.Context, id string, orderStat
 }
 
 func (r *orderRepository) GetItemByID(ctx context.Context, orderID, itemID string) (*domain.OrderItem, error) {
-	var item domain.OrderItem
-	// Kita langsung query ke tabel order_items
-	err := r.db.WithContext(ctx).Table("order_items").
+	var model OrderItemModel
+	err := r.db.WithContext(ctx).
+		Preload("Product").
+		Preload("Fabric").
+		Preload("FabricColor").
 		Where("order_id = ? AND id = ?", orderID, itemID).
-		First(&item).Error
+		First(&model).Error
 
 	if err != nil {
 		return nil, TranslateError(err)
 	}
+	item := model.ToDomain()
 	return &item, nil
 }
 
@@ -203,13 +208,15 @@ func (r *orderRepository) CreateItem(ctx context.Context, item *domain.OrderItem
 	db := GetTx(ctx, r.db)
 
 	err := db.WithContext(ctx).Table("order_items").Create(map[string]any{
-		"id":          item.ID,
-		"order_id":    item.OrderID,
-		"product_id":  item.ProductID,
-		"custom_name": item.CustomName,
-		"qty":         item.Qty,
-		"price":       item.Price,
-		"details":     detailsJSON,
+		"id":              item.ID,
+		"order_id":        item.OrderID,
+		"product_id":      item.ProductID,
+		"fabric_id":       item.FabricID,
+		"fabric_color_id": item.FabricColorID,
+		"custom_name":     item.CustomName,
+		"qty":             item.Qty,
+		"price":           item.Price,
+		"details":         detailsJSON,
 	}).Error
 
 	if err != nil {
@@ -233,11 +240,13 @@ func (r *orderRepository) UpdateItem(ctx context.Context, item *domain.OrderItem
 	err := db.WithContext(ctx).Table("order_items").
 		Where("id = ? AND order_id = ?", item.ID, item.OrderID).
 		Updates(map[string]any{
-			"product_id":  item.ProductID,
-			"custom_name": item.CustomName,
-			"qty":         item.Qty,
-			"price":       item.Price,
-			"details":     detailsJSON,
+			"product_id":      item.ProductID,
+			"fabric_id":       item.FabricID,
+			"fabric_color_id": item.FabricColorID,
+			"custom_name":     item.CustomName,
+			"qty":             item.Qty,
+			"price":           item.Price,
+			"details":         detailsJSON,
 		}).Error
 
 	if err != nil {

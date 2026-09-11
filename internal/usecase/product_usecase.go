@@ -98,7 +98,14 @@ func (u *productUsecase) CreateProduct(c context.Context, input domain.ProductCr
 					HexCode: cInput.HexCode,
 				})
 			}
+			qty := fabInput.QtyPerUnit
+			if qty <= 0 {
+				qty = 1.5
+			}
 			fabrics = append(fabrics, domain.ProductFabric{
+				FabricID:        fabInput.FabricID,
+				QtyPerUnit:      qty,
+				SpecTemplateID:  fabInput.SpecTemplateID,
 				Name:            fabInput.Name,
 				Description:     fabInput.Description,
 				Composition:     fabInput.Composition,
@@ -154,7 +161,13 @@ func (u *productUsecase) CreateProduct(c context.Context, input domain.ProductCr
 		return nil, err
 	}
 
-	return product, nil
+	// Reload dari DB agar relasi (Fabric, Colors, Category) ter-preload penuh di response
+	reloaded, err := u.productRepo.GetByID(ctx, product.ID)
+	if err != nil {
+		return product, nil // fallback ke data in-memory jika reload gagal
+	}
+
+	return reloaded, nil
 }
 
 func (u *productUsecase) GetProduct(c context.Context, id string) (*domain.Product, error) {
@@ -293,7 +306,14 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 					HexCode: cInput.HexCode,
 				})
 			}
+			qty := fabInput.QtyPerUnit
+			if qty <= 0 {
+				qty = 1.5
+			}
 			fabrics = append(fabrics, domain.ProductFabric{
+				FabricID:        fabInput.FabricID,
+				QtyPerUnit:      qty,
+				SpecTemplateID:  fabInput.SpecTemplateID,
 				Name:            fabInput.Name,
 				Description:     fabInput.Description,
 				Composition:     fabInput.Composition,

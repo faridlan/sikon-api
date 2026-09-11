@@ -8,6 +8,7 @@ type FabricColor struct {
 
 	// Penambahan field baru (aman, pointer memastikan backward compatibility)
 	SpecTemplateID *string
+	MaterialID     *string
 
 	Name      string
 	HexCode   string
@@ -17,6 +18,9 @@ type FabricColor struct {
 type ProductFabric struct {
 	ID              string
 	ProductID       string
+	FabricID        *string
+	QtyPerUnit      float64
+	Fabric          *Material
 	SpecTemplateID  *string
 	SpecTemplate    *SpecTemplate
 	Name            string

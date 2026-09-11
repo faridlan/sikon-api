@@ -12,14 +12,19 @@ import (
 // MODEL: MATERIAL
 // ==========================================
 type MaterialModel struct {
-	ID        string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	Name      string         `gorm:"type:varchar(255);not null"`
-	Unit      string         `gorm:"type:varchar(50);not null"`
-	UnitPrice float64        `gorm:"type:numeric(15,2);not null"`
-	Category  string         `gorm:"type:varchar(100)"`
-	CreatedAt time.Time      `gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID              string             `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	Name            string             `gorm:"type:varchar(255);not null"`
+	Unit            string             `gorm:"type:varchar(50);not null"`
+	UnitPrice       float64            `gorm:"type:numeric(15,2);not null"`
+	Category        string             `gorm:"type:varchar(100)"`
+	Description     string             `gorm:"type:text"`
+	Composition     string             `gorm:"type:varchar(255)"`
+	CareInstruction string             `gorm:"type:text"`
+	GSMInfo         string             `gorm:"type:varchar(100)"`
+	CreatedAt       time.Time          `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time          `gorm:"autoUpdateTime"`
+	DeletedAt       gorm.DeletedAt     `gorm:"index"`
+	Colors          []FabricColorModel `gorm:"foreignKey:MaterialID;constraint:OnDelete:CASCADE;"`
 }
 
 func (m *MaterialModel) BeforeCreate(tx *gorm.DB) error {
@@ -34,24 +39,39 @@ func (MaterialModel) TableName() string {
 }
 
 func (m *MaterialModel) ToDomain() *domain.Material {
-	return &domain.Material{
-		ID:        m.ID,
-		Name:      m.Name,
-		Unit:      m.Unit,
-		UnitPrice: m.UnitPrice,
-		Category:  m.Category,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+	mat := &domain.Material{
+		ID:              m.ID,
+		Name:            m.Name,
+		Unit:            m.Unit,
+		UnitPrice:       m.UnitPrice,
+		Category:        m.Category,
+		Description:     m.Description,
+		Composition:     m.Composition,
+		CareInstruction: m.CareInstruction,
+		GSMInfo:         m.GSMInfo,
+		CreatedAt:       m.CreatedAt,
+		UpdatedAt:       m.UpdatedAt,
 	}
+	if len(m.Colors) > 0 {
+		mat.Colors = make([]domain.FabricColor, len(m.Colors))
+		for i, c := range m.Colors {
+			mat.Colors[i] = c.ToDomain()
+		}
+	}
+	return mat
 }
 
 func FromMaterialDomain(d *domain.Material) *MaterialModel {
 	return &MaterialModel{
-		ID:        d.ID,
-		Name:      d.Name,
-		Unit:      d.Unit,
-		UnitPrice: d.UnitPrice,
-		Category:  d.Category,
+		ID:              d.ID,
+		Name:            d.Name,
+		Unit:            d.Unit,
+		UnitPrice:       d.UnitPrice,
+		Category:        d.Category,
+		Description:     d.Description,
+		Composition:     d.Composition,
+		CareInstruction: d.CareInstruction,
+		GSMInfo:         d.GSMInfo,
 	}
 }
 

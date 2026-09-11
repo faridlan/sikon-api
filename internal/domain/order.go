@@ -27,17 +27,21 @@ const (
 )
 
 type OrderItem struct {
-	ID         string
-	OrderID    string
-	ProductID  string
-	CustomName string
-	Qty        int
-	Price      float64
-	Details    any
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID            string
+	OrderID       string
+	ProductID     string
+	FabricID      *string
+	FabricColorID *string
+	CustomName    string
+	Qty           int
+	Price         float64
+	Details       any
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 
-	Product *Product
+	Product     *Product
+	Fabric      *Material
+	FabricColor *FabricColor
 }
 
 type Order struct {
@@ -81,11 +85,13 @@ type Order struct {
 }
 
 type OrderItemInput struct {
-	ProductID  string
-	CustomName string
-	Qty        int
-	Price      float64
-	Details    any
+	ProductID     string
+	FabricID      *string
+	FabricColorID *string
+	CustomName    string
+	Qty           int
+	Price         float64
+	Details       any
 }
 
 type OrderCreateInput struct {

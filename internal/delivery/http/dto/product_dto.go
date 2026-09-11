@@ -14,6 +14,8 @@ type FabricColorRequest struct {
 }
 
 type ProductFabricRequest struct {
+	FabricID        *string              `json:"fabric_id" validate:"omitempty,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
+	QtyPerUnit      float64              `json:"qty_per_unit" example:"1.5"`
 	SpecTemplateID  *string              `json:"spec_template_id" validate:"omitempty,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
 	Name            string               `json:"name" example:"Ripstop Cotton 65/35"`
 	Description     string               `json:"description" example:"Kuat & anti robek, 210gsm"`
@@ -95,6 +97,8 @@ type FabricColorResponse struct {
 
 type ProductFabricResponse struct {
 	ID              string                `json:"id"`
+	FabricID        *string               `json:"fabric_id,omitempty"`
+	QtyPerUnit      float64               `json:"qty_per_unit,omitempty"`
 	SpecTemplateID  *string               `json:"spec_template_id,omitempty"`
 	Name            string                `json:"name"`
 	Description     string                `json:"description"`
@@ -179,6 +183,8 @@ func (r *ProductCreateRequest) ToDomainCreateInput() domain.ProductCreateInput {
 			})
 		}
 		input.Fabrics = append(input.Fabrics, domain.ProductFabricInput{
+			FabricID:        fab.FabricID,
+			QtyPerUnit:      fab.QtyPerUnit,
 			SpecTemplateID:  fab.SpecTemplateID,
 			Name:            fab.Name,
 			Description:     fab.Description,
@@ -245,6 +251,8 @@ func (r *ProductUpdateRequest) ToDomainUpdateInput() domain.ProductUpdateInput {
 				})
 			}
 			input.Fabrics = append(input.Fabrics, domain.ProductFabricInput{
+				FabricID:        fab.FabricID,
+				QtyPerUnit:      fab.QtyPerUnit,
 				SpecTemplateID:  fab.SpecTemplateID,
 				Name:            fab.Name,
 				Description:     fab.Description,
@@ -336,6 +344,8 @@ func ToProductResponse(p *domain.Product) ProductResponse {
 			}
 			resp.Fabrics = append(resp.Fabrics, ProductFabricResponse{
 				ID:              fab.ID,
+				FabricID:        fab.FabricID,
+				QtyPerUnit:      fab.QtyPerUnit,
 				SpecTemplateID:  fab.SpecTemplateID,
 				Name:            fab.Name,
 				Description:     fab.Description,

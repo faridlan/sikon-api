@@ -11,17 +11,27 @@ import (
 // ==========================================
 
 type MaterialCreateRequest struct {
-	Name      string  `json:"name" validate:"required" example:"Kain Ripstop"`
-	Unit      string  `json:"unit" validate:"required" example:"meter"`
-	UnitPrice float64 `json:"unit_price" validate:"required,gt=0" example:"25000"`
-	Category  string  `json:"category" validate:"omitempty" example:"kain"`
+	Name            string               `json:"name" validate:"required" example:"Kain Ripstop"`
+	Unit            string               `json:"unit" validate:"required" example:"meter"`
+	UnitPrice       float64              `json:"unit_price" validate:"required,gt=0" example:"25000"`
+	Category        string               `json:"category" validate:"omitempty" example:"kain"`
+	Description     string               `json:"description" validate:"omitempty" example:"Kain ripstop tahan robek"`
+	Composition     string               `json:"composition" validate:"omitempty" example:"65% Cotton / 35% Polyester"`
+	CareInstruction string               `json:"care_instruction" validate:"omitempty" example:"Cuci air dingin"`
+	GSMInfo         string               `json:"gsm_info" validate:"omitempty" example:"210gsm"`
+	Colors          []FabricColorRequest `json:"colors" validate:"omitempty,dive"`
 }
 
 type MaterialUpdateRequest struct {
-	Name      string  `json:"name" validate:"omitempty" example:"Kain Ripstop"`
-	Unit      string  `json:"unit" validate:"omitempty" example:"meter"`
-	UnitPrice float64 `json:"unit_price" validate:"omitempty,gt=0" example:"27000"`
-	Category  string  `json:"category" validate:"omitempty" example:"kain"`
+	Name            string               `json:"name" validate:"omitempty" example:"Kain Ripstop"`
+	Unit            string               `json:"unit" validate:"omitempty" example:"meter"`
+	UnitPrice       float64              `json:"unit_price" validate:"omitempty,gt=0" example:"27000"`
+	Category        string               `json:"category" validate:"omitempty" example:"kain"`
+	Description     string               `json:"description" validate:"omitempty" example:"Kain ripstop tahan robek"`
+	Composition     string               `json:"composition" validate:"omitempty" example:"65% Cotton / 35% Polyester"`
+	CareInstruction string               `json:"care_instruction" validate:"omitempty" example:"Cuci air dingin"`
+	GSMInfo         string               `json:"gsm_info" validate:"omitempty" example:"210gsm"`
+	Colors          []FabricColorRequest `json:"colors" validate:"omitempty,dive"`
 }
 
 // ==========================================
@@ -29,23 +39,43 @@ type MaterialUpdateRequest struct {
 // ==========================================
 
 type MaterialResponse struct {
-	ID        string    `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Name      string    `json:"name" example:"Kain Ripstop"`
-	Unit      string    `json:"unit" example:"meter"`
-	UnitPrice float64   `json:"unit_price" example:"25000"`
-	Category  string    `json:"category" example:"kain"`
-	CreatedAt time.Time `json:"created_at" example:"2026-09-09T10:00:00Z"`
+	ID              string                `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Name            string                `json:"name" example:"Kain Ripstop"`
+	Unit            string                `json:"unit" example:"meter"`
+	UnitPrice       float64               `json:"unit_price" example:"25000"`
+	Category        string                `json:"category" example:"kain"`
+	Description     string                `json:"description,omitempty" example:"Kain ripstop tahan robek"`
+	Composition     string                `json:"composition,omitempty" example:"65% Cotton / 35% Polyester"`
+	CareInstruction string                `json:"care_instruction,omitempty" example:"Cuci air dingin"`
+	GSMInfo         string                `json:"gsm_info,omitempty" example:"210gsm"`
+	CreatedAt       time.Time             `json:"created_at" example:"2026-09-09T10:00:00Z"`
+	Colors          []FabricColorResponse `json:"colors,omitempty"`
 }
 
 func ToMaterialResponse(m *domain.Material) MaterialResponse {
-	return MaterialResponse{
-		ID:        m.ID,
-		Name:      m.Name,
-		Unit:      m.Unit,
-		UnitPrice: m.UnitPrice,
-		Category:  m.Category,
-		CreatedAt: m.CreatedAt,
+	resp := MaterialResponse{
+		ID:              m.ID,
+		Name:            m.Name,
+		Unit:            m.Unit,
+		UnitPrice:       m.UnitPrice,
+		Category:        m.Category,
+		Description:     m.Description,
+		Composition:     m.Composition,
+		CareInstruction: m.CareInstruction,
+		GSMInfo:         m.GSMInfo,
+		CreatedAt:       m.CreatedAt,
 	}
+	if len(m.Colors) > 0 {
+		resp.Colors = make([]FabricColorResponse, len(m.Colors))
+		for i, c := range m.Colors {
+			resp.Colors[i] = FabricColorResponse{
+				ID:      c.ID,
+				Name:    c.Name,
+				HexCode: c.HexCode,
+			}
+		}
+	}
+	return resp
 }
 
 func ToMaterialResponseList(list []domain.Material) []MaterialResponse {

@@ -47,6 +47,8 @@ type FabricColorInput struct {
 }
 
 type ProductFabricInput struct {
+	FabricID        *string // Nullable/Optional jika terhubung ke master materials
+	QtyPerUnit      float64 // Kebutuhan konsumsi per unit (meter)
 	SpecTemplateID  *string // Nullable/Optional
 	Name            string
 	Description     string

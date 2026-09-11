@@ -8,10 +8,12 @@ import (
 
 // --- REQUEST ---
 type OrderItemRequest struct {
-	ProductID  string  `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
-	CustomName string  `json:"custom_name" validate:"omitempty" example:"Custom Name"`
-	Qty        int     `json:"qty" validate:"required,gt=0" example:"100"`
-	Price      float64 `json:"price" validate:"omitempty" example:"35000"`
+	ProductID     string  `json:"product_id" validate:"required,uuid" example:"999e4567-e89b-12d3-a456-426614174000"`
+	FabricID      *string `json:"fabric_id" validate:"omitempty,uuid" example:"111e4567-e89b-12d3-a456-426614174000"`
+	FabricColorID *string `json:"fabric_color_id" validate:"omitempty,uuid" example:"222e4567-e89b-12d3-a456-426614174000"`
+	CustomName    string  `json:"custom_name" validate:"omitempty" example:"Custom Name"`
+	Qty           int     `json:"qty" validate:"required,gt=0" example:"100"`
+	Price         float64 `json:"price" validate:"omitempty" example:"35000"`
 
 	// @Schema type object
 	// @Schema example {"ukuran": "L", "warna": "Hitam"}
@@ -57,13 +59,18 @@ type PaymentStatusUpdateRequest struct {
 
 // --- RESPONSE ---
 type OrderItemResponse struct {
-	ID         string           `json:"id" example:"item-uuid"`
-	ProductID  string           `json:"product_id" example:"999e4567-e89b-12d3-a456-426614174000"`
-	CustomName string           `json:"custom_name" example:"Custom Name"`
-	Qty        int              `json:"qty" example:"100"`
-	Price      float64          `json:"price" example:"35000"`
-	Details    any              `json:"details"`
-	Product    *ProductResponse `json:"product,omitempty"`
+	ID              string           `json:"id" example:"item-uuid"`
+	ProductID       string           `json:"product_id" example:"999e4567-e89b-12d3-a456-426614174000"`
+	FabricID        *string          `json:"fabric_id,omitempty" example:"111e4567-e89b-12d3-a456-426614174000"`
+	FabricColorID   *string          `json:"fabric_color_id,omitempty" example:"222e4567-e89b-12d3-a456-426614174000"`
+	FabricName      string           `json:"fabric_name,omitempty" example:"American Drill"`
+	FabricColorName string           `json:"fabric_color_name,omitempty" example:"Navy Blue"`
+	FabricHexCode   string           `json:"fabric_hex_code,omitempty" example:"#000080"`
+	CustomName      string           `json:"custom_name" example:"Custom Name"`
+	Qty             int              `json:"qty" example:"100"`
+	Price           float64          `json:"price" example:"35000"`
+	Details         any              `json:"details"`
+	Product         *ProductResponse `json:"product,omitempty"`
 }
 
 type OrderResponse struct {
@@ -157,12 +164,21 @@ func ToOrderResponse(o *domain.Order) OrderResponse {
 		resp.Items = make([]OrderItemResponse, 0, len(o.Items))
 		for _, item := range o.Items {
 			itemResp := OrderItemResponse{
-				ID:         item.ID,
-				ProductID:  item.ProductID,
-				CustomName: item.CustomName,
-				Qty:        item.Qty,
-				Price:      item.Price,
-				Details:    item.Details,
+				ID:            item.ID,
+				ProductID:     item.ProductID,
+				FabricID:      item.FabricID,
+				FabricColorID: item.FabricColorID,
+				CustomName:    item.CustomName,
+				Qty:           item.Qty,
+				Price:         item.Price,
+				Details:       item.Details,
+			}
+			if item.Fabric != nil {
+				itemResp.FabricName = item.Fabric.Name
+			}
+			if item.FabricColor != nil {
+				itemResp.FabricColorName = item.FabricColor.Name
+				itemResp.FabricHexCode = item.FabricColor.HexCode
 			}
 			if item.Product != nil {
 				prodResp := ToProductResponse(item.Product)

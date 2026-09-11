@@ -14,9 +14,16 @@ type ProductMaterialUsecase struct {
 	mock.Mock
 }
 
-// CalculateMaterialCost provides a mock function with given fields: ctx, productID, qty
-func (_m *ProductMaterialUsecase) CalculateMaterialCost(ctx context.Context, productID string, qty int) (float64, error) {
-	ret := _m.Called(ctx, productID, qty)
+// CalculateMaterialCost provides a mock function with given fields: ctx, productID, qty, fabricID
+func (_m *ProductMaterialUsecase) CalculateMaterialCost(ctx context.Context, productID string, qty int, fabricID ...string) (float64, error) {
+	_va := make([]interface{}, len(fabricID))
+	for _i := range fabricID {
+		_va[_i] = fabricID[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, productID, qty)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CalculateMaterialCost")
@@ -24,17 +31,17 @@ func (_m *ProductMaterialUsecase) CalculateMaterialCost(ctx context.Context, pro
 
 	var r0 float64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int) (float64, error)); ok {
-		return rf(ctx, productID, qty)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, ...string) (float64, error)); ok {
+		return rf(ctx, productID, qty, fabricID...)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int) float64); ok {
-		r0 = rf(ctx, productID, qty)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, ...string) float64); ok {
+		r0 = rf(ctx, productID, qty, fabricID...)
 	} else {
 		r0 = ret.Get(0).(float64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = rf(ctx, productID, qty)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int, ...string) error); ok {
+		r1 = rf(ctx, productID, qty, fabricID...)
 	} else {
 		r1 = ret.Error(1)
 	}

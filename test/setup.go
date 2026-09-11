@@ -145,7 +145,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, timeout)
 	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, timeout)
 	materialUsecase := usecase.NewMaterialUsecase(materialRepo, timeout)
-	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, txManager, timeout)
+	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, materialRepo, txManager, timeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, productMaterialUsecase, timeout)
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, productMaterialUsecase, workLogRepo, timeout)
 

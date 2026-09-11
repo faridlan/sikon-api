@@ -139,7 +139,7 @@ func main() {
 	workLogUsecase := usecase.NewWorkLogUsecase(workLogRepo, workerRepo, orderRepo, batchPORepo, contextTimeout)
 	payrollUsecase := usecase.NewPayrollUsecase(payrollRepo, expenseRepo, contextTimeout)
 
-	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, txManager, contextTimeout)
+	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, materialRepo, txManager, contextTimeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, productMaterialUsecase, contextTimeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
 	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, contextTimeout)

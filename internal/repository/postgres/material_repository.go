@@ -28,13 +28,28 @@ func (r *materialRepository) Create(ctx context.Context, material *domain.Materi
 
 	material.ID = model.ID
 	material.CreatedAt = model.CreatedAt
+
+	if len(material.Colors) > 0 {
+		for i, c := range material.Colors {
+			colorModel := FabricColorModel{
+				MaterialID: &model.ID,
+				Name:       c.Name,
+				HexCode:    c.HexCode,
+			}
+			if err := db.WithContext(ctx).Create(&colorModel).Error; err != nil {
+				return TranslateError(err)
+			}
+			material.Colors[i].ID = colorModel.ID
+			material.Colors[i].MaterialID = &model.ID
+		}
+	}
 	return nil
 }
 
 func (r *materialRepository) GetByID(ctx context.Context, id string) (*domain.Material, error) {
 	var model MaterialModel
 	db := GetTx(ctx, r.db)
-	if err := db.WithContext(ctx).Where("id = ?", id).First(&model).Error; err != nil {
+	if err := db.WithContext(ctx).Preload("Colors").Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 	return model.ToDomain(), nil
@@ -49,6 +64,7 @@ func (r *materialRepository) Fetch(ctx context.Context, limit, offset int) ([]do
 	query.Count(&total)
 
 	err := query.
+		Preload("Colors").
 		Order("name ASC").
 		Limit(limit).
 		Offset(offset).
@@ -77,6 +93,25 @@ func (r *materialRepository) Update(ctx context.Context, material *domain.Materi
 	if result.RowsAffected == 0 {
 		return domain.ErrNotFound
 	}
+
+	if len(material.Colors) > 0 {
+		if err := db.WithContext(ctx).Where("material_id = ?", material.ID).Delete(&FabricColorModel{}).Error; err != nil {
+			return TranslateError(err)
+		}
+		for i, c := range material.Colors {
+			colorModel := FabricColorModel{
+				MaterialID: &material.ID,
+				Name:       c.Name,
+				HexCode:    c.HexCode,
+			}
+			if err := db.WithContext(ctx).Create(&colorModel).Error; err != nil {
+				return TranslateError(err)
+			}
+			material.Colors[i].ID = colorModel.ID
+			material.Colors[i].MaterialID = &material.ID
+		}
+	}
+
 	return nil
 }
 

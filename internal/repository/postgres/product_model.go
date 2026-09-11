@@ -150,9 +150,15 @@ func FromProductDomain(d *domain.Product) *ProductModel {
 				})
 			}
 
+			qty := fab.QtyPerUnit
+			if qty <= 0 {
+				qty = 1.5
+			}
 			fabModels = append(fabModels, ProductFabricModel{
 				ID:              fab.ID,
 				ProductID:       d.ID,
+				FabricID:        fab.FabricID,
+				QtyPerUnit:      qty,
 				SpecTemplateID:  fab.SpecTemplateID, // Dihubungkan ke SpecTemplateID
 				Name:            fab.Name,
 				Description:     fab.Description,

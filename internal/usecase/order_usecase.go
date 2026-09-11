@@ -128,13 +128,37 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 			price = product.BasePrice
 		}
 
-		order.Items = append(order.Items, domain.OrderItem{
-			ProductID:  itemInput.ProductID,
-			CustomName: itemInput.CustomName,
-			Qty:        itemInput.Qty,
-			Price:      price,
-			Details:    itemInput.Details,
-		})
+		item := domain.OrderItem{
+			ProductID:     itemInput.ProductID,
+			FabricID:      itemInput.FabricID,
+			FabricColorID: itemInput.FabricColorID,
+			CustomName:    itemInput.CustomName,
+			Qty:           itemInput.Qty,
+			Price:         price,
+			Details:       itemInput.Details,
+			Product:       product,
+		}
+
+		if itemInput.FabricID != nil && product != nil {
+			for _, pf := range product.Fabrics {
+				if (pf.FabricID != nil && *pf.FabricID == *itemInput.FabricID) || pf.ID == *itemInput.FabricID {
+					if pf.Fabric != nil {
+						item.Fabric = pf.Fabric
+					}
+					if itemInput.FabricColorID != nil {
+						for _, fc := range pf.Colors {
+							if fc.ID == *itemInput.FabricColorID {
+								item.FabricColor = &fc
+								break
+							}
+						}
+					}
+					break
+				}
+			}
+		}
+
+		order.Items = append(order.Items, item)
 	}
 
 	// Delegasi perhitungan matematika & pajak ke Domain
@@ -302,7 +326,13 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 			var materialCost float64
 			for _, item := range fullOrder.Items {
 				slog.Debug("[HPP-DEBUG] proses item", "product_id", item.ProductID, "qty", item.Qty)
-				cost, err := u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
+				var cost float64
+				var err error
+				if item.FabricID != nil && *item.FabricID != "" {
+					cost, err = u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty, *item.FabricID)
+				} else {
+					cost, err = u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
+				}
 				if err != nil {
 					slog.Error("[HPP-DEBUG] CalculateMaterialCost error", "error", err)
 					return err
@@ -414,13 +444,15 @@ func (u *orderUsecase) AddOrderItem(c context.Context, orderID string, input dom
 
 	err = u.txManager.RunInTransaction(ctx, func(txCtx context.Context) error {
 		newItem := &domain.OrderItem{
-			ID:         uuid.New().String(),
-			OrderID:    orderID,
-			ProductID:  input.ProductID,
-			CustomName: input.CustomName,
-			Qty:        input.Qty,
-			Price:      price,
-			Details:    input.Details,
+			ID:            uuid.New().String(),
+			OrderID:       orderID,
+			ProductID:     input.ProductID,
+			FabricID:      input.FabricID,
+			FabricColorID: input.FabricColorID,
+			CustomName:    input.CustomName,
+			Qty:           input.Qty,
+			Price:         price,
+			Details:       input.Details,
 		}
 
 		if err := u.orderRepo.CreateItem(txCtx, newItem); err != nil {
@@ -463,6 +495,8 @@ func (u *orderUsecase) UpdateOrderItem(c context.Context, orderID, itemID string
 	}
 
 	existingItem.ProductID = input.ProductID
+	existingItem.FabricID = input.FabricID
+	existingItem.FabricColorID = input.FabricColorID
 	existingItem.CustomName = input.CustomName
 	existingItem.Qty = input.Qty
 	existingItem.Price = price
@@ -539,7 +573,13 @@ func (u *orderUsecase) GetOrderHPP(c context.Context, id string) (*domain.OrderH
 	if (order.OrderStatus == domain.OrderStatusProduction || order.OrderStatus == domain.OrderStatusReady || order.OrderStatus == domain.OrderStatusCompleted) && materialCost == 0 {
 		var calcCost float64
 		for _, item := range order.Items {
-			cost, err := u.productMaterialUsecase.CalculateMaterialCost(ctx, item.ProductID, item.Qty)
+			var cost float64
+			var err error
+			if item.FabricID != nil && *item.FabricID != "" {
+				cost, err = u.productMaterialUsecase.CalculateMaterialCost(ctx, item.ProductID, item.Qty, *item.FabricID)
+			} else {
+				cost, err = u.productMaterialUsecase.CalculateMaterialCost(ctx, item.ProductID, item.Qty)
+			}
 			if err != nil {
 				slog.Error("[HPP] CalculateMaterialCost error saat GetOrderHPP", "error", err, "order_id", id)
 				break

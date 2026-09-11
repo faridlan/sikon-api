@@ -53,11 +53,24 @@ func (h *materialHandler) CreateMaterial(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
+	var colors []domain.FabricColorInput
+	for _, c := range req.Colors {
+		colors = append(colors, domain.FabricColorInput{
+			Name:    c.Name,
+			HexCode: c.HexCode,
+		})
+	}
+
 	input := domain.MaterialCreateInput{
-		Name:      req.Name,
-		Unit:      req.Unit,
-		UnitPrice: req.UnitPrice,
-		Category:  req.Category,
+		Name:            req.Name,
+		Unit:            req.Unit,
+		UnitPrice:       req.UnitPrice,
+		Category:        req.Category,
+		Description:     req.Description,
+		Composition:     req.Composition,
+		CareInstruction: req.CareInstruction,
+		GSMInfo:         req.GSMInfo,
+		Colors:          colors,
 	}
 
 	material, err := h.materialUsecase.CreateMaterial(c.Context(), input)
@@ -134,11 +147,24 @@ func (h *materialHandler) UpdateMaterial(c *fiber.Ctx) error {
 		return utils.SendError(c, fiber.StatusBadRequest, err.Error())
 	}
 
+	var colors []domain.FabricColorInput
+	for _, c := range req.Colors {
+		colors = append(colors, domain.FabricColorInput{
+			Name:    c.Name,
+			HexCode: c.HexCode,
+		})
+	}
+
 	input := domain.MaterialUpdateInput{
-		Name:      req.Name,
-		Unit:      req.Unit,
-		UnitPrice: req.UnitPrice,
-		Category:  req.Category,
+		Name:            req.Name,
+		Unit:            req.Unit,
+		UnitPrice:       req.UnitPrice,
+		Category:        req.Category,
+		Description:     req.Description,
+		Composition:     req.Composition,
+		CareInstruction: req.CareInstruction,
+		GSMInfo:         req.GSMInfo,
+		Colors:          colors,
 	}
 
 	material, err := h.materialUsecase.UpdateMaterial(c.Context(), id, input)

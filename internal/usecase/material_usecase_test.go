@@ -231,7 +231,7 @@ func setupProductMaterialTest() (*mocks.ProductMaterialRepository, *mocks.Produc
 		}).
 		Return(nil)
 
-	uc := usecase.NewProductMaterialUsecase(mockPMRepo, mockProductRepo, mockTx, 2*time.Second)
+	uc := usecase.NewProductMaterialUsecase(mockPMRepo, mockProductRepo, nil, mockTx, 2*time.Second)
 	return mockPMRepo, mockProductRepo, mockTx, uc
 }
 
@@ -382,5 +382,38 @@ func TestProductMaterialUsecase_CalculateMaterialCost(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, float64(0), cost)
 		mockPMRepo.AssertExpectations(t)
+	})
+
+	t.Run("Success - Hitung Biaya Material Dengan Dynamic Fabric", func(t *testing.T) {
+		mockPMRepo, mockProductRepo, _, uc := setupProductMaterialTest()
+		productID := "prod-123"
+		fabricID := "mat-fabric-1"
+		orderQty := 10
+
+		items := []domain.ProductMaterial{
+			{QtyPerUnit: 4, Material: &domain.Material{UnitPrice: 500}}, // 4 * 500 * 10 = 20.000
+		}
+		mockPMRepo.On("FetchByProduct", mock.Anything, productID).Return(items, nil).Once()
+
+		mockProduct := &domain.Product{
+			ID: productID,
+			Fabrics: []domain.ProductFabric{
+				{
+					FabricID:   &fabricID,
+					QtyPerUnit: 1.5,
+					Fabric: &domain.Material{
+						UnitPrice: 30000, // 1.5 * 30.000 * 10 = 450.000
+					},
+				},
+			},
+		}
+		mockProductRepo.On("GetByID", mock.Anything, productID).Return(mockProduct, nil).Once()
+
+		cost, err := uc.CalculateMaterialCost(context.Background(), productID, orderQty, fabricID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, float64(470000), cost) // 20.000 + 450.000 = 470.000
+		mockPMRepo.AssertExpectations(t)
+		mockProductRepo.AssertExpectations(t)
 	})
 }

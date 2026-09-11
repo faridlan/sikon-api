@@ -5,251 +5,230 @@ import (
 	"encoding/json"
 	"io"
 	"testing"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/faridlan/sikon-api/internal/delivery/http/dto"
 	"github.com/faridlan/sikon-api/internal/domain"
 	"github.com/faridlan/sikon-api/internal/utils"
 	tests "github.com/faridlan/sikon-api/test"
+	"github.com/gofiber/fiber/v2"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateMaterial_Integration(t *testing.T) {
+func TestMaterial_And_DynamicHPP_Integration(t *testing.T) {
 	app, db := tests.SetupTestApp()
 	tests.ClearTables(db)
 
-	t.Run("Success", func(t *testing.T) {
-		reqBody := dto.MaterialCreateRequest{
-			Name:      "Kain Ripstop",
-			Unit:      "meter",
-			UnitPrice: 25000,
-			Category:  "kain",
-		}
-		body, _ := json.Marshal(reqBody)
+	sales := tests.SeedUser(db, "Sales", "sales@sikon.com", "sales")
+	cust := tests.SeedCustomer(db, "Customer Dinas", "0812345678", "Jakarta")
+	cat := tests.SeedCategory(db, "Kemeja")
+	batchPo := tests.SeedBatchPO(db, "PO September 2026", "active")
+	db.Exec("UPDATE batch_pos SET open_date = ?, close_date = ? WHERE id = ?", time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), batchPo.ID)
 
-		req := tests.AuthenticatedRequest("POST", "/api/materials", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
+	var createdFabricID string
+	var createdColorID string
+
+	t.Run("1. Create Fabric Material with Specs and Colors", func(t *testing.T) {
+		reqBody := dto.MaterialCreateRequest{
+			Name:            "American Drill 1919",
+			Unit:            "meter",
+			UnitPrice:       35000,
+			Category:        "kain",
+			Description:     "Kain tebal, kuat dan berserat halus",
+			Composition:     "65% Polyester / 35% Viscose",
+			CareInstruction: "Cuci suhu ruang, jangan gunakan pemutih klorin",
+			GSMInfo:         "210 gsm",
+			Colors: []dto.FabricColorRequest{
+				{Name: "Navy Blue", HexCode: "#000080"},
+				{Name: "Khaki", HexCode: "#C3B091"},
+			},
+		}
+		bodyBytes, _ := json.Marshal(reqBody)
+
+		req := tests.AuthenticatedRequest("POST", "/api/materials", bytes.NewBuffer(bodyBytes), "admin", "admin@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
 
-		var response utils.SuccessResponse[dto.MaterialResponse]
-		bodyResp, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(bodyResp, &response)
+		var res utils.SuccessResponse[dto.MaterialResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &res)
 
-		assert.Equal(t, "Kain Ripstop", response.Data.Name)
-		assert.Equal(t, float64(25000), response.Data.UnitPrice)
-		assert.NotEmpty(t, response.Data.ID)
+		assert.Equal(t, "American Drill 1919", res.Data.Name)
+		assert.Equal(t, float64(35000), res.Data.UnitPrice)
+		assert.Equal(t, "210 gsm", res.Data.GSMInfo)
+		assert.Len(t, res.Data.Colors, 2)
+		assert.Equal(t, "Navy Blue", res.Data.Colors[0].Name)
+
+		createdFabricID = res.Data.ID
+		createdColorID = res.Data.Colors[0].ID
 	})
 
-	t.Run("Failed_Validation", func(t *testing.T) {
-		reqBody := dto.MaterialCreateRequest{Name: "", Unit: "meter", UnitPrice: 1000}
-		body, _ := json.Marshal(reqBody)
-
-		req := tests.AuthenticatedRequest("POST", "/api/materials", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
-	})
-}
-
-func TestListMaterials_Integration(t *testing.T) {
-	app, db := tests.SetupTestApp()
-	tests.ClearTables(db)
-
-	_ = tests.SeedMaterial(db, "Kain Ripstop", "meter", 25000, "kain")
-	_ = tests.SeedMaterial(db, "Kancing", "pcs", 500, "aksesoris")
-
-	t.Run("Success_List", func(t *testing.T) {
-		req := tests.AuthenticatedRequest("GET", "/api/materials?page=1&limit=10", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
+	t.Run("2. Get Fabric Material By ID", func(t *testing.T) {
+		req := tests.AuthenticatedRequest("GET", "/api/materials/"+createdFabricID, nil, "admin", "admin@sikon.com", domain.RoleOwner)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-		var response struct {
-			Data []dto.MaterialResponse `json:"data"`
-		}
-		bodyResp, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(bodyResp, &response)
+		var res utils.SuccessResponse[dto.MaterialResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &res)
 
-		assert.Len(t, response.Data, 2)
-	})
-}
-
-func TestGetMaterial_Integration(t *testing.T) {
-	app, db := tests.SetupTestApp()
-	tests.ClearTables(db)
-
-	material := tests.SeedMaterial(db, "Benang Jahit", "roll", 15000, "aksesoris")
-
-	t.Run("Success", func(t *testing.T) {
-		req := tests.AuthenticatedRequest("GET", "/api/materials/"+material.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-		var response utils.SuccessResponse[dto.MaterialResponse]
-		bodyResp, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(bodyResp, &response)
-
-		assert.Equal(t, material.ID, response.Data.ID)
-		assert.Equal(t, "Benang Jahit", response.Data.Name)
+		assert.Equal(t, createdFabricID, res.Data.ID)
+		assert.Equal(t, "American Drill 1919", res.Data.Name)
+		assert.Len(t, res.Data.Colors, 2)
 	})
 
-	t.Run("Failed_NotFound", func(t *testing.T) {
-		randomID := uuid.New().String()
-		req := tests.AuthenticatedRequest("GET", "/api/materials/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
-	})
-}
+	var productID string
 
-func TestUpdateMaterial_Integration(t *testing.T) {
-	app, db := tests.SetupTestApp()
-	tests.ClearTables(db)
-
-	material := tests.SeedMaterial(db, "Sleting", "pcs", 2000, "aksesoris")
-
-	t.Run("Success", func(t *testing.T) {
-		reqBody := dto.MaterialUpdateRequest{UnitPrice: 2500}
-		body, _ := json.Marshal(reqBody)
-
-		req := tests.AuthenticatedRequest("PUT", "/api/materials/"+material.ID, bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-		var response utils.SuccessResponse[dto.MaterialResponse]
-		bodyResp, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(bodyResp, &response)
-
-		assert.Equal(t, float64(2500), response.Data.UnitPrice)
-		assert.Equal(t, "Sleting", response.Data.Name) // field lain tidak berubah
-	})
-}
-
-func TestDeleteMaterial_Integration(t *testing.T) {
-	app, db := tests.SetupTestApp()
-	tests.ClearTables(db)
-
-	material := tests.SeedMaterial(db, "Label", "pcs", 300, "aksesoris")
-
-	t.Run("Success", func(t *testing.T) {
-		req := tests.AuthenticatedRequest("DELETE", "/api/materials/"+material.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-		checkReq := tests.AuthenticatedRequest("GET", "/api/materials/"+material.ID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
-		checkResp, err := app.Test(checkReq, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusNotFound, checkResp.StatusCode)
-	})
-
-	t.Run("Failed_NotFound", func(t *testing.T) {
-		randomID := uuid.New().String()
-		req := tests.AuthenticatedRequest("DELETE", "/api/materials/"+randomID, nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
-		resp, err := app.Test(req, -1)
-		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
-	})
-}
-
-// ==========================================
-// TESTS: PRODUCT MATERIAL (Resep / BOM)
-// ==========================================
-
-func TestSetProductMaterials_Integration(t *testing.T) {
-	app, db := tests.SetupTestApp()
-	tests.ClearTables(db)
-
-	category := tests.SeedCategory(db, "Kaos")
-	product := tests.SeedProduct(db, category.ID, "Kaos Polo", 150000)
-	material := tests.SeedMaterial(db, "Kain Ripstop", "meter", 25000, "kain")
-
-	t.Run("Success", func(t *testing.T) {
-		reqBody := dto.SetProductMaterialsRequest{
-			Items: []dto.ProductMaterialItemRequest{
-				{MaterialID: material.ID, QtyPerUnit: 1.2},
+	t.Run("3. Create Product with Fabric Linking to Master Material", func(t *testing.T) {
+		reqBody := dto.ProductCreateRequest{
+			CategoryID:  cat.ID,
+			Name:        "Kemeja PDH Dinas",
+			Description: "Kemeja dinas resmi lengan pendek",
+			BasePrice:   125000,
+			Fabrics: []dto.ProductFabricRequest{
+				{
+					FabricID:   &createdFabricID,
+					QtyPerUnit: 1.5,
+					BasePrice:  125000,
+					IsDefault:  true,
+				},
 			},
 		}
-		body, _ := json.Marshal(reqBody)
+		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := tests.AuthenticatedRequest("PUT", "/api/products/"+product.ID+"/materials", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
+		req := tests.AuthenticatedRequest("POST", "/api/products", bytes.NewBuffer(bodyBytes), "admin", "admin@sikon.com", domain.RoleOwner)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+		assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
 
-		var response utils.SuccessResponse[[]dto.ProductMaterialResponse]
-		bodyResp, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(bodyResp, &response)
+		var res utils.SuccessResponse[dto.ProductResponse]
+		respBody, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(respBody, &res)
 
-		assert.Len(t, response.Data, 1)
-		assert.Equal(t, material.ID, response.Data[0].MaterialID)
-		assert.Equal(t, 1.2, response.Data[0].QtyPerUnit)
+		assert.Equal(t, "Kemeja PDH Dinas", res.Data.Name)
+		assert.Len(t, res.Data.Fabrics, 1)
+		assert.Equal(t, &createdFabricID, res.Data.Fabrics[0].FabricID)
+		assert.Equal(t, 1.5, res.Data.Fabrics[0].QtyPerUnit)
+		// Nama dan colors harus otomatis ter-fallback dari Master Material!
+		assert.Equal(t, "American Drill 1919", res.Data.Fabrics[0].Name)
+		assert.Len(t, res.Data.Fabrics[0].Colors, 2)
+
+		productID = res.Data.ID
 	})
 
-	t.Run("Success_Replace_Bukan_Tambah", func(t *testing.T) {
-		// Panggil lagi dengan resep berbeda -> resep lama harus HILANG, bukan ketambahan
-		material2 := tests.SeedMaterial(db, "Kancing", "pcs", 500, "aksesoris")
+	t.Run("4. Set Product Materials for Accessories (BOM)", func(t *testing.T) {
+		// Buat material kancing (aksesoris)
+		kancingReq := dto.MaterialCreateRequest{
+			Name:      "Kancing Kemeja",
+			Unit:      "pcs",
+			UnitPrice: 500,
+			Category:  "aksesoris",
+		}
+		kbBytes, _ := json.Marshal(kancingReq)
+		reqK := tests.AuthenticatedRequest("POST", "/api/materials", bytes.NewBuffer(kbBytes), "admin", "admin@sikon.com", domain.RoleOwner)
+		reqK.Header.Set("Content-Type", "application/json")
+		respK, _ := app.Test(reqK, -1)
+		var kancingRes utils.SuccessResponse[dto.MaterialResponse]
+		kBytes, _ := io.ReadAll(respK.Body)
+		json.Unmarshal(kBytes, &kancingRes)
 
-		reqBody := dto.SetProductMaterialsRequest{
+		// Set BOM produk: 8 pcs kancing per kemeja = 8 * 500 = 4.000 per pcs
+		bomReq := dto.SetProductMaterialsRequest{
 			Items: []dto.ProductMaterialItemRequest{
-				{MaterialID: material2.ID, QtyPerUnit: 3},
+				{
+					MaterialID: kancingRes.Data.ID,
+					QtyPerUnit: 8,
+				},
 			},
 		}
-		body, _ := json.Marshal(reqBody)
-
-		req := tests.AuthenticatedRequest("PUT", "/api/products/"+product.ID+"/materials", bytes.NewBuffer(body), "test-user", "test-user@sikon.com", domain.RoleOwner)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := app.Test(req, -1)
+		bBytes, _ := json.Marshal(bomReq)
+		reqBOM := tests.AuthenticatedRequest("PUT", "/api/products/"+productID+"/materials", bytes.NewBuffer(bBytes), "admin", "admin@sikon.com", domain.RoleOwner)
+		reqBOM.Header.Set("Content-Type", "application/json")
+		respBOM, err := app.Test(reqBOM, -1)
 		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-		var response utils.SuccessResponse[[]dto.ProductMaterialResponse]
-		bodyResp, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(bodyResp, &response)
-
-		// Cuma 1 baris (resep Kain Ripstop dari test sebelumnya sudah tergantikan)
-		assert.Len(t, response.Data, 1)
-		assert.Equal(t, material2.ID, response.Data[0].MaterialID)
+		assert.Equal(t, fiber.StatusOK, respBOM.StatusCode)
 	})
-}
 
-func TestGetProductMaterials_Integration(t *testing.T) {
-	app, db := tests.SetupTestApp()
-	tests.ClearTables(db)
+	t.Run("5. Create Order with Fabric & Color, Transition to Production, Verify Dynamic HPP", func(t *testing.T) {
+		orderQty := 10
+		// Ekspektasi HPP:
+		// Kain = 10 pcs * 1.5 meter * 35.000 = 525.000
+		// Kancing = 10 pcs * 8 pcs * 500 = 40.000
+		// Total HPP Material = 565.000
 
-	category := tests.SeedCategory(db, "Kemeja")
-	product := tests.SeedProduct(db, category.ID, "Kemeja PDH", 200000)
-	material := tests.SeedMaterial(db, "Kain American Drill", "meter", 30000, "kain")
-	_ = tests.SeedProductMaterial(db, product.ID, material.ID, 1.5)
-
-	t.Run("Success", func(t *testing.T) {
-		req := tests.AuthenticatedRequest("GET", "/api/products/"+product.ID+"/materials", nil, "test-user", "test-user@sikon.com", domain.RoleOwner)
-		resp, err := app.Test(req, -1)
+		orderReq := dto.OrderCreateRequest{
+			BatchPoID:  batchPo.ID,
+			CustomerID: cust.ID,
+			SalesID:    sales.ID,
+			Items: []dto.OrderItemRequest{
+				{
+					ProductID:     productID,
+					FabricID:      &createdFabricID,
+					FabricColorID: &createdColorID,
+					CustomName:    "Kemeja PDH Lengan Pendek",
+					Qty:           orderQty,
+					Price:         125000,
+				},
+			},
+		}
+		oBytes, _ := json.Marshal(orderReq)
+		reqOrder := tests.AuthenticatedRequest("POST", "/api/orders", bytes.NewBuffer(oBytes), "admin", "admin@sikon.com", domain.RoleOwner)
+		reqOrder.Header.Set("Content-Type", "application/json")
+		respOrder, err := app.Test(reqOrder, -1)
 		assert.NoError(t, err)
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+		assert.Equal(t, fiber.StatusCreated, respOrder.StatusCode)
 
-		var response utils.SuccessResponse[[]dto.ProductMaterialResponse]
-		bodyResp, _ := io.ReadAll(resp.Body)
-		_ = json.Unmarshal(bodyResp, &response)
+		var orderRes utils.SuccessResponse[dto.OrderResponse]
+		oRespBody, _ := io.ReadAll(respOrder.Body)
+		json.Unmarshal(oRespBody, &orderRes)
 
-		assert.Len(t, response.Data, 1)
-		assert.Equal(t, 1.5, response.Data[0].QtyPerUnit)
-		// Pastikan relasi Material ikut ke-preload (bukan cuma ID doang)
-		assert.NotNil(t, response.Data[0].Material)
-		assert.Equal(t, "Kain American Drill", response.Data[0].Material.Name)
+		orderID := orderRes.Data.ID
+		assert.Equal(t, &createdFabricID, orderRes.Data.Items[0].FabricID)
+		assert.Equal(t, "American Drill 1919", orderRes.Data.Items[0].FabricName)
+		assert.Equal(t, "Navy Blue", orderRes.Data.Items[0].FabricColorName)
+
+		// Set payment_status = partial agar bisa masuk pending (minimal sudah ada DP)
+		db.Exec("UPDATE orders SET payment_status = ? WHERE id = ?", "partial", orderID)
+
+		// Ubah status ke pending — HPP Material dihitung di sini (quotation → pending)
+		statusReq := dto.OrderStatusUpdateRequest{OrderStatus: "pending"}
+		sBytes, _ := json.Marshal(statusReq)
+		reqStatus := tests.AuthenticatedRequest("PATCH", "/api/orders/"+orderID+"/status", bytes.NewBuffer(sBytes), "admin", "admin@sikon.com", domain.RoleOwner)
+		reqStatus.Header.Set("Content-Type", "application/json")
+		respStatus, err := app.Test(reqStatus, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, respStatus.StatusCode, "Transisi quotation → pending harus berhasil")
+
+		// Set payment_status = paid agar bisa masuk production
+		db.Exec("UPDATE orders SET payment_status = ? WHERE id = ?", "paid", orderID)
+
+		// Ubah status ke production (pending → production)
+		statusReq2 := dto.OrderStatusUpdateRequest{OrderStatus: "production"}
+		s2Bytes, _ := json.Marshal(statusReq2)
+		reqStatus2 := tests.AuthenticatedRequest("PATCH", "/api/orders/"+orderID+"/status", bytes.NewBuffer(s2Bytes), "admin", "admin@sikon.com", domain.RoleOwner)
+		reqStatus2.Header.Set("Content-Type", "application/json")
+		respStatus2, err := app.Test(reqStatus2, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, respStatus2.StatusCode, "Transisi pending → production harus berhasil")
+
+		// Cek Endpoint HPP: GET /api/orders/:id/hpp
+		reqHPP := tests.AuthenticatedRequest("GET", "/api/orders/"+orderID+"/hpp", nil, "admin", "admin@sikon.com", domain.RoleOwner)
+		respHPP, err := app.Test(reqHPP, -1)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusOK, respHPP.StatusCode)
+
+		var hppRes utils.SuccessResponse[dto.OrderHPPResponse]
+		hBytes, _ := io.ReadAll(respHPP.Body)
+		json.Unmarshal(hBytes, &hppRes)
+
+		assert.Equal(t, orderID, hppRes.Data.OrderID)
+		assert.Equal(t, float64(565000), hppRes.Data.MaterialCost, "HPP Material Cost harus 565.000 (525.000 kain + 40.000 kancing)")
+		assert.NotNil(t, hppRes.Data.MaterialCalculatedAt)
 	})
 }

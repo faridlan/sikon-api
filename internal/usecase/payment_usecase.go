@@ -418,7 +418,13 @@ func (u *paymentUsecase) VerifyPayment(c context.Context, paymentID string, inpu
 
 			var materialCost float64
 			for _, item := range fullOrder.Items {
-				cost, err := u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
+				var cost float64
+				var err error
+				if item.FabricID != nil && *item.FabricID != "" {
+					cost, err = u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty, *item.FabricID)
+				} else {
+					cost, err = u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
+				}
 				if err != nil {
 					return err
 				}
