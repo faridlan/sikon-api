@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +20,13 @@ type MaterialModel struct {
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (m *MaterialModel) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = uuid.NewString()
+	}
+	return nil
 }
 
 func (MaterialModel) TableName() string {
@@ -58,6 +66,13 @@ type ProductMaterialModel struct {
 
 	// Relasi
 	Material MaterialModel `gorm:"foreignKey:MaterialID"`
+}
+
+func (m *ProductMaterialModel) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = uuid.NewString()
+	}
+	return nil
 }
 
 func (ProductMaterialModel) TableName() string {

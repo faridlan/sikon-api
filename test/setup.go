@@ -134,7 +134,6 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
-	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, timeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, timeout)
 	reportUsecase := usecase.NewReportUsecase(reportRepo, timeout)
@@ -147,6 +146,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, timeout)
 	materialUsecase := usecase.NewMaterialUsecase(materialRepo, timeout)
 	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, txManager, timeout)
+	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, productMaterialUsecase, timeout)
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, productMaterialUsecase, workLogRepo, timeout)
 
 	// 3. Setup Fiber Handlers

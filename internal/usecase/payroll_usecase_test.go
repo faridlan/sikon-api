@@ -28,7 +28,7 @@ func TestPayrollUsecase_CreatePayroll(t *testing.T) {
 			CreatedByID: "user-uuid-1",
 		}
 
-		mockPayrollRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payroll"), workLogIDs).Return(nil).Once()
+		mockPayrollRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Payroll"), workLogIDs, mock.Anything).Return(nil).Once()
 
 		mockCreatedPayroll := &domain.Payroll{
 			ID:            "payroll-uuid-1",

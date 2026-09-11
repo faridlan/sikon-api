@@ -20,8 +20,9 @@ func NewMaterialRepository(db *gorm.DB) domain.MaterialRepository {
 
 func (r *materialRepository) Create(ctx context.Context, material *domain.Material) error {
 	model := FromMaterialDomain(material)
+	db := GetTx(ctx, r.db)
 
-	if err := r.db.WithContext(ctx).Create(model).Error; err != nil {
+	if err := db.WithContext(ctx).Create(model).Error; err != nil {
 		return TranslateError(err)
 	}
 
@@ -32,7 +33,8 @@ func (r *materialRepository) Create(ctx context.Context, material *domain.Materi
 
 func (r *materialRepository) GetByID(ctx context.Context, id string) (*domain.Material, error) {
 	var model MaterialModel
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&model).Error; err != nil {
+	db := GetTx(ctx, r.db)
+	if err := db.WithContext(ctx).Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, TranslateError(err)
 	}
 	return model.ToDomain(), nil
@@ -41,8 +43,9 @@ func (r *materialRepository) GetByID(ctx context.Context, id string) (*domain.Ma
 func (r *materialRepository) Fetch(ctx context.Context, limit, offset int) ([]domain.Material, int64, error) {
 	var models []MaterialModel
 	var total int64
+	db := GetTx(ctx, r.db)
 
-	query := r.db.WithContext(ctx).Model(&MaterialModel{})
+	query := db.WithContext(ctx).Model(&MaterialModel{})
 	query.Count(&total)
 
 	err := query.
@@ -65,8 +68,9 @@ func (r *materialRepository) Fetch(ctx context.Context, limit, offset int) ([]do
 
 func (r *materialRepository) Update(ctx context.Context, material *domain.Material) error {
 	model := FromMaterialDomain(material)
+	db := GetTx(ctx, r.db)
 
-	result := r.db.WithContext(ctx).Where("id = ?", material.ID).Updates(model)
+	result := db.WithContext(ctx).Where("id = ?", material.ID).Updates(model)
 	if result.Error != nil {
 		return TranslateError(result.Error)
 	}
@@ -77,7 +81,8 @@ func (r *materialRepository) Update(ctx context.Context, material *domain.Materi
 }
 
 func (r *materialRepository) Delete(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&MaterialModel{})
+	db := GetTx(ctx, r.db)
+	result := db.WithContext(ctx).Where("id = ?", id).Delete(&MaterialModel{})
 	if result.Error != nil {
 		return TranslateError(result.Error)
 	}
@@ -102,7 +107,8 @@ func NewProductMaterialRepository(db *gorm.DB) domain.ProductMaterialRepository 
 // Dipanggil oleh usecase di dalam txManager.RunInTransaction supaya atomic
 // (tidak ada momen "resep kosong" kalau request gagal di tengah jalan).
 func (r *productMaterialRepository) ReplaceForProduct(ctx context.Context, productID string, items []domain.ProductMaterial) error {
-	if err := r.db.WithContext(ctx).Where("product_id = ?", productID).Delete(&ProductMaterialModel{}).Error; err != nil {
+	db := GetTx(ctx, r.db)
+	if err := db.WithContext(ctx).Where("product_id = ?", productID).Delete(&ProductMaterialModel{}).Error; err != nil {
 		return TranslateError(err)
 	}
 
@@ -119,7 +125,7 @@ func (r *productMaterialRepository) ReplaceForProduct(ctx context.Context, produ
 		}
 	}
 
-	if err := r.db.WithContext(ctx).Create(&models).Error; err != nil {
+	if err := db.WithContext(ctx).Create(&models).Error; err != nil {
 		return TranslateError(err)
 	}
 
@@ -127,9 +133,10 @@ func (r *productMaterialRepository) ReplaceForProduct(ctx context.Context, produ
 }
 
 func (r *productMaterialRepository) FetchByProduct(ctx context.Context, productID string) ([]domain.ProductMaterial, error) {
+	db := GetTx(ctx, r.db)
 	var models []ProductMaterialModel
 
-	err := r.db.WithContext(ctx).
+	err := db.WithContext(ctx).
 		Preload("Material").
 		Where("product_id = ?", productID).
 		Find(&models).Error

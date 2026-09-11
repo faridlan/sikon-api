@@ -27,8 +27,10 @@ func TestBatchPOUsecase_CreateBatchPO(t *testing.T) {
 			Name:        "PO Juni 2026",
 			TargetMonth: 6,    // <-- TAMBAHAN
 			TargetYear:  2026, // <-- TAMBAHAN
-			StartDate:   time.Now(),
-			EndDate:     time.Now().AddDate(0, 0, 7),
+			OpenDate:    time.Now(),
+			CloseDate:   time.Now().AddDate(0, 0, 3),
+			StartDate:   time.Now().AddDate(0, 0, 4),
+			EndDate:     time.Now().AddDate(0, 0, 14),
 			Quota:       100,
 		}
 
@@ -52,7 +54,15 @@ func TestBatchPOUsecase_CreateBatchPO(t *testing.T) {
 
 	t.Run("Error - Repo Failed", func(t *testing.T) {
 		mockRepo, uc := setupBatchPOTest()
-		input := domain.BatchPOCreateInput{Name: "PO Error", TargetMonth: 6, TargetYear: 2026}
+		input := domain.BatchPOCreateInput{
+			Name:        "PO Error",
+			TargetMonth: 6,
+			TargetYear:  2026,
+			OpenDate:    time.Now(),
+			CloseDate:   time.Now().AddDate(0, 0, 3),
+			StartDate:   time.Now().AddDate(0, 0, 4),
+			EndDate:     time.Now().AddDate(0, 0, 14),
+		}
 
 		expectedErr := errors.New("database error")
 		mockRepo.On("Create", mock.Anything, mock.Anything).Return(expectedErr).Once()

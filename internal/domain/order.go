@@ -149,6 +149,9 @@ type OrderRepository interface {
 	GetItemByID(ctx context.Context, orderID, itemID string) (*OrderItem, error)
 	GetByIDForUpdate(ctx context.Context, id string) (*Order, error)
 	GetByBatchPOID(ctx context.Context, batchPoID string) ([]Order, error)
+	// UpdateHPP mengupdate kolom hpp_material_cost & hpp_calculated_at secara eksplisit
+	// menggunakan map agar zero-value (0.0) tetap disimpan ke database.
+	UpdateHPP(ctx context.Context, id string, materialCost float64, calculatedAt time.Time) error
 }
 
 type OrderUsecase interface {
