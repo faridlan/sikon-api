@@ -214,6 +214,7 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	batchPos := protected.Group("/batch-pos")
 	batchPos.Get("/active", guardInternal, handlers.BatchPOHandler.ListActiveBatchPOs) // Dropdown transaksi Sales
 	batchPos.Get("/", guardInternal, handlers.BatchPOHandler.ListBatchPOs)
+	batchPos.Get("/suggested-open-date", handlers.BatchPOHandler.GetSuggestedOpenDate)
 	batchPos.Get("/:id", guardInternal, handlers.BatchPOHandler.GetBatchPO)
 	batchPos.Post("/", guardOwner, handlers.BatchPOHandler.CreateBatchPO)
 	batchPos.Put("/:id", guardOwner, handlers.BatchPOHandler.UpdateBatchPO)

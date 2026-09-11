@@ -21,8 +21,9 @@ func setupPaymentTest() (*mocks.PaymentRepository, *mocks.OrderRepository, *mock
 	mockBankAccountRepo := new(mocks.BankAccountRepository)
 	mockTxManager := new(mocks.TransactionManager)
 	mockBatchPORepo := new(mocks.BatchPORepository)
+	mockProductMaterialUsecase := new(mocks.ProductMaterialUsecase)
 
-	uc := usecase.NewPaymentUsecase(mockPaymentRepo, mockOrderRepo, mockBankAccountRepo, mockTxManager, mockBatchPORepo, time.Second*2)
+	uc := usecase.NewPaymentUsecase(mockPaymentRepo, mockOrderRepo, mockBankAccountRepo, mockTxManager, mockBatchPORepo, mockProductMaterialUsecase, time.Second*2)
 
 	return mockPaymentRepo, mockOrderRepo, mockBankAccountRepo, mockTxManager, mockBatchPORepo, uc
 }
@@ -364,7 +365,11 @@ func TestVerifyPayment_Success(t *testing.T) {
 	mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(allPayments, nil)
 
 	// Ekspektasi: OrderStatus naik ke 'production', PaymentStatus ke 'partial' (500rb < 1jt)
-	mockOrderRepo.On("UpdateStatus", mock.Anything, orderID, domain.OrderStatusProduction, domain.PaymentStatusPartial).Return(nil)
+	mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
+		return o.OrderStatus == domain.OrderStatusProduction && o.PaymentStatus == domain.PaymentStatusPartial
+	})).Return(nil)
+	mockOrderRepo.On("GetByID", mock.Anything, orderID).Return(&domain.Order{ID: orderID, Items: []domain.OrderItem{}}, nil)
+	mockOrderRepo.On("UpdateHPP", mock.Anything, orderID, float64(0), mock.Anything).Return(nil)
 
 	res, err := uc.VerifyPayment(context.Background(), paymentID, paymentInput)
 
@@ -471,7 +476,9 @@ func TestVerifyPayment_RejectedPayment_SetsOrderUnpaid(t *testing.T) {
 	mockPaymentRepo.On("GetByOrderID", mock.Anything, orderID).Return(allPayments, nil)
 
 	// Ekspektasi: Karena ditolak dan tidak ada payment verified lain, OrderStatus kembali ke 'quotation' & PaymentStatus ke 'unpaid'
-	mockOrderRepo.On("UpdateStatus", mock.Anything, orderID, domain.OrderStatusQuotation, domain.PaymentStatusUnpaid).Return(nil)
+	mockOrderRepo.On("Update", mock.Anything, mock.MatchedBy(func(o *domain.Order) bool {
+		return o.OrderStatus == domain.OrderStatusQuotation && o.PaymentStatus == domain.PaymentStatusUnpaid
+	})).Return(nil)
 
 	res, err := uc.VerifyPayment(context.Background(), paymentID, paymentInput)
 

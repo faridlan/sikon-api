@@ -362,6 +362,8 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 				o.HPPCalculatedAt != nil
 		})).Return(nil).Once()
 
+		mockOrderRepo.On("UpdateHPP", mock.Anything, mockID, float64(0), mock.Anything).Return(nil).Once()
+
 		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
 
 		assert.NoError(t, err)
@@ -400,6 +402,8 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 				o.ApprovedAt != nil &&
 				o.HPPCalculatedAt != nil
 		})).Return(nil).Once()
+
+		mockOrderRepo.On("UpdateHPP", mock.Anything, mockID, float64(0), mock.Anything).Return(nil).Once()
 
 		// 🚨 Panggil dengan target status Pending, sesuai aturan Satpam
 		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
@@ -537,6 +541,8 @@ func TestOrderUsecase_UpdateOrderStatus(t *testing.T) {
 				o.HPPCalculatedAt != nil
 		})).Return(nil).Once()
 
+		mockOrderRepo.On("UpdateHPP", mock.Anything, mockID, float64(1050000), mock.Anything).Return(nil).Once()
+
 		err := uc.UpdateOrderStatus(context.Background(), mockID, domain.OrderStatusPending)
 
 		assert.NoError(t, err)
@@ -619,6 +625,33 @@ func TestOrderUsecase_GetOrderHPP(t *testing.T) {
 		assert.Equal(t, float64(0), result.MaterialCost)
 		assert.Nil(t, result.MaterialCalculatedAt)
 		assert.Equal(t, float64(0), result.TotalCost)
+	})
+
+	t.Run("Success - Order di Production dengan HPP Material Kosong Otomatis Dihitung Ulang", func(t *testing.T) {
+		mockOrderRepo, _, _, _, _, _, _, mockProductMaterialUsecase, mockWorkLogRepo, uc := setupOrderTest()
+
+		existingOrder := &domain.Order{
+			ID:              mockID,
+			OrderStatus:     domain.OrderStatusProduction,
+			HPPMaterialCost: 0,
+			Items: []domain.OrderItem{
+				{ProductID: "prod-kemeja-1", Qty: 15},
+			},
+		}
+		mockOrderRepo.On("GetByID", mock.Anything, mockID).Return(existingOrder, nil).Once()
+		mockProductMaterialUsecase.On("CalculateMaterialCost", mock.Anything, "prod-kemeja-1", 15).Return(float64(675000), nil).Once()
+		mockOrderRepo.On("UpdateHPP", mock.Anything, mockID, float64(675000), mock.Anything).Return(nil).Once()
+		mockWorkLogRepo.On("GetTotalCostByOrder", mock.Anything, mockID).Return(float64(0), nil).Once()
+
+		result, err := uc.GetOrderHPP(context.Background(), mockID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, float64(675000), result.MaterialCost)
+		assert.NotNil(t, result.MaterialCalculatedAt)
+		assert.Equal(t, float64(675000), result.TotalCost)
+		mockOrderRepo.AssertExpectations(t)
+		mockProductMaterialUsecase.AssertExpectations(t)
+		mockWorkLogRepo.AssertExpectations(t)
 	})
 
 	t.Run("Failed - Order Tidak Ditemukan", func(t *testing.T) {

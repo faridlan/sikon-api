@@ -119,6 +119,36 @@ func (_m *BatchPORepository) FetchActive(ctx context.Context) ([]domain.BatchPO,
 	return r0, r1
 }
 
+// FetchLatest provides a mock function with given fields: ctx
+func (_m *BatchPORepository) FetchLatest(ctx context.Context) (*domain.BatchPO, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchLatest")
+	}
+
+	var r0 *domain.BatchPO
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*domain.BatchPO, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *domain.BatchPO); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.BatchPO)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetActivePOByDate provides a mock function with given fields: ctx, targetDate
 func (_m *BatchPORepository) GetActivePOByDate(ctx context.Context, targetDate time.Time) (*domain.BatchPO, error) {
 	ret := _m.Called(ctx, targetDate)

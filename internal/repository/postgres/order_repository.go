@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/faridlan/sikon-api/internal/domain"
 	"gorm.io/gorm"
@@ -256,7 +257,22 @@ func (r *orderRepository) DeleteItem(ctx context.Context, orderID, itemID string
 	return nil
 }
 
-// Tambahkan fungsi ini di order_repository.go
+// UpdateHPP mengupdate kolom hpp_material_cost dan hpp_calculated_at secara eksplisit.
+// Menggunakan map[string]any agar GORM tidak skip zero-value (misalnya materialCost = 0).
+func (r *orderRepository) UpdateHPP(ctx context.Context, id string, materialCost float64, calculatedAt time.Time) error {
+	db := GetTx(ctx, r.db)
+
+	err := db.WithContext(ctx).
+		Model(&OrderModel{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"hpp_material_cost": materialCost,
+			"hpp_calculated_at": calculatedAt,
+		}).Error
+
+	return TranslateError(err)
+}
+
 func (r *orderRepository) GetByIDForUpdate(ctx context.Context, id string) (*domain.Order, error) {
 	var model OrderModel
 

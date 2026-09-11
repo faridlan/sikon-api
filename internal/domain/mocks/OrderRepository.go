@@ -4,6 +4,7 @@ package mocks
 
 import (
 	context "context"
+	"time"
 
 	domain "github.com/faridlan/sikon-api/internal/domain"
 	mock "github.com/stretchr/testify/mock"
@@ -290,6 +291,24 @@ func (_m *OrderRepository) UpdateStatus(ctx context.Context, id string, orderSta
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, domain.OrderStatus, domain.PaymentStatus) error); ok {
 		r0 = rf(ctx, id, orderStatus, paymentStatus)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateHPP provides a mock function with given fields: ctx, id, materialCost, calculatedAt
+func (_m *OrderRepository) UpdateHPP(ctx context.Context, id string, materialCost float64, calculatedAt time.Time) error {
+	ret := _m.Called(ctx, id, materialCost, calculatedAt)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateHPP")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, float64, time.Time) error); ok {
+		r0 = rf(ctx, id, materialCost, calculatedAt)
 	} else {
 		r0 = ret.Error(0)
 	}

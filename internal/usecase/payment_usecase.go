@@ -11,22 +11,24 @@ import (
 )
 
 type paymentUsecase struct {
-	paymentRepo     domain.PaymentRepository
-	orderRepo       domain.OrderRepository
-	bankAccountRepo domain.BankAccountRepository
-	txManager       domain.TransactionManager
-	batchPoRepo     domain.BatchPORepository
-	contextTimeout  time.Duration
+	paymentRepo            domain.PaymentRepository
+	orderRepo              domain.OrderRepository
+	bankAccountRepo        domain.BankAccountRepository
+	txManager              domain.TransactionManager
+	batchPoRepo            domain.BatchPORepository
+	productMaterialUsecase domain.ProductMaterialUsecase // untuk kalkulasi HPP
+	contextTimeout         time.Duration
 }
 
-func NewPaymentUsecase(pr domain.PaymentRepository, or domain.OrderRepository, br domain.BankAccountRepository, tx domain.TransactionManager, bpr domain.BatchPORepository, timeout time.Duration) domain.PaymentUsecase {
+func NewPaymentUsecase(pr domain.PaymentRepository, or domain.OrderRepository, br domain.BankAccountRepository, tx domain.TransactionManager, bpr domain.BatchPORepository, pmUsecase domain.ProductMaterialUsecase, timeout time.Duration) domain.PaymentUsecase {
 	return &paymentUsecase{
-		paymentRepo:     pr,
-		orderRepo:       or,
-		bankAccountRepo: br,
-		txManager:       tx,
-		batchPoRepo:     bpr,
-		contextTimeout:  timeout,
+		paymentRepo:            pr,
+		orderRepo:              or,
+		bankAccountRepo:        br,
+		txManager:              tx,
+		batchPoRepo:            bpr,
+		productMaterialUsecase: pmUsecase,
+		contextTimeout:         timeout,
 	}
 }
 
@@ -404,6 +406,30 @@ func (u *paymentUsecase) VerifyPayment(c context.Context, paymentID string, inpu
 
 		if err := u.orderRepo.Update(txCtx, order); err != nil {
 			return err
+		}
+
+		// 🚨 BEKUKAN HPP MATERIAL
+		// Hitung HPP ketika order pertama kali masuk production dan belum pernah dihitung (atau masih 0).
+		if newOrderStatus == domain.OrderStatusProduction && (order.HPPCalculatedAt == nil || order.HPPMaterialCost == 0) {
+			fullOrder, err := u.orderRepo.GetByID(txCtx, order.ID)
+			if err != nil {
+				return err
+			}
+
+			var materialCost float64
+			for _, item := range fullOrder.Items {
+				cost, err := u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
+				if err != nil {
+					return err
+				}
+				materialCost += cost
+			}
+
+			if err := u.orderRepo.UpdateHPP(txCtx, order.ID, materialCost, now); err != nil {
+				return err
+			}
+			order.HPPMaterialCost = materialCost
+			order.HPPCalculatedAt = &now
 		}
 		// =========================================================================
 

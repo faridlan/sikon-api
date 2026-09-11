@@ -12,6 +12,8 @@ type BatchPOModel struct {
 	Name        string         `gorm:"type:varchar(255);not null"`
 	TargetMonth int            `gorm:"type:int"`
 	TargetYear  int            `gorm:"type:int"`
+	OpenDate    time.Time      `gorm:"type:timestamp"`
+	CloseDate   time.Time      `gorm:"type:timestamp"`
 	StartDate   time.Time      `gorm:"type:date;not null"`
 	EndDate     time.Time      `gorm:"type:date;not null"`
 	Status      string         `gorm:"type:varchar(50);not null;default:'draft'"`
@@ -32,6 +34,8 @@ func (m *BatchPOModel) ToDomain() *domain.BatchPO {
 		Name:        m.Name,
 		TargetMonth: m.TargetMonth,
 		TargetYear:  m.TargetYear,
+		OpenDate:    m.OpenDate,
+		CloseDate:   m.CloseDate,
 		StartDate:   m.StartDate,
 		EndDate:     m.EndDate,
 		Status:      domain.BatchPOStatus(m.Status),
@@ -48,6 +52,8 @@ func FromBatchPODomain(d *domain.BatchPO) *BatchPOModel {
 		Name:        d.Name,
 		TargetMonth: d.TargetMonth,
 		TargetYear:  d.TargetYear,
+		OpenDate:    d.OpenDate,
+		CloseDate:   d.CloseDate,
 		StartDate:   d.StartDate,
 		EndDate:     d.EndDate,
 		Status:      string(d.Status),

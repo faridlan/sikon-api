@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"time"
 
@@ -297,16 +298,35 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 				return err
 			}
 
+			slog.Debug("[HPP-DEBUG] mulai hitung HPP material", "order_id", id, "jumlah_items", len(fullOrder.Items))
 			var materialCost float64
 			for _, item := range fullOrder.Items {
+				slog.Debug("[HPP-DEBUG] proses item", "product_id", item.ProductID, "qty", item.Qty)
 				cost, err := u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
 				if err != nil {
+					slog.Error("[HPP-DEBUG] CalculateMaterialCost error", "error", err)
 					return err
 				}
+				slog.Debug("[HPP-DEBUG] hasil item", "product_id", item.ProductID, "cost", cost)
 				materialCost += cost
 			}
+			slog.Debug("[HPP-DEBUG] TOTAL", "materialCost", materialCost)
+
 			order.HPPMaterialCost = materialCost
 			order.HPPCalculatedAt = &now
+
+			// Simpan perubahan status, approved_at, & field HPP pada order
+			if err := u.orderRepo.Update(txCtx, order); err != nil {
+				return err
+			}
+
+			// Gunakan UpdateHPP (pakai map) agar zero-value (0.0) tetap tersimpan ke DB.
+			// Ini menghindari bug GORM yang skip field bernilai 0 saat memakai .Updates(struct).
+			if err := u.orderRepo.UpdateHPP(txCtx, id, materialCost, now); err != nil {
+				return err
+			}
+
+			return nil
 		}
 
 		if err := u.orderRepo.Update(txCtx, order); err != nil {
@@ -511,6 +531,32 @@ func (u *orderUsecase) GetOrderHPP(c context.Context, id string) (*domain.OrderH
 		return nil, err
 	}
 
+	materialCost := order.HPPMaterialCost
+	materialCalculatedAt := order.HPPCalculatedAt
+
+	// Jika order sudah masuk tahap produksi/seterusnya tapi materialCost masih 0 (misal karena resep baru diinput belakangan),
+	// hitung ulang dan simpan snapshot-nya.
+	if (order.OrderStatus == domain.OrderStatusProduction || order.OrderStatus == domain.OrderStatusReady || order.OrderStatus == domain.OrderStatusCompleted) && materialCost == 0 {
+		var calcCost float64
+		for _, item := range order.Items {
+			cost, err := u.productMaterialUsecase.CalculateMaterialCost(ctx, item.ProductID, item.Qty)
+			if err != nil {
+				slog.Error("[HPP] CalculateMaterialCost error saat GetOrderHPP", "error", err, "order_id", id)
+				break
+			}
+			calcCost += cost
+		}
+		if calcCost > 0 {
+			now := time.Now()
+			if err := u.orderRepo.UpdateHPP(ctx, id, calcCost, now); err != nil {
+				slog.Error("[HPP] Gagal update HPP saat GetOrderHPP", "error", err, "order_id", id)
+			} else {
+				materialCost = calcCost
+				materialCalculatedAt = &now
+			}
+		}
+	}
+
 	laborCost, err := u.workLogRepo.GetTotalCostByOrder(ctx, id)
 	if err != nil {
 		return nil, err
@@ -518,9 +564,9 @@ func (u *orderUsecase) GetOrderHPP(c context.Context, id string) (*domain.OrderH
 
 	return &domain.OrderHPPBreakdown{
 		OrderID:              order.ID,
-		MaterialCost:         order.HPPMaterialCost,
-		MaterialCalculatedAt: order.HPPCalculatedAt,
+		MaterialCost:         materialCost,
+		MaterialCalculatedAt: materialCalculatedAt,
 		LaborCost:            laborCost,
-		TotalCost:            order.HPPMaterialCost + laborCost,
+		TotalCost:            materialCost + laborCost,
 	}, nil
 }

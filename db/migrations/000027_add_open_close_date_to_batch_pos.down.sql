@@ -1,0 +1,2 @@
+ALTER TABLE batch_pos DROP COLUMN IF EXISTS open_date;
+ALTER TABLE batch_pos DROP COLUMN IF EXISTS close_date;
