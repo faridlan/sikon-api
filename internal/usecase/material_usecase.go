@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"log"
 	"math"
 	"time"
 
@@ -210,16 +211,23 @@ func (u *productMaterialUsecase) CalculateMaterialCost(c context.Context, produc
 
 	items, err := u.productMaterialRepo.FetchByProduct(ctx, productID)
 	if err != nil {
+		log.Printf("[HPP-DEBUG] FetchByProduct(%q) ERROR: %v", productID, err)
 		return 0, err
 	}
+	log.Printf("[HPP-DEBUG] FetchByProduct(%q) mengembalikan %d baris resep", productID, len(items))
 
 	var total float64
 	for _, item := range items {
 		if item.Material == nil {
-			continue // resep rusak/material sudah dihapus, jangan sampai HPP salah hitung diam-diam
+			log.Printf("[HPP-DEBUG] baris resep material_id=%q -> Material NIL (preload gagal/kosong)", item.MaterialID)
+			continue
 		}
-		total += item.QtyPerUnit * item.Material.UnitPrice * float64(qty)
+		sub := item.QtyPerUnit * item.Material.UnitPrice * float64(qty)
+		log.Printf("[HPP-DEBUG] baris resep material=%q qty_per_unit=%v unit_price=%v qty_order=%d -> subtotal=%v",
+			item.Material.Name, item.QtyPerUnit, item.Material.UnitPrice, qty, sub)
+		total += sub
 	}
 
+	log.Printf("[HPP-DEBUG] CalculateMaterialCost(%q, qty=%d) -> total=%v", productID, qty, total)
 	return total, nil
 }

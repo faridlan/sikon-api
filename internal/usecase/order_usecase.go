@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -297,14 +298,19 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 				return err
 			}
 
+			log.Printf("[HPP-DEBUG] order %s punya %d items", id, len(fullOrder.Items))
 			var materialCost float64
 			for _, item := range fullOrder.Items {
+				log.Printf("[HPP-DEBUG] item product_id=%q qty=%d", item.ProductID, item.Qty)
 				cost, err := u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
 				if err != nil {
+					log.Printf("[HPP-DEBUG] CalculateMaterialCost ERROR: %v", err)
 					return err
 				}
+				log.Printf("[HPP-DEBUG] item product_id=%q -> cost=%v", item.ProductID, cost)
 				materialCost += cost
 			}
+			log.Printf("[HPP-DEBUG] TOTAL materialCost=%v", materialCost)
 			order.HPPMaterialCost = materialCost
 			order.HPPCalculatedAt = &now
 		}
