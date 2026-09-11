@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"math"
 	"time"
 
@@ -211,23 +211,22 @@ func (u *productMaterialUsecase) CalculateMaterialCost(c context.Context, produc
 
 	items, err := u.productMaterialRepo.FetchByProduct(ctx, productID)
 	if err != nil {
-		log.Printf("[HPP-DEBUG] FetchByProduct(%q) ERROR: %v", productID, err)
+		slog.Error("[HPP-DEBUG] FetchByProduct error", "product_id", productID, "error", err)
 		return 0, err
 	}
-	log.Printf("[HPP-DEBUG] FetchByProduct(%q) mengembalikan %d baris resep", productID, len(items))
+	slog.Debug("[HPP-DEBUG] FetchByProduct hasil", "product_id", productID, "jumlah_baris_resep", len(items))
 
 	var total float64
 	for _, item := range items {
 		if item.Material == nil {
-			log.Printf("[HPP-DEBUG] baris resep material_id=%q -> Material NIL (preload gagal/kosong)", item.MaterialID)
+			slog.Warn("[HPP-DEBUG] Material NIL pada baris resep", "material_id", item.MaterialID)
 			continue
 		}
 		sub := item.QtyPerUnit * item.Material.UnitPrice * float64(qty)
-		log.Printf("[HPP-DEBUG] baris resep material=%q qty_per_unit=%v unit_price=%v qty_order=%d -> subtotal=%v",
-			item.Material.Name, item.QtyPerUnit, item.Material.UnitPrice, qty, sub)
+		slog.Debug("[HPP-DEBUG] baris resep", "material", item.Material.Name, "qty_per_unit", item.QtyPerUnit, "unit_price", item.Material.UnitPrice, "qty_order", qty, "subtotal", sub)
 		total += sub
 	}
 
-	log.Printf("[HPP-DEBUG] CalculateMaterialCost(%q, qty=%d) -> total=%v", productID, qty, total)
+	slog.Debug("[HPP-DEBUG] CalculateMaterialCost selesai", "product_id", productID, "qty", qty, "total", total)
 	return total, nil
 }

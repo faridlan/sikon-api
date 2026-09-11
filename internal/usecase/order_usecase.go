@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"time"
 
@@ -298,19 +298,19 @@ func (u *orderUsecase) UpdateOrderStatus(c context.Context, id string, status do
 				return err
 			}
 
-			log.Printf("[HPP-DEBUG] order %s punya %d items", id, len(fullOrder.Items))
+			slog.Debug("[HPP-DEBUG] mulai hitung HPP material", "order_id", id, "jumlah_items", len(fullOrder.Items))
 			var materialCost float64
 			for _, item := range fullOrder.Items {
-				log.Printf("[HPP-DEBUG] item product_id=%q qty=%d", item.ProductID, item.Qty)
+				slog.Debug("[HPP-DEBUG] proses item", "product_id", item.ProductID, "qty", item.Qty)
 				cost, err := u.productMaterialUsecase.CalculateMaterialCost(txCtx, item.ProductID, item.Qty)
 				if err != nil {
-					log.Printf("[HPP-DEBUG] CalculateMaterialCost ERROR: %v", err)
+					slog.Error("[HPP-DEBUG] CalculateMaterialCost error", "error", err)
 					return err
 				}
-				log.Printf("[HPP-DEBUG] item product_id=%q -> cost=%v", item.ProductID, cost)
+				slog.Debug("[HPP-DEBUG] hasil item", "product_id", item.ProductID, "cost", cost)
 				materialCost += cost
 			}
-			log.Printf("[HPP-DEBUG] TOTAL materialCost=%v", materialCost)
+			slog.Debug("[HPP-DEBUG] TOTAL", "materialCost", materialCost)
 			order.HPPMaterialCost = materialCost
 			order.HPPCalculatedAt = &now
 		}
