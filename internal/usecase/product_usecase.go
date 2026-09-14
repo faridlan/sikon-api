@@ -15,15 +15,21 @@ import (
 type productUsecase struct {
 	productRepo    domain.ProductRepository
 	categoryRepo   domain.CategoryRepository
+	materialRepo   domain.MaterialRepository
 	storageService domain.StorageService
 	txManager      domain.TransactionManager
 	contextTimeout time.Duration
 }
 
-func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, ss domain.StorageService, tm domain.TransactionManager, timeout time.Duration) domain.ProductUsecase {
+func NewProductUsecase(pr domain.ProductRepository, cr domain.CategoryRepository, ss domain.StorageService, tm domain.TransactionManager, timeout time.Duration, materialRepo ...domain.MaterialRepository) domain.ProductUsecase {
+	var mr domain.MaterialRepository
+	if len(materialRepo) > 0 {
+		mr = materialRepo[0]
+	}
 	return &productUsecase{
 		productRepo:    pr,
 		categoryRepo:   cr,
+		materialRepo:   mr,
 		storageService: ss,
 		txManager:      tm,
 		contextTimeout: timeout,
@@ -87,33 +93,31 @@ func (u *productUsecase) CreateProduct(c context.Context, input domain.ProductCr
 		product.Images = images
 	}
 
-	// 4. Mapping Product Fabrics & Colors
+	// 4. Mapping Product Fabrics (material-based)
 	if len(input.Fabrics) > 0 {
 		var fabrics []domain.ProductFabric
 		for _, fabInput := range input.Fabrics {
-			var colors []domain.FabricColor
-			for _, cInput := range fabInput.Colors {
-				colors = append(colors, domain.FabricColor{
-					Name:    cInput.Name,
-					HexCode: cInput.HexCode,
-				})
+			if u.materialRepo == nil {
+				return nil, domain.NewError(domain.ErrBadParamInput, "Material repository tidak tersedia untuk validasi kain")
+			}
+			material, err := u.materialRepo.GetByID(ctx, fabInput.MaterialID)
+			if err != nil {
+				return nil, domain.NewError(domain.ErrBadParamInput, "Material kain tidak ditemukan: "+fabInput.MaterialID)
+			}
+			if material.Category != "kain" {
+				return nil, domain.NewError(domain.ErrBadParamInput, "Material '"+material.Name+"' bukan kategori kain, tidak bisa dijadikan opsi fabric produk")
 			}
 			qty := fabInput.QtyPerUnit
 			if qty <= 0 {
 				qty = 1.5
 			}
 			fabrics = append(fabrics, domain.ProductFabric{
-				FabricID:        fabInput.FabricID,
+				ID:              fabInput.ID,
+				MaterialID:      fabInput.MaterialID,
 				QtyPerUnit:      qty,
-				SpecTemplateID:  fabInput.SpecTemplateID,
-				Name:            fabInput.Name,
-				Description:     fabInput.Description,
-				Composition:     fabInput.Composition,
-				CareInstruction: fabInput.CareInstruction,
-				BasePrice:       fabInput.BasePrice,
 				PriceAdjustment: fabInput.PriceAdjustment,
 				IsDefault:       fabInput.IsDefault,
-				Colors:          colors,
+				Material:        material,
 			})
 		}
 		product.Fabrics = fabrics
@@ -299,29 +303,27 @@ func (u *productUsecase) UpdateProduct(c context.Context, id string, input domai
 	if input.Fabrics != nil {
 		var fabrics []domain.ProductFabric
 		for _, fabInput := range input.Fabrics {
-			var colors []domain.FabricColor
-			for _, cInput := range fabInput.Colors {
-				colors = append(colors, domain.FabricColor{
-					Name:    cInput.Name,
-					HexCode: cInput.HexCode,
-				})
+			if u.materialRepo == nil {
+				return nil, domain.NewError(domain.ErrBadParamInput, "Material repository tidak tersedia untuk validasi kain")
+			}
+			material, err := u.materialRepo.GetByID(ctx, fabInput.MaterialID)
+			if err != nil {
+				return nil, domain.NewError(domain.ErrBadParamInput, "Material kain tidak ditemukan: "+fabInput.MaterialID)
+			}
+			if material.Category != "kain" {
+				return nil, domain.NewError(domain.ErrBadParamInput, "Material '"+material.Name+"' bukan kategori kain, tidak bisa dijadikan opsi fabric produk")
 			}
 			qty := fabInput.QtyPerUnit
 			if qty <= 0 {
 				qty = 1.5
 			}
 			fabrics = append(fabrics, domain.ProductFabric{
-				FabricID:        fabInput.FabricID,
+				ID:              fabInput.ID,
+				MaterialID:      fabInput.MaterialID,
 				QtyPerUnit:      qty,
-				SpecTemplateID:  fabInput.SpecTemplateID,
-				Name:            fabInput.Name,
-				Description:     fabInput.Description,
-				Composition:     fabInput.Composition,
-				CareInstruction: fabInput.CareInstruction,
-				BasePrice:       fabInput.BasePrice,
 				PriceAdjustment: fabInput.PriceAdjustment,
 				IsDefault:       fabInput.IsDefault,
-				Colors:          colors,
+				Material:        material,
 			})
 		}
 		existingProduct.Fabrics = fabrics

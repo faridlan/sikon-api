@@ -2,41 +2,38 @@ package domain
 
 import "time"
 
+// FabricColor sekarang murni milik Material (bukan lagi milik ProductFabric atau SpecTemplate).
+// Kalau kain "American Drill" punya warna Khaki/Olive/Black, warna itu berlaku di SEMUA produk
+// yang pakai kain ini — bukan diulang-ulang per produk.
 type FabricColor struct {
-	ID       string
-	FabricID string
-
-	// Penambahan field baru (aman, pointer memastikan backward compatibility)
-	SpecTemplateID *string
+	ID             string
 	MaterialID     *string
-
-	Name      string
-	HexCode   string
-	CreatedAt time.Time
+	FabricID       *string
+	SpecTemplateID *string
+	Name           string
+	HexCode        string
+	CreatedAt      time.Time
 }
 
+// ProductFabric = link Product <-> Material (kain), plus qty konsumsi & markup harga jual
+// yang SPESIFIK untuk kombinasi Product+Kain ini. Semua data deskriptif (nama, komposisi,
+// cara rawat, daftar warna) diambil dari Material yang di-link — TIDAK disimpan duplikat lagi.
 type ProductFabric struct {
 	ID              string
 	ProductID       string
-	FabricID        *string
-	QtyPerUnit      float64
-	Fabric          *Material
-	SpecTemplateID  *string
-	SpecTemplate    *SpecTemplate
-	Name            string
-	Description     string
-	Composition     string
-	CareInstruction string
-	BasePrice       float64
-	PriceAdjustment float64
+	MaterialID      string
+	Material        *Material // di-preload, sumber kebenaran nama/komposisi/warna/harga cost
+	QtyPerUnit      float64   // konsumsi kain per pcs produk (meter) - dipakai utk HPP kain terpilih
+	PriceAdjustment float64   // markup ke harga jual customer (BEDA dari Material.UnitPrice yg itu cost)
 	IsDefault       bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-
-	Colors []FabricColor
 }
 
-// ... (sisanya tidak berubah)
+// --- WholesalePrice, ProductModelView, DesignerModel: tidak berubah dari sebelumnya ---
+// (Input types untuk semua ini tetap tinggal di product.go, tidak dipindah ke sini,
+// supaya tidak dobel-declare dengan yang sudah ada)
+
 type WholesalePrice struct {
 	ID        string
 	ProductID string

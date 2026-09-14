@@ -63,15 +63,20 @@ func FromSpecTemplateDomain(d *domain.SpecTemplate) *SpecTemplateModel {
 		var colors []FabricColorModel
 		for _, c := range d.Colors {
 			var fabricIDPtr *string
-			if c.FabricID != "" {
-				fabricID := c.FabricID
+			if c.FabricID != nil && *c.FabricID != "" {
+				fabricID := *c.FabricID
 				fabricIDPtr = &fabricID
+			}
+			var specTemplateIDPtr *string
+			if c.SpecTemplateID != nil && *c.SpecTemplateID != "" {
+				specTemplateID := *c.SpecTemplateID
+				specTemplateIDPtr = &specTemplateID
 			}
 
 			colors = append(colors, FabricColorModel{
 				ID:             c.ID,
 				FabricID:       fabricIDPtr,
-				SpecTemplateID: c.SpecTemplateID,
+				SpecTemplateID: specTemplateIDPtr,
 				Name:           c.Name,
 				HexCode:        c.HexCode,
 				CreatedAt:      c.CreatedAt,

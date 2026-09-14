@@ -14,17 +14,11 @@ type FabricColorRequest struct {
 }
 
 type ProductFabricRequest struct {
-	FabricID        *string              `json:"fabric_id" validate:"omitempty,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
-	QtyPerUnit      float64              `json:"qty_per_unit" example:"1.5"`
-	SpecTemplateID  *string              `json:"spec_template_id" validate:"omitempty,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Name            string               `json:"name" example:"Ripstop Cotton 65/35"`
-	Description     string               `json:"description" example:"Kuat & anti robek, 210gsm"`
-	Composition     string               `json:"composition" example:"65% Cotton / 35% Polyester"`
-	CareInstruction string               `json:"care_instruction" example:"Cuci mesin air dingin"`
-	BasePrice       float64              `json:"base_price" validate:"gte=0" example:"185000"`
-	PriceAdjustment float64              `json:"price_adjustment" example:"0"`
-	IsDefault       bool                 `json:"is_default" example:"true"`
-	Colors          []FabricColorRequest `json:"colors" validate:"omitempty,dive"`
+	ID              string  `json:"id,omitempty"`
+	MaterialID      string  `json:"material_id" validate:"required,uuid" example:"123e4567-e89b-12d3-a456-426614174000"`
+	QtyPerUnit      float64 `json:"qty_per_unit" example:"1.5"`
+	PriceAdjustment float64 `json:"price_adjustment" example:"0"`
+	IsDefault       bool    `json:"is_default" example:"true"`
 }
 
 type WholesalePriceRequest struct {
@@ -96,18 +90,12 @@ type FabricColorResponse struct {
 }
 
 type ProductFabricResponse struct {
-	ID              string                `json:"id"`
-	FabricID        *string               `json:"fabric_id,omitempty"`
-	QtyPerUnit      float64               `json:"qty_per_unit,omitempty"`
-	SpecTemplateID  *string               `json:"spec_template_id,omitempty"`
-	Name            string                `json:"name"`
-	Description     string                `json:"description"`
-	Composition     string                `json:"composition"`
-	CareInstruction string                `json:"care_instruction"`
-	BasePrice       float64               `json:"base_price"`
-	PriceAdjustment float64               `json:"price_adjustment"`
-	IsDefault       bool                  `json:"is_default"`
-	Colors          []FabricColorResponse `json:"colors"` // Dihapus omitempty agar selalau ter-render di JSON Response
+	ID              string            `json:"id"`
+	MaterialID      string            `json:"material_id"`
+	Material        *MaterialResponse `json:"material,omitempty"`
+	QtyPerUnit      float64           `json:"qty_per_unit"`
+	PriceAdjustment float64           `json:"price_adjustment"`
+	IsDefault       bool              `json:"is_default"`
 }
 
 type WholesalePriceResponse struct {
@@ -175,25 +163,12 @@ func (r *ProductCreateRequest) ToDomainCreateInput() domain.ProductCreateInput {
 	}
 
 	for _, fab := range r.Fabrics {
-		var colors []domain.FabricColorInput
-		for _, c := range fab.Colors {
-			colors = append(colors, domain.FabricColorInput{
-				Name:    c.Name,
-				HexCode: c.HexCode,
-			})
-		}
 		input.Fabrics = append(input.Fabrics, domain.ProductFabricInput{
-			FabricID:        fab.FabricID,
+			ID:              fab.ID,
+			MaterialID:      fab.MaterialID,
 			QtyPerUnit:      fab.QtyPerUnit,
-			SpecTemplateID:  fab.SpecTemplateID,
-			Name:            fab.Name,
-			Description:     fab.Description,
-			Composition:     fab.Composition,
-			CareInstruction: fab.CareInstruction,
-			BasePrice:       fab.BasePrice,
 			PriceAdjustment: fab.PriceAdjustment,
 			IsDefault:       fab.IsDefault,
-			Colors:          colors,
 		})
 	}
 
@@ -243,25 +218,12 @@ func (r *ProductUpdateRequest) ToDomainUpdateInput() domain.ProductUpdateInput {
 
 	if r.Fabrics != nil {
 		for _, fab := range r.Fabrics {
-			var colors []domain.FabricColorInput
-			for _, c := range fab.Colors {
-				colors = append(colors, domain.FabricColorInput{
-					Name:    c.Name,
-					HexCode: c.HexCode,
-				})
-			}
 			input.Fabrics = append(input.Fabrics, domain.ProductFabricInput{
-				FabricID:        fab.FabricID,
+				ID:              fab.ID,
+				MaterialID:      fab.MaterialID,
 				QtyPerUnit:      fab.QtyPerUnit,
-				SpecTemplateID:  fab.SpecTemplateID,
-				Name:            fab.Name,
-				Description:     fab.Description,
-				Composition:     fab.Composition,
-				CareInstruction: fab.CareInstruction,
-				BasePrice:       fab.BasePrice,
 				PriceAdjustment: fab.PriceAdjustment,
 				IsDefault:       fab.IsDefault,
-				Colors:          colors,
 			})
 		}
 	}
@@ -334,28 +296,18 @@ func ToProductResponse(p *domain.Product) ProductResponse {
 
 	if len(p.Fabrics) > 0 {
 		for _, fab := range p.Fabrics {
-			colors := make([]FabricColorResponse, 0)
-			for _, c := range fab.Colors {
-				colors = append(colors, FabricColorResponse{
-					ID:      c.ID,
-					Name:    c.Name,
-					HexCode: c.HexCode,
-				})
-			}
-			resp.Fabrics = append(resp.Fabrics, ProductFabricResponse{
+			respFab := ProductFabricResponse{
 				ID:              fab.ID,
-				FabricID:        fab.FabricID,
+				MaterialID:      fab.MaterialID,
 				QtyPerUnit:      fab.QtyPerUnit,
-				SpecTemplateID:  fab.SpecTemplateID,
-				Name:            fab.Name,
-				Description:     fab.Description,
-				Composition:     fab.Composition,
-				CareInstruction: fab.CareInstruction,
-				BasePrice:       fab.BasePrice,
 				PriceAdjustment: fab.PriceAdjustment,
 				IsDefault:       fab.IsDefault,
-				Colors:          colors,
-			})
+			}
+			if fab.Material != nil {
+				matResp := ToMaterialResponse(fab.Material)
+				respFab.Material = &matResp
+			}
+			resp.Fabrics = append(resp.Fabrics, respFab)
 		}
 	}
 

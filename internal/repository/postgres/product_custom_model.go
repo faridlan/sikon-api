@@ -8,9 +8,9 @@ import (
 
 type FabricColorModel struct {
 	ID             string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	MaterialID     *string   `gorm:"type:uuid;index"`
 	FabricID       *string   `gorm:"type:uuid;index"`
 	SpecTemplateID *string   `gorm:"type:uuid;index"`
-	MaterialID     *string   `gorm:"type:uuid;index"`
 	Name           string    `gorm:"type:varchar(100);not null"`
 	HexCode        string    `gorm:"type:varchar(20);not null"`
 	CreatedAt      time.Time `gorm:"autoCreateTime"`
@@ -21,16 +21,11 @@ func (FabricColorModel) TableName() string {
 }
 
 func (m *FabricColorModel) ToDomain() domain.FabricColor {
-	fabricID := ""
-	if m.FabricID != nil {
-		fabricID = *m.FabricID
-	}
-
 	return domain.FabricColor{
 		ID:             m.ID,
-		FabricID:       fabricID,
-		SpecTemplateID: m.SpecTemplateID,
 		MaterialID:     m.MaterialID,
+		FabricID:       m.FabricID,
+		SpecTemplateID: m.SpecTemplateID,
 		Name:           m.Name,
 		HexCode:        m.HexCode,
 		CreatedAt:      m.CreatedAt,
@@ -38,25 +33,17 @@ func (m *FabricColorModel) ToDomain() domain.FabricColor {
 }
 
 type ProductFabricModel struct {
-	ID              string             `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	ProductID       string             `gorm:"type:uuid;not null"`
-	FabricID        *string            `gorm:"type:uuid;index"`
-	QtyPerUnit      float64            `gorm:"type:numeric(15,4);default:1.5000"`
-	SpecTemplateID  *string            `gorm:"type:uuid;index"`
-	Name            string             `gorm:"type:varchar(255)"`
-	Description     string             `gorm:"type:text"`
-	Composition     string             `gorm:"type:varchar(255)"`
-	CareInstruction string             `gorm:"type:text"`
-	BasePrice       float64            `gorm:"type:decimal(12,2);default:0"`
-	PriceAdjustment float64            `gorm:"type:decimal(12,2);default:0"`
-	IsDefault       bool               `gorm:"default:false"`
-	CreatedAt       time.Time          `gorm:"autoCreateTime"`
-	UpdatedAt       time.Time          `gorm:"autoUpdateTime"`
-	Colors          []FabricColorModel `gorm:"foreignKey:FabricID;constraint:OnDelete:CASCADE;"`
+	ID              string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ProductID       string    `gorm:"type:uuid;not null;index"`
+	MaterialID      string    `gorm:"type:uuid;not null;index"`
+	QtyPerUnit      float64   `gorm:"type:numeric(15,4);not null;default:1.5"`
+	PriceAdjustment float64   `gorm:"type:decimal(12,2);default:0"`
+	IsDefault       bool      `gorm:"default:false"`
+	CreatedAt       time.Time `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time `gorm:"autoUpdateTime"`
 
-	// Relasi GORM
-	Fabric       *MaterialModel     `gorm:"foreignKey:FabricID"`
-	SpecTemplate *SpecTemplateModel `gorm:"foreignKey:SpecTemplateID"`
+	// Relasi: sumber kebenaran nama/komposisi/warna/harga cost
+	Material *MaterialModel `gorm:"foreignKey:MaterialID"`
 }
 
 func (ProductFabricModel) TableName() string {
@@ -64,82 +51,26 @@ func (ProductFabricModel) TableName() string {
 }
 
 func (m *ProductFabricModel) ToDomain() domain.ProductFabric {
-	fabric := domain.ProductFabric{
+	fab := domain.ProductFabric{
 		ID:              m.ID,
 		ProductID:       m.ProductID,
-		FabricID:        m.FabricID,
+		MaterialID:      m.MaterialID,
 		QtyPerUnit:      m.QtyPerUnit,
-		SpecTemplateID:  m.SpecTemplateID,
-		Name:            m.Name,
-		Description:     m.Description,
-		Composition:     m.Composition,
-		CareInstruction: m.CareInstruction,
-		BasePrice:       m.BasePrice,
 		PriceAdjustment: m.PriceAdjustment,
 		IsDefault:       m.IsDefault,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
 	}
 
-	// 1. Fallback & data dari Master Material (kain)
-	if m.Fabric != nil {
-		fabric.Fabric = m.Fabric.ToDomain()
-		if fabric.Name == "" {
-			fabric.Name = m.Fabric.Name
-		}
-		if fabric.Description == "" {
-			fabric.Description = m.Fabric.Description
-		}
-		if fabric.Composition == "" {
-			fabric.Composition = m.Fabric.Composition
-		}
-		if fabric.CareInstruction == "" {
-			fabric.CareInstruction = m.Fabric.CareInstruction
-		}
+	if m.Material != nil {
+		mat := m.Material.ToDomain()
+		fab.Material = mat
 	}
 
-	// 2. Jika nama/deskripsi/komposisi/instruksi masih kosong di level ProductFabric, gunakan fallback dari SpecTemplate
-	if m.SpecTemplate != nil {
-		fabric.SpecTemplate = m.SpecTemplate.ToDomain()
-		if fabric.Name == "" {
-			fabric.Name = m.SpecTemplate.Name
-		}
-		if fabric.Description == "" {
-			fabric.Description = m.SpecTemplate.Spec
-		}
-		if fabric.Composition == "" {
-			fabric.Composition = m.SpecTemplate.Composition
-		}
-		if fabric.CareInstruction == "" {
-			fabric.CareInstruction = m.SpecTemplate.CareInstruction
-		}
-	}
-
-	// 1. Warna khusus yang di-override di level ProductFabric
-	if len(m.Colors) > 0 {
-		var colors []domain.FabricColor
-		for _, c := range m.Colors {
-			colors = append(colors, c.ToDomain())
-		}
-		fabric.Colors = colors
-		// 2. Fallback: Warna dari Master Material (kain) jika ada
-	} else if m.Fabric != nil && len(m.Fabric.Colors) > 0 {
-		var colors []domain.FabricColor
-		for _, c := range m.Fabric.Colors {
-			colors = append(colors, c.ToDomain())
-		}
-		fabric.Colors = colors
-		// 3. Fallback: Warna dari Master SpecTemplate jika ProductFabric tidak memiliki warna override
-	} else if m.SpecTemplate != nil && len(m.SpecTemplate.Colors) > 0 {
-		var colors []domain.FabricColor
-		for _, c := range m.SpecTemplate.Colors {
-			colors = append(colors, c.ToDomain())
-		}
-		fabric.Colors = colors
-	}
-
-	return fabric
+	return fab
 }
+
+// --- WholesalePriceModel, ProductModelViewModel, DesignerModel: TIDAK BERUBAH ---
 
 type WholesalePriceModel struct {
 	ID        string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`

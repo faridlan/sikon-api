@@ -138,18 +138,6 @@ func FromProductDomain(d *domain.Product) *ProductModel {
 	if len(d.Fabrics) > 0 {
 		var fabModels []ProductFabricModel
 		for _, fab := range d.Fabrics {
-			var colorModels []FabricColorModel
-			for _, c := range fab.Colors {
-				fabricID := fab.ID
-				colorModels = append(colorModels, FabricColorModel{
-					ID:             c.ID,
-					FabricID:       &fabricID,
-					SpecTemplateID: c.SpecTemplateID,
-					Name:           c.Name,
-					HexCode:        c.HexCode,
-				})
-			}
-
 			qty := fab.QtyPerUnit
 			if qty <= 0 {
 				qty = 1.5
@@ -157,17 +145,10 @@ func FromProductDomain(d *domain.Product) *ProductModel {
 			fabModels = append(fabModels, ProductFabricModel{
 				ID:              fab.ID,
 				ProductID:       d.ID,
-				FabricID:        fab.FabricID,
+				MaterialID:      fab.MaterialID,
 				QtyPerUnit:      qty,
-				SpecTemplateID:  fab.SpecTemplateID, // Dihubungkan ke SpecTemplateID
-				Name:            fab.Name,
-				Description:     fab.Description,
-				Composition:     fab.Composition,
-				CareInstruction: fab.CareInstruction,
-				BasePrice:       fab.BasePrice,
 				PriceAdjustment: fab.PriceAdjustment,
 				IsDefault:       fab.IsDefault,
-				Colors:          colorModels,
 			})
 		}
 		model.Fabrics = fabModels

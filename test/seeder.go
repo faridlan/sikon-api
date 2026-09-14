@@ -78,27 +78,10 @@ func SeedFullCustomProduct(db *gorm.DB, categoryID string, name string, price fl
 			{
 				ID:              fabricID,
 				ProductID:       productID,
-				Name:            "Ripstop Cotton 65/35",
-				Description:     "Kuat & anti robek, 210gsm",
-				Composition:     "65% Cotton / 35% Polyester",
-				CareInstruction: "Cuci mesin air dingin",
-				BasePrice:       price,
+				MaterialID:      fabricID,
+				QtyPerUnit:      1.5,
 				PriceAdjustment: 0,
 				IsDefault:       true,
-				Colors: []postgres.FabricColorModel{
-					{
-						ID:       uuid.New().String(),
-						FabricID: &fabricID,
-						Name:     "Olive",
-						HexCode:  "#4b5320",
-					},
-					{
-						ID:       uuid.New().String(),
-						FabricID: &fabricID,
-						Name:     "Navy",
-						HexCode:  "#1b263b",
-					},
-				},
 			},
 		},
 		Wholesale: []postgres.WholesalePriceModel{

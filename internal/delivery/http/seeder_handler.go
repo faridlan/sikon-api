@@ -546,13 +546,12 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 		Fabrics: []postgresRepo.ProductFabricModel{
 			{
-				ID:             fab1Kemeja1,
-				ProductID:      prodKemeja1ID,
-				SpecTemplateID: &specRipstop.ID,
-				Name:           "Ripstop Cotton Premium",
-				BasePrice:      185000,
-				IsDefault:      true,
-				Colors:         []postgresRepo.FabricColorModel{},
+				ID:              fab1Kemeja1,
+				ProductID:       prodKemeja1ID,
+				MaterialID:      specRipstop.ID,
+				QtyPerUnit:      1.5,
+				PriceAdjustment: 0,
+				IsDefault:       true,
 			},
 		},
 
@@ -593,13 +592,12 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 		Fabrics: []postgresRepo.ProductFabricModel{
 			{
-				ID:             fab1Kemeja2,
-				ProductID:      prodKemeja2ID,
-				SpecTemplateID: &specAmerican.ID,
-				Name:           "American Drill High",
-				BasePrice:      190000,
-				IsDefault:      true,
-				Colors:         []postgresRepo.FabricColorModel{},
+				ID:              fab1Kemeja2,
+				ProductID:       prodKemeja2ID,
+				MaterialID:      specAmerican.ID,
+				QtyPerUnit:      1.5,
+				PriceAdjustment: 0,
+				IsDefault:       true,
 			},
 		},
 

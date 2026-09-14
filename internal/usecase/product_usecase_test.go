@@ -30,10 +30,11 @@ func setupTxMock(mockTx *mocks.TransactionManager) {
 func TestProductUsecase_CreateProduct(t *testing.T) {
 	mockProductRepo := new(mocks.ProductRepository)
 	mockCategoryRepo := new(mocks.CategoryRepository)
+	mockMaterialRepo := new(mocks.MaterialRepository)
 	mockStorageService := new(mocks.StorageService)
 	mockTxManager := new(mocks.TransactionManager)
 
-	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, mockTxManager, time.Second*2)
+	uc := usecase.NewProductUsecase(mockProductRepo, mockCategoryRepo, mockStorageService, mockTxManager, time.Second*2, mockMaterialRepo)
 
 	input := domain.ProductCreateInput{
 		CategoryID:  "cat-123",
@@ -82,12 +83,10 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 			ImageURLs:     []string{"https://example.com/1.jpg"},
 			Fabrics: []domain.ProductFabricInput{
 				{
-					Name:      "Ripstop Cotton",
-					BasePrice: 185000,
-					IsDefault: true,
-					Colors: []domain.FabricColorInput{
-						{Name: "Olive", HexCode: "#4b5320"},
-					},
+					MaterialID:      "mat-123",
+					QtyPerUnit:      1.5,
+					PriceAdjustment: 0,
+					IsDefault:       true,
 				},
 			},
 			Wholesale: []domain.WholesalePriceInput{
@@ -108,6 +107,9 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 		mockProductRepo.On("GetBySlug", mock.Anything, "kemeja-taktikal-premium-7200").
 			Return(nil, domain.ErrNotFound).Once()
 
+		mockMaterialRepo.On("GetByID", mock.Anything, "mat-123").
+			Return(&domain.Material{ID: "mat-123", Name: "Ripstop Cotton", Category: "kain"}, nil).Once()
+
 		mockProductRepo.On("Create", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
 			return len(p.Fabrics) == 1 && len(p.Wholesale) == 1 && p.DesignModel != nil
 		})).Return(nil).Once()
@@ -115,9 +117,13 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 		// Reload after create
 		mockProductRepo.On("GetByID", mock.Anything, mock.AnythingOfType("string")).
 			Return(&domain.Product{
-				Name:        inputFull.Name,
-				CategoryID:  inputFull.CategoryID,
-				Fabrics:     []domain.ProductFabric{{Name: "Ripstop Cotton", IsDefault: true}},
+				Name:       inputFull.Name,
+				CategoryID: inputFull.CategoryID,
+				Fabrics: []domain.ProductFabric{{
+					MaterialID: "mat-123",
+					QtyPerUnit: 1.5,
+					IsDefault:  true,
+				}},
 				Wholesale:   []domain.WholesalePrice{{MinQty: 6, UnitPrice: 175000}},
 				DesignModel: &domain.ProductModel{Name: "Series 1 — Long Sleeve"},
 			}, nil).Once()
@@ -130,6 +136,7 @@ func TestProductUsecase_CreateProduct(t *testing.T) {
 		assert.NotNil(t, result.DesignModel)
 		mockCategoryRepo.AssertExpectations(t)
 		mockProductRepo.AssertExpectations(t)
+		mockMaterialRepo.AssertExpectations(t)
 	})
 
 	t.Run("Error - Category Not Found", func(t *testing.T) {

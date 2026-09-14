@@ -117,6 +117,36 @@ func (_m *ProductRepository) GetByID(ctx context.Context, id string) (*domain.Pr
 	return r0, r1
 }
 
+// GetProductFabric provides a mock function with given fields: ctx, productID, materialID
+func (_m *ProductRepository) GetProductFabric(ctx context.Context, productID string, materialID string) (*domain.ProductFabric, error) {
+	ret := _m.Called(ctx, productID, materialID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProductFabric")
+	}
+
+	var r0 *domain.ProductFabric
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*domain.ProductFabric, error)); ok {
+		return rf(ctx, productID, materialID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *domain.ProductFabric); ok {
+		r0 = rf(ctx, productID, materialID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.ProductFabric)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, productID, materialID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetBySlug provides a mock function with given fields: ctx, slug
 func (_m *ProductRepository) GetBySlug(ctx context.Context, slug string) (*domain.Product, error) {
 	ret := _m.Called(ctx, slug)

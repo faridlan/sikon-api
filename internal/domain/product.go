@@ -47,17 +47,11 @@ type FabricColorInput struct {
 }
 
 type ProductFabricInput struct {
-	FabricID        *string // Nullable/Optional jika terhubung ke master materials
-	QtyPerUnit      float64 // Kebutuhan konsumsi per unit (meter)
-	SpecTemplateID  *string // Nullable/Optional
-	Name            string
-	Description     string
-	Composition     string
-	CareInstruction string
-	BasePrice       float64
+	ID              string
+	MaterialID      string `validate:"required"`
+	QtyPerUnit      float64
 	PriceAdjustment float64
 	IsDefault       bool
-	Colors          []FabricColorInput
 }
 
 type WholesalePriceInput struct {
@@ -129,6 +123,7 @@ type ProductRepository interface {
 	Fetch(ctx context.Context, filter ProductFilter, limit, offset int) ([]Product, int64, error)
 	Update(ctx context.Context, product *Product) error
 	Delete(ctx context.Context, id string) error
+	GetProductFabric(ctx context.Context, productID, materialID string) (*ProductFabric, error)
 }
 
 type ProductUsecase interface {

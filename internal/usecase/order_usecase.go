@@ -139,19 +139,15 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 			Product:       product,
 		}
 
+		if len(product.Fabrics) > 0 && itemInput.FabricID == nil {
+			return nil, domain.NewError(domain.ErrBadParamInput,
+				"Produk '"+product.Name+"' punya pilihan kain, wajib pilih salah satu sebelum order bisa disimpan")
+		}
 		if itemInput.FabricID != nil && product != nil {
 			for _, pf := range product.Fabrics {
-				if (pf.FabricID != nil && *pf.FabricID == *itemInput.FabricID) || pf.ID == *itemInput.FabricID {
-					if pf.Fabric != nil {
-						item.Fabric = pf.Fabric
-					}
-					if itemInput.FabricColorID != nil {
-						for _, fc := range pf.Colors {
-							if fc.ID == *itemInput.FabricColorID {
-								item.FabricColor = &fc
-								break
-							}
-						}
+				if pf.MaterialID == *itemInput.FabricID {
+					if pf.Material != nil {
+						item.Fabric = pf.Material
 					}
 					break
 				}

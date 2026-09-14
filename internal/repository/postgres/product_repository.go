@@ -35,18 +35,11 @@ func (r *productRepository) Create(ctx context.Context, product *domain.Product)
 		}
 	}
 
-	// Sync ID Fabrics & Colors
+	// Sync ID Fabrics
 	for i := range product.Fabrics {
 		if i < len(model.Fabrics) {
 			product.Fabrics[i].ID = model.Fabrics[i].ID
 			product.Fabrics[i].ProductID = model.ID
-			for j := range product.Fabrics[i].Colors {
-				if j < len(model.Fabrics[i].Colors) {
-					product.Fabrics[i].Colors[j].ID = model.Fabrics[i].Colors[j].ID
-					fabricID := model.Fabrics[i].ID
-					product.Fabrics[i].Colors[j].FabricID = fabricID
-				}
-			}
 		}
 	}
 
@@ -78,11 +71,8 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 	if err := r.db.WithContext(ctx).
 		Preload("Category").
 		Preload("Images").
-		Preload("Fabrics.Fabric").
-		Preload("Fabrics.Fabric.Colors").
-		Preload("Fabrics.SpecTemplate").
-		Preload("Fabrics.SpecTemplate.Colors"). // Preload warna global milik Master SpecTemplate
-		Preload("Fabrics.Colors").
+		Preload("Fabrics.Material").
+		Preload("Fabrics.Material.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
 		Where("id = ?", id).
@@ -97,11 +87,8 @@ func (r *productRepository) GetBySlug(ctx context.Context, slug string) (*domain
 	if err := r.db.WithContext(ctx).
 		Preload("Category").
 		Preload("Images").
-		Preload("Fabrics.Fabric").
-		Preload("Fabrics.Fabric.Colors").
-		Preload("Fabrics.SpecTemplate").
-		Preload("Fabrics.SpecTemplate.Colors"). // Preload warna global milik Master SpecTemplate
-		Preload("Fabrics.Colors").
+		Preload("Fabrics.Material").
+		Preload("Fabrics.Material.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
 		Where("slug = ?", slug).
@@ -157,11 +144,8 @@ func (r *productRepository) Fetch(ctx context.Context, filter domain.ProductFilt
 	err := query.
 		Preload("Category").
 		Preload("Images").
-		Preload("Fabrics.Fabric").
-		Preload("Fabrics.Fabric.Colors").
-		Preload("Fabrics.SpecTemplate").
-		Preload("Fabrics.SpecTemplate.Colors"). // Preload warna global milik Master SpecTemplate
-		Preload("Fabrics.Colors").
+		Preload("Fabrics.Material").
+		Preload("Fabrics.Material.Colors").
 		Preload("Wholesale").
 		Preload("DesignModel.Views").
 		Limit(limit).
@@ -219,6 +203,19 @@ func (r *productRepository) Delete(ctx context.Context, id string) error {
 		return TranslateError(err)
 	}
 	return nil
+}
+
+func (r *productRepository) GetProductFabric(ctx context.Context, productID, materialID string) (*domain.ProductFabric, error) {
+	var model ProductFabricModel
+	err := r.db.WithContext(ctx).
+		Preload("Material").
+		Where("product_id = ? AND material_id = ?", productID, materialID).
+		First(&model).Error
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+	fab := model.ToDomain()
+	return &fab, nil
 }
 
 // --- HELPER FUNCTIONS FOR UPDATE SYNC ---
@@ -279,34 +276,6 @@ func syncProductFabrics(ctx context.Context, db *gorm.DB, productID string, fabr
 		} else {
 			if err := db.WithContext(ctx).Model(&ProductFabricModel{ID: fab.ID}).Updates(fab).Error; err != nil {
 				return TranslateError(err)
-			}
-			// Sync colors inside this fabric
-			var keptColorIDs []string
-			for _, c := range fab.Colors {
-				if c.ID != "" {
-					keptColorIDs = append(keptColorIDs, c.ID)
-				}
-			}
-			deleteColorQuery := db.WithContext(ctx).Where("fabric_id = ?", fab.ID)
-			if len(keptColorIDs) > 0 {
-				deleteColorQuery = deleteColorQuery.Where("id NOT IN ?", keptColorIDs)
-			}
-			if err := deleteColorQuery.Delete(&FabricColorModel{}).Error; err != nil {
-				return TranslateError(err)
-			}
-
-			for _, c := range fab.Colors {
-				fabricID := fab.ID
-				c.FabricID = &fabricID
-				if c.ID == "" {
-					if err := db.WithContext(ctx).Create(&c).Error; err != nil {
-						return TranslateError(err)
-					}
-				} else {
-					if err := db.WithContext(ctx).Model(&FabricColorModel{ID: c.ID}).Updates(c).Error; err != nil {
-						return TranslateError(err)
-					}
-				}
 			}
 		}
 	}

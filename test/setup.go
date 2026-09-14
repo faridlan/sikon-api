@@ -131,7 +131,7 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtSecret, 24*time.Hour, timeout)
 	userUsecase := usecase.NewUserUsecase(userRepo, storageService, txManager, timeout)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, timeout)
-	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout)
+	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout, materialRepo)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
 	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout)

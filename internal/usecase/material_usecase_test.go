@@ -399,9 +399,9 @@ func TestProductMaterialUsecase_CalculateMaterialCost(t *testing.T) {
 			ID: productID,
 			Fabrics: []domain.ProductFabric{
 				{
-					FabricID:   &fabricID,
+					MaterialID: fabricID,
 					QtyPerUnit: 1.5,
-					Fabric: &domain.Material{
+					Material: &domain.Material{
 						UnitPrice: 30000, // 1.5 * 30.000 * 10 = 450.000
 					},
 				},

@@ -117,9 +117,8 @@ func (u *specTemplateUsecase) UpdateSpecTemplate(c context.Context, id string, i
 		var newColors []domain.FabricColor
 		for _, c := range input.Colors {
 			newColors = append(newColors, domain.FabricColor{
-				SpecTemplateID: &id,
-				Name:           c.Name,
-				HexCode:        c.HexCode,
+				Name:    c.Name,
+				HexCode: c.HexCode,
 			})
 		}
 		existingSpecTemplate.Colors = newColors

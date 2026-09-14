@@ -127,7 +127,7 @@ func main() {
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtSecret, jwtTTL, contextTimeout)
 	userUsecase := usecase.NewUserUsecase(userRepo, storageService, txManager, contextTimeout)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepo, contextTimeout)
-	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, contextTimeout)
+	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, contextTimeout, materialRepo)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, contextTimeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, contextTimeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, contextTimeout)

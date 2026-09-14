@@ -286,12 +286,12 @@ func (u *productMaterialUsecase) CalculateMaterialCost(c context.Context, produc
 			product, err := u.productRepo.GetByID(ctx, productID)
 			if err == nil && product != nil {
 				for _, pf := range product.Fabrics {
-					if (pf.FabricID != nil && *pf.FabricID == chosenFabricID) || pf.ID == chosenFabricID {
+					if pf.MaterialID == chosenFabricID {
 						if pf.QtyPerUnit > 0 {
 							consumption = pf.QtyPerUnit
 						}
-						if pf.Fabric != nil && pf.Fabric.UnitPrice > 0 {
-							unitPrice = pf.Fabric.UnitPrice
+						if pf.Material != nil && pf.Material.UnitPrice > 0 {
+							unitPrice = pf.Material.UnitPrice
 						}
 						break
 					}
