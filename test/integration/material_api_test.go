@@ -91,9 +91,8 @@ func TestMaterial_And_DynamicHPP_Integration(t *testing.T) {
 			BasePrice:   125000,
 			Fabrics: []dto.ProductFabricRequest{
 				{
-					FabricID:   &createdFabricID,
+					MaterialID: createdFabricID,
 					QtyPerUnit: 1.5,
-					BasePrice:  125000,
 					IsDefault:  true,
 				},
 			},
@@ -113,11 +112,12 @@ func TestMaterial_And_DynamicHPP_Integration(t *testing.T) {
 
 		assert.Equal(t, "Kemeja PDH Dinas", res.Data.Name)
 		assert.Len(t, res.Data.Fabrics, 1)
-		assert.Equal(t, &createdFabricID, res.Data.Fabrics[0].FabricID)
+		assert.Equal(t, createdFabricID, res.Data.Fabrics[0].MaterialID)
 		assert.Equal(t, 1.5, res.Data.Fabrics[0].QtyPerUnit)
 		// Nama dan colors harus otomatis ter-fallback dari Master Material!
-		assert.Equal(t, "American Drill 1919", res.Data.Fabrics[0].Name)
-		assert.Len(t, res.Data.Fabrics[0].Colors, 2)
+		assert.NotNil(t, res.Data.Fabrics[0].Material)
+		assert.Equal(t, "American Drill 1919", res.Data.Fabrics[0].Material.Name)
+		assert.Len(t, res.Data.Fabrics[0].Material.Colors, 2)
 
 		productID = res.Data.ID
 	})

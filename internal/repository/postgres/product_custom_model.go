@@ -7,13 +7,11 @@ import (
 )
 
 type FabricColorModel struct {
-	ID             string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	MaterialID     *string   `gorm:"type:uuid;index"`
-	FabricID       *string   `gorm:"type:uuid;index"`
-	SpecTemplateID *string   `gorm:"type:uuid;index"`
-	Name           string    `gorm:"type:varchar(100);not null"`
-	HexCode        string    `gorm:"type:varchar(20);not null"`
-	CreatedAt      time.Time `gorm:"autoCreateTime"`
+	ID         string    `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	MaterialID *string   `gorm:"type:uuid;not null;index"`
+	Name       string    `gorm:"type:varchar(100);not null"`
+	HexCode    string    `gorm:"type:varchar(20);not null"`
+	CreatedAt  time.Time `gorm:"autoCreateTime"`
 }
 
 func (FabricColorModel) TableName() string {
@@ -22,13 +20,11 @@ func (FabricColorModel) TableName() string {
 
 func (m *FabricColorModel) ToDomain() domain.FabricColor {
 	return domain.FabricColor{
-		ID:             m.ID,
-		MaterialID:     m.MaterialID,
-		FabricID:       m.FabricID,
-		SpecTemplateID: m.SpecTemplateID,
-		Name:           m.Name,
-		HexCode:        m.HexCode,
-		CreatedAt:      m.CreatedAt,
+		ID:         m.ID,
+		MaterialID: m.MaterialID,
+		Name:       m.Name,
+		HexCode:    m.HexCode,
+		CreatedAt:  m.CreatedAt,
 	}
 }
 

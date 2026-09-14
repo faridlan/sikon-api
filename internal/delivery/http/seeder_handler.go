@@ -136,7 +136,6 @@ func (h *seederHandler) Clear(c *fiber.Ctx) error {
 	h.db.Unscoped().Where("name LIKE ?", "Dummy Mat%").Delete(&postgresRepo.MaterialModel{})
 	h.db.Unscoped().Where("email LIKE ?", "%_dummy@sikon.com").Delete(&postgresRepo.UserModel{}) // 👈 Hapus User SETELAH Customer
 	h.db.Unscoped().Where("account_number = ?", "999888777").Delete(&postgresRepo.BankAccountModel{})
-	h.db.Unscoped().Where("name LIKE ?", "Dummy Spec%").Delete(&postgresRepo.SpecTemplateModel{})
 
 	return utils.SendSuccess(c, fiber.StatusOK, "Berhasil membersihkan data seeder", nil)
 }
@@ -258,74 +257,6 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 
 	h.db.Create(&bankAccount)
 
-	// --- 2. SETUP MASTER SPEC TEMPLATE (KAIN GLOBAL) ---
-	specRipstopID := uuid.NewString()
-	specRipstop := postgresRepo.SpecTemplateModel{
-		ID:              specRipstopID,
-		Name:            "Dummy Spec Ripstop Cotton",
-		Spec:            "Bahan ripstop serat kotak anti robek, kuat, cocok untuk kemeja & rompi outdoor.",
-		Description:     "Kain dengan konstruksi jalinan benang serat kotak presisi.",
-		Composition:     "65% Cotton / 35% Polyester",
-		CareInstruction: "Cuci mesin air dingin, jangan gunakan pemutih.",
-		Colors: []postgresRepo.FabricColorModel{
-			{ID: uuid.NewString(), SpecTemplateID: &specRipstopID, Name: "Olive", HexCode: "#4b5320"},
-			{ID: uuid.NewString(), SpecTemplateID: &specRipstopID, Name: "Black", HexCode: "#000000"},
-			{ID: uuid.NewString(), SpecTemplateID: &specRipstopID, Name: "Khaki", HexCode: "#c2b280"},
-		},
-	}
-
-	specAmericanID := uuid.NewString()
-
-	specAmerican := postgresRepo.SpecTemplateModel{
-		ID:              specAmericanID,
-		Name:            "Dummy Spec American Drill",
-		Spec:            "Tekstur miring sedang, menyerap keringat dengan baik, warna tahan lama.",
-		Description:     "Bahan drill populer untuk seragam lapangan dan kantor.",
-		Composition:     "65% Polyester / 35% Viscose",
-		CareInstruction: "Setrika suhu sedang, jemur di tempat teduh.",
-		Colors: []postgresRepo.FabricColorModel{
-			{ID: uuid.NewString(), SpecTemplateID: &specAmericanID, Name: "Navy", HexCode: "#1b263b"},
-			{ID: uuid.NewString(), SpecTemplateID: &specAmericanID, Name: "Khaki", HexCode: "#c2b280"},
-			{ID: uuid.NewString(), SpecTemplateID: &specAmericanID, Name: "Maroon", HexCode: "#800000"},
-		},
-	}
-
-	specNagataID := uuid.NewString()
-	specNagata := postgresRepo.SpecTemplateModel{
-		ID:              specNagataID,
-		Name:            "Dummy Spec Nagata Drill",
-		Spec:            "Tekstur serat lebih tebal, lembut, adem dan sangat nyaman dipakai.",
-		Description:     "Kain drill kelas premium untuk pakaian kerja eksklusif.",
-		Composition:     "100% Cotton Premium",
-		CareInstruction: "Cuci dengan warna serupa, hindari pengering panas.",
-		Colors: []postgresRepo.FabricColorModel{
-			{ID: uuid.NewString(), SpecTemplateID: &specNagataID, Name: "Putih", HexCode: "#ffffff"},
-			{ID: uuid.NewString(), SpecTemplateID: &specNagataID, Name: "Hitam", HexCode: "#000000"},
-			{ID: uuid.NewString(), SpecTemplateID: &specNagataID, Name: "Grey", HexCode: "#808080"},
-		},
-	}
-
-	specLacosteID := uuid.NewString()
-
-	specLacoste := postgresRepo.SpecTemplateModel{
-		ID:              specLacosteID,
-		Name:            "Dummy Spec Lacoste CVC",
-		Spec:            "Rajutan pique berpori khas polo shirt, adem, dan tidak mudah berserabut.",
-		Description:     "Bahan kain kaos berkerah dengan tekstur honeycomb.",
-		Composition:     "60% Cotton / 40% Polyester",
-		CareInstruction: "Jangan diperas terlalu kuat, gantung saat menjemur.",
-		Colors: []postgresRepo.FabricColorModel{
-			{ID: uuid.NewString(), SpecTemplateID: &specLacosteID, Name: "Navy", HexCode: "#1b263b"},
-			{ID: uuid.NewString(), SpecTemplateID: &specLacosteID, Name: "Red", HexCode: "#ff0000"},
-			{ID: uuid.NewString(), SpecTemplateID: &specLacosteID, Name: "White", HexCode: "#ffffff"},
-		},
-	}
-
-	h.db.Create(&specRipstop)
-	h.db.Create(&specAmerican)
-	h.db.Create(&specNagata)
-	h.db.Create(&specLacoste)
-
 	// --- 2b. SETUP MASTER MATERIAL (BOM BAHAN BAKU HPP) ---
 	matRipstopID := uuid.NewString()
 	matRipstop := postgresRepo.MaterialModel{
@@ -334,6 +265,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		Unit:      "meter",
 		UnitPrice: 25000,
 		Category:  "kain",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), MaterialID: &matRipstopID, Name: "Olive", HexCode: "#4b5320"},
+			{ID: uuid.NewString(), MaterialID: &matRipstopID, Name: "Black", HexCode: "#000000"},
+			{ID: uuid.NewString(), MaterialID: &matRipstopID, Name: "Khaki", HexCode: "#c2b280"},
+		},
 	}
 
 	matAmericanID := uuid.NewString()
@@ -343,6 +279,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		Unit:      "meter",
 		UnitPrice: 28000,
 		Category:  "kain",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), MaterialID: &matAmericanID, Name: "Navy", HexCode: "#1b263b"},
+			{ID: uuid.NewString(), MaterialID: &matAmericanID, Name: "Khaki", HexCode: "#c2b280"},
+			{ID: uuid.NewString(), MaterialID: &matAmericanID, Name: "Maroon", HexCode: "#800000"},
+		},
 	}
 
 	matNagataID := uuid.NewString()
@@ -352,6 +293,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		Unit:      "meter",
 		UnitPrice: 35000,
 		Category:  "kain",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), MaterialID: &matNagataID, Name: "Putih", HexCode: "#ffffff"},
+			{ID: uuid.NewString(), MaterialID: &matNagataID, Name: "Hitam", HexCode: "#000000"},
+			{ID: uuid.NewString(), MaterialID: &matNagataID, Name: "Grey", HexCode: "#808080"},
+		},
 	}
 
 	matLacosteID := uuid.NewString()
@@ -361,6 +307,11 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 		Unit:      "meter",
 		UnitPrice: 30000,
 		Category:  "kain",
+		Colors: []postgresRepo.FabricColorModel{
+			{ID: uuid.NewString(), MaterialID: &matLacosteID, Name: "Navy", HexCode: "#1b263b"},
+			{ID: uuid.NewString(), MaterialID: &matLacosteID, Name: "Red", HexCode: "#ff0000"},
+			{ID: uuid.NewString(), MaterialID: &matLacosteID, Name: "White", HexCode: "#ffffff"},
+		},
 	}
 
 	matKancingID := uuid.NewString()
@@ -548,7 +499,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			{
 				ID:              fab1Kemeja1,
 				ProductID:       prodKemeja1ID,
-				MaterialID:      specRipstop.ID,
+				MaterialID:      matRipstopID,
 				QtyPerUnit:      1.5,
 				PriceAdjustment: 0,
 				IsDefault:       true,
@@ -594,7 +545,7 @@ func (h *seederHandler) Generate(c *fiber.Ctx) error {
 			{
 				ID:              fab1Kemeja2,
 				ProductID:       prodKemeja2ID,
-				MaterialID:      specAmerican.ID,
+				MaterialID:      matAmericanID,
 				QtyPerUnit:      1.5,
 				PriceAdjustment: 0,
 				IsDefault:       true,

@@ -53,6 +53,33 @@ func SeedFullCustomProduct(db *gorm.DB, categoryID string, name string, price fl
 	fabricID := uuid.New().String()
 	designerID := uuid.New().String()
 
+	material := postgres.MaterialModel{
+		ID:              fabricID,
+		Name:            "Ripstop Cotton 65/35",
+		Unit:            "meter",
+		UnitPrice:       35000,
+		Category:        "kain",
+		Description:     "Kuat & anti robek, 210gsm",
+		Composition:     "65% Cotton / 35% Polyester",
+		CareInstruction: "Cuci mesin air dingin",
+		GSMInfo:         "210gsm",
+		Colors: []postgres.FabricColorModel{
+			{
+				ID:         uuid.New().String(),
+				MaterialID: &fabricID,
+				Name:       "Olive",
+				HexCode:    "#4b5320",
+			},
+			{
+				ID:         uuid.New().String(),
+				MaterialID: &fabricID,
+				Name:       "Navy",
+				HexCode:    "#1b263b",
+			},
+		},
+	}
+	db.Create(&material)
+
 	product := postgres.ProductModel{
 		ID:            productID,
 		CategoryID:    categoryID,
@@ -265,16 +292,6 @@ func SeedPayment(db *gorm.DB, orderID, bankAccountID string, amount float64, pay
 	}
 	db.Create(&payment)
 	return payment
-}
-
-func SeedSpecTemplate(db *gorm.DB, name, spec string) postgres.SpecTemplateModel {
-	specTemplate := postgres.SpecTemplateModel{
-		ID:   uuid.New().String(),
-		Name: name,
-		Spec: spec,
-	}
-	db.Create(&specTemplate)
-	return specTemplate
 }
 
 func SeedExpenseCategory(db *gorm.DB, name, expenseType, description string) postgres.ExpenseCategoryModel {

@@ -6,13 +6,11 @@ import "time"
 // Kalau kain "American Drill" punya warna Khaki/Olive/Black, warna itu berlaku di SEMUA produk
 // yang pakai kain ini — bukan diulang-ulang per produk.
 type FabricColor struct {
-	ID             string
-	MaterialID     *string
-	FabricID       *string
-	SpecTemplateID *string
-	Name           string
-	HexCode        string
-	CreatedAt      time.Time
+	ID         string
+	MaterialID *string
+	Name       string
+	HexCode    string
+	CreatedAt  time.Time
 }
 
 // ProductFabric = link Product <-> Material (kain), plus qty konsumsi & markup harga jual

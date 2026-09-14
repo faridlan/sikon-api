@@ -12,26 +12,25 @@ import (
 
 // Handlers struct menampung semua instance handler untuk mempermudah Dependency Injection
 type Handlers struct {
-	AuthHandler         AuthHandler
-	UserHandler         UserHandler
-	CategoryHandler     CategoryHandler
-	CustomerHandler     CustomerHandler
-	ProductHandler      ProductHandler
-	BankAccountHandler  BankAccountHandler
-	OrderHandler        OrderHandler
-	PaymentHandler      PaymentHandler
-	SpecTemplateHandler SpecTemplateHandler
-	DashboardHandler    DashboardHandler
-	ReportHandler       ReportHandler
-	BatchPOHandler      BatchPOHandler
-	UploadHandler       UploadHandler
-	ExpenseHandler      ExpenseHandler
-	SeederHandler       SeederHandler
-	WorkerHandler       WorkerHandler
-	WorkLogHandler      WorkLogHandler
-	PayrollHandler      PayrollHandler
-	AttendanceHandler   AttendanceHandler
-	MaterialHandler     MaterialHandler
+	AuthHandler        AuthHandler
+	UserHandler        UserHandler
+	CategoryHandler    CategoryHandler
+	CustomerHandler    CustomerHandler
+	ProductHandler     ProductHandler
+	BankAccountHandler BankAccountHandler
+	OrderHandler       OrderHandler
+	PaymentHandler     PaymentHandler
+	DashboardHandler   DashboardHandler
+	ReportHandler      ReportHandler
+	BatchPOHandler     BatchPOHandler
+	UploadHandler      UploadHandler
+	ExpenseHandler     ExpenseHandler
+	SeederHandler      SeederHandler
+	WorkerHandler      WorkerHandler
+	WorkLogHandler     WorkLogHandler
+	PayrollHandler     PayrollHandler
+	AttendanceHandler  AttendanceHandler
+	MaterialHandler    MaterialHandler
 }
 
 // SetupRoutes mengatur seluruh rute API aplikasi SIKOn menggunakan parameter struct Handlers & jwtSecret
@@ -158,14 +157,6 @@ func SetupRoutes(app *fiber.App, handlers Handlers, jwtSecret string) {
 	payments.Put("/:id", guardFinance, handlers.PaymentHandler.UpdatePayment)
 	payments.Patch("/:id/verify", guardFinance, handlers.PaymentHandler.VerifyPayment) // Approval Keuangan
 	payments.Delete("/:id", guardOwner, handlers.PaymentHandler.DeletePayment)
-
-	// --- Spec Templates Routes (Pengaturan Spesifikasi Produksi) ---
-	specTemplates := protected.Group("/spec-templates")
-	specTemplates.Get("/", guardInternal, handlers.SpecTemplateHandler.ListSpecTemplates)
-	specTemplates.Get("/:id", guardInternal, handlers.SpecTemplateHandler.GetSpecTemplate)
-	specTemplates.Post("/", guardOwner, handlers.SpecTemplateHandler.CreateSpecTemplate)
-	specTemplates.Put("/:id", guardOwner, handlers.SpecTemplateHandler.UpdateSpecTemplate)
-	specTemplates.Delete("/:id", guardOwner, handlers.SpecTemplateHandler.DeleteSpecTemplate)
 
 	// --- Expenses Routes (Khusus Finance/Accounting & Owner) ---
 	expenses := protected.Group("/expenses")

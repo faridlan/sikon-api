@@ -54,6 +54,12 @@ func TestCreateProduct_Integration(t *testing.T) {
 	})
 
 	t.Run("Success_Full_Custom_Product", func(t *testing.T) {
+		material := tests.SeedMaterial(db, "Ripstop Cotton 65/35", "meter", 35000, "kain")
+		color1 := postgres.FabricColorModel{ID: uuid.New().String(), MaterialID: &material.ID, Name: "Olive", HexCode: "#4b5320"}
+		color2 := postgres.FabricColorModel{ID: uuid.New().String(), MaterialID: &material.ID, Name: "Navy", HexCode: "#1b263b"}
+		db.Create(&color1)
+		db.Create(&color2)
+
 		reqBody := dto.ProductCreateRequest{
 			CategoryID:    category.ID,
 			Name:          "Kemeja Taktikal Premium 7200",
@@ -65,16 +71,9 @@ func TestCreateProduct_Integration(t *testing.T) {
 			ImageURLs:     []string{"https://example.com/front.jpg", "https://example.com/back.jpg"},
 			Fabrics: []dto.ProductFabricRequest{
 				{
-					Name:            "Ripstop Cotton 65/35",
-					Description:     "Kuat & anti robek, 210gsm",
-					Composition:     "65% Cotton / 35% Polyester",
-					CareInstruction: "Cuci mesin air dingin",
-					BasePrice:       185000,
-					IsDefault:       true,
-					Colors: []dto.FabricColorRequest{
-						{Name: "Olive", HexCode: "#4b5320"},
-						{Name: "Navy", HexCode: "#1b263b"},
-					},
+					MaterialID: material.ID,
+					QtyPerUnit: 1.5,
+					IsDefault:  true,
 				},
 			},
 			Wholesale: []dto.WholesalePriceRequest{
@@ -106,7 +105,9 @@ func TestCreateProduct_Integration(t *testing.T) {
 		assert.Equal(t, "Kemeja Taktikal Premium 7200", response.Data.Name)
 		assert.Equal(t, 2, len(response.Data.Images))
 		assert.Equal(t, 1, len(response.Data.Fabrics))
-		assert.Equal(t, 2, len(response.Data.Fabrics[0].Colors))
+		assert.Equal(t, material.ID, response.Data.Fabrics[0].MaterialID)
+		assert.NotNil(t, response.Data.Fabrics[0].Material)
+		assert.Equal(t, 2, len(response.Data.Fabrics[0].Material.Colors))
 		assert.Equal(t, 1, len(response.Data.Wholesale))
 		assert.NotNil(t, response.Data.DesignModel)
 		assert.Equal(t, 2, len(response.Data.DesignModel.Views))
@@ -308,15 +309,15 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		}
 		db.Create(&oldImage)
 
+		matDrill := tests.SeedMaterial(db, "Drill Premium", "meter", 40000, "kain")
+
 		reqBody := dto.ProductUpdateRequest{
 			ImageURLs: []string{"https://example.com/gambar-baru.jpg"},
 			Fabrics: []dto.ProductFabricRequest{
 				{
-					Name:      "Drill Premium",
-					BasePrice: 175000,
-					Colors: []dto.FabricColorRequest{
-						{Name: "Black", HexCode: "#000000"},
-					},
+					MaterialID: matDrill.ID,
+					QtyPerUnit: 1.5,
+					IsDefault:  true,
 				},
 			},
 		}
@@ -336,7 +337,9 @@ func TestUpdateProduct_Integration(t *testing.T) {
 		assert.Equal(t, 1, len(response.Data.Images))
 		assert.Equal(t, "https://example.com/gambar-baru.jpg", response.Data.Images[0].ImageURL)
 		assert.Equal(t, 1, len(response.Data.Fabrics))
-		assert.Equal(t, "Drill Premium", response.Data.Fabrics[0].Name)
+		assert.Equal(t, matDrill.ID, response.Data.Fabrics[0].MaterialID)
+		assert.NotNil(t, response.Data.Fabrics[0].Material)
+		assert.Equal(t, "Drill Premium", response.Data.Fabrics[0].Material.Name)
 	})
 
 	t.Run("Failed_NotFound", func(t *testing.T) {

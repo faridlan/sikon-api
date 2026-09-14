@@ -62,6 +62,16 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 
 	db.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`)
 
+	// Bersihkan tabel sebelum AutoMigrate agar ALTER TABLE ... NOT NULL tidak gagal karena baris lama yang NULL
+	db.Exec(`
+		DO $$ 
+		BEGIN 
+			IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'product_fabrics') THEN 
+				TRUNCATE TABLE product_fabrics, fabric_colors RESTART IDENTITY CASCADE; 
+			END IF; 
+		END $$;
+	`)
+
 	// Jalankan AutoMigrate agar seluruh tabel terbuat secara dinamis di DB test
 	db.AutoMigrate(
 		&postgres.CategoryModel{},
@@ -78,7 +88,6 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 		&postgres.OrderModel{},
 		&postgres.OrderItemModel{},
 		&postgres.PaymentModel{},
-		&postgres.SpecTemplateModel{},
 		&postgres.BatchPOModel{},
 		&postgres.ExpenseCategoryModel{},
 		&postgres.ExpenseModel{},
@@ -114,7 +123,6 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	bankAccountRepo := postgres.NewBankAccountRepository(db)
 	orderRepo := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
-	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
 	txManager := postgres.NewTransactionManager(db)
 	dashboardRepo := postgres.NewDashboardRepository(db)
 	reportRepo := postgres.NewReportRepository(db)
@@ -134,7 +142,6 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 	productUsecase := usecase.NewProductUsecase(productRepo, categoryRepo, storageService, txManager, timeout, materialRepo)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo, userRepo, timeout)
 	bankAccountUsecase := usecase.NewBankAccountUsecase(bankAccountRepo, timeout)
-	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, timeout)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, timeout)
 	reportUsecase := usecase.NewReportUsecase(reportRepo, timeout)
 	batchPOUsecase := usecase.NewBatchPOUsecase(batchPORepo, timeout)
@@ -151,26 +158,25 @@ func SetupTestApp() (*fiber.App, *gorm.DB) {
 
 	// 3. Setup Fiber Handlers
 	handlers := myHttp.Handlers{
-		AuthHandler:         myHttp.NewAuthHandler(authUsecase),
-		UserHandler:         myHttp.NewUserHandler(userUsecase),
-		CategoryHandler:     myHttp.NewCategoryHandler(categoryUsecase),
-		ProductHandler:      myHttp.NewProductHandler(productUsecase),
-		CustomerHandler:     myHttp.NewCustomerHandler(customerUsecase),
-		BankAccountHandler:  myHttp.NewBankAccountHandler(bankAccountUsecase),
-		OrderHandler:        myHttp.NewOrderHandler(orderUsecase),
-		PaymentHandler:      myHttp.NewPaymentHandler(paymentUsecase),
-		SpecTemplateHandler: myHttp.NewSpecTemplateHandler(specTemplateUsecase),
-		DashboardHandler:    myHttp.NewDashboardHandler(dashboardUsecase),
-		ReportHandler:       myHttp.NewReportHandler(reportUsecase),
-		BatchPOHandler:      myHttp.NewBatchPOHandler(batchPOUsecase),
-		UploadHandler:       myHttp.NewUploadHandler(uploadUsecase),
-		ExpenseHandler:      myHttp.NewExpenseHandler(expenseUsecase),
-		SeederHandler:       myHttp.NewSeederHandler(db, storageService),
-		WorkerHandler:       myHttp.NewWorkerHandler(workerUsecase),
-		WorkLogHandler:      myHttp.NewWorkLogHandler(workLogUsecase),
-		PayrollHandler:      myHttp.NewPayrollHandler(payrollUsecase),
-		AttendanceHandler:   myHttp.NewAttendanceHandler(attendanceUsecase),
-		MaterialHandler:     myHttp.NewMaterialHandler(materialUsecase, productMaterialUsecase),
+		AuthHandler:        myHttp.NewAuthHandler(authUsecase),
+		UserHandler:        myHttp.NewUserHandler(userUsecase),
+		CategoryHandler:    myHttp.NewCategoryHandler(categoryUsecase),
+		ProductHandler:     myHttp.NewProductHandler(productUsecase),
+		CustomerHandler:    myHttp.NewCustomerHandler(customerUsecase),
+		BankAccountHandler: myHttp.NewBankAccountHandler(bankAccountUsecase),
+		OrderHandler:       myHttp.NewOrderHandler(orderUsecase),
+		PaymentHandler:     myHttp.NewPaymentHandler(paymentUsecase),
+		DashboardHandler:   myHttp.NewDashboardHandler(dashboardUsecase),
+		ReportHandler:      myHttp.NewReportHandler(reportUsecase),
+		BatchPOHandler:     myHttp.NewBatchPOHandler(batchPOUsecase),
+		UploadHandler:      myHttp.NewUploadHandler(uploadUsecase),
+		ExpenseHandler:     myHttp.NewExpenseHandler(expenseUsecase),
+		SeederHandler:      myHttp.NewSeederHandler(db, storageService),
+		WorkerHandler:      myHttp.NewWorkerHandler(workerUsecase),
+		WorkLogHandler:     myHttp.NewWorkLogHandler(workLogUsecase),
+		PayrollHandler:     myHttp.NewPayrollHandler(payrollUsecase),
+		AttendanceHandler:  myHttp.NewAttendanceHandler(attendanceUsecase),
+		MaterialHandler:    myHttp.NewMaterialHandler(materialUsecase, productMaterialUsecase),
 	}
 
 	app := fiber.New()
@@ -241,7 +247,6 @@ func ClearTables(db *gorm.DB) {
 	db.Exec("TRUNCATE TABLE orders RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE order_items RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE;")
-	db.Exec("TRUNCATE TABLE spec_templates RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE batch_pos RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE attendances RESTART IDENTITY CASCADE;")
 	db.Exec("TRUNCATE TABLE materials RESTART IDENTITY CASCADE;")

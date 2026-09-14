@@ -108,7 +108,6 @@ func main() {
 	bankAccountRepo := postgres.NewBankAccountRepository(db)
 	orderRepo := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
-	specTemplateRepo := postgres.NewSpecTemplateRepository(db)
 	txManager := postgres.NewTransactionManager(db)
 	dashboardRepo := postgres.NewDashboardRepository(db)
 	reportRepo := postgres.NewReportRepository(db)
@@ -141,7 +140,6 @@ func main() {
 
 	productMaterialUsecase := usecase.NewProductMaterialUsecase(productMaterialRepo, productRepo, materialRepo, txManager, contextTimeout)
 	paymentUsecase := usecase.NewPaymentUsecase(paymentRepo, orderRepo, bankAccountRepo, txManager, batchPORepo, productMaterialUsecase, contextTimeout)
-	specTemplateUsecase := usecase.NewSpecTemplateUsecase(specTemplateRepo, contextTimeout)
 	attendanceUsecase := usecase.NewAttendanceUsecase(attendanceRepo, workerRepo, contextTimeout)
 	materialUsecase := usecase.NewMaterialUsecase(materialRepo, contextTimeout)
 	orderUsecase := usecase.NewOrderUsecase(orderRepo, customerRepo, userRepo, productRepo, batchPORepo, paymentRepo, txManager, productMaterialUsecase, workLogRepo, contextTimeout)
@@ -156,7 +154,6 @@ func main() {
 	bankAccountHandler := myHttp.NewBankAccountHandler(bankAccountUsecase)
 	orderHandler := myHttp.NewOrderHandler(orderUsecase)
 	paymentHandler := myHttp.NewPaymentHandler(paymentUsecase)
-	specTemplateHandler := myHttp.NewSpecTemplateHandler(specTemplateUsecase)
 	dashboardHandler := myHttp.NewDashboardHandler(dashboardUsecase)
 	reportHandler := myHttp.NewReportHandler(reportUsecase)
 	batchPOHandler := myHttp.NewBatchPOHandler(batchPOUsecase)
@@ -172,26 +169,25 @@ func main() {
 	// 4. BUNGKUS HANDLERS
 	// ==========================================
 	handlers := myHttp.Handlers{
-		AuthHandler:         authHandler,
-		UserHandler:         userHandler,
-		CategoryHandler:     categoryHandler,
-		CustomerHandler:     customerHandler,
-		ProductHandler:      productHandler,
-		BankAccountHandler:  bankAccountHandler,
-		OrderHandler:        orderHandler,
-		PaymentHandler:      paymentHandler,
-		SpecTemplateHandler: specTemplateHandler,
-		DashboardHandler:    dashboardHandler,
-		ReportHandler:       reportHandler,
-		BatchPOHandler:      batchPOHandler,
-		UploadHandler:       uploadHandler,
-		ExpenseHandler:      expenseHandler,
-		SeederHandler:       seederHandler,
-		WorkerHandler:       workerHandler,
-		WorkLogHandler:      workLogHandler,
-		PayrollHandler:      payrollHandler,
-		AttendanceHandler:   attendanceHandler,
-		MaterialHandler:     materialHandler,
+		AuthHandler:        authHandler,
+		UserHandler:        userHandler,
+		CategoryHandler:    categoryHandler,
+		CustomerHandler:    customerHandler,
+		ProductHandler:     productHandler,
+		BankAccountHandler: bankAccountHandler,
+		OrderHandler:       orderHandler,
+		PaymentHandler:     paymentHandler,
+		DashboardHandler:   dashboardHandler,
+		ReportHandler:      reportHandler,
+		BatchPOHandler:     batchPOHandler,
+		UploadHandler:      uploadHandler,
+		ExpenseHandler:     expenseHandler,
+		SeederHandler:      seederHandler,
+		WorkerHandler:      workerHandler,
+		WorkLogHandler:     workLogHandler,
+		PayrollHandler:     payrollHandler,
+		AttendanceHandler:  attendanceHandler,
+		MaterialHandler:    materialHandler,
 	}
 
 	// ==========================================

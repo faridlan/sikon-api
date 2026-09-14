@@ -148,6 +148,15 @@ func (u *orderUsecase) CreateOrder(c context.Context, input domain.OrderCreateIn
 				if pf.MaterialID == *itemInput.FabricID {
 					if pf.Material != nil {
 						item.Fabric = pf.Material
+						if itemInput.FabricColorID != nil {
+							for _, col := range pf.Material.Colors {
+								if col.ID == *itemInput.FabricColorID {
+									colCopy := col
+									item.FabricColor = &colCopy
+									break
+								}
+							}
+						}
 					}
 					break
 				}
